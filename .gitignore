@@ -28,3 +28,4 @@ java/app/.zed/
 java/.gradle/
 java/.kotlin/
 java/build/
+java/app/build/

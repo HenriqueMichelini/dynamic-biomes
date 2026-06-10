@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.github.henriquemichelini.dynamicbiomes.DynamicBiomesTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-06-10T09:06:14.230Z" hostname="fedora" time="0.028">
-  <properties/>
-  <testcase name="contextLoads()" classname="io.github.henriquemichelini.dynamicbiomes.DynamicBiomesTest" time="0.015"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
