@@ -31,3 +31,15 @@ java {
 tasks.test {
     useJUnitPlatform()
 }
+
+tasks.processResources {
+    val props = mapOf(
+        "version" to project.version.toString()
+    )
+
+    inputs.properties(props)
+
+    filesMatching(listOf("plugin.yml", "paper-plugin.yml")) {
+        expand(props)
+    }
+}

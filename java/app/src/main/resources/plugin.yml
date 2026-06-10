@@ -1,0 +1,4 @@
+name: dynamic-biomes
+version: "${version}"
+main: io.github.henriquemichelini.dynamicbiomes.DynamicBiomes
+api-version: '1.21'
