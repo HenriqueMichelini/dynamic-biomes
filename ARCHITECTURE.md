@@ -37,7 +37,7 @@ Layers are used only when a capability needs them. **Do not create empty layer p
                                 ▼
                  ┌─────────────────────────────────────┐
                  │   UPSTREAM ENVIRONMENTAL CONTEXTS    │
-                 │   biome, seasons, spatial            │
+                 │   biome, seasons                     │
                  │ describe environmental conditions    │
                  └─────────────────────────────────────┘
 ```
@@ -50,7 +50,95 @@ Rules:
 - Feature domains may import upstream vocabulary/ports, but **never upstream infrastructure**.
 - Upstream contexts do not depend on downstream contexts.
 
-## 4. Anti-Coupling Rules
+## 4. Published Language
+
+Downstream feature contexts must consume only explicitly published upstream contracts. Feature domains must not import arbitrary internal packages from `biome` or `seasons`.
+
+### 4.1 What Is Published
+
+- **Biome identity and resolution**: `BiomeId`, `BiomeContext`, `BiomeResolver` port.
+- **Biome static profile**: `BiomeProfile`, `BiomeProfileProvider` port, `BiomeTag`, `ClimateProfile`, `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure`.
+- **Season identity and query**: `SeasonId`, `CurrentSeasonQuery` port, `SeasonProfile`, `SeasonProfileProvider` port.
+- **Spatial vocabulary**: `WorldReference`, `BlockPosition`, `ChunkPosition`, `EcologicalRegionId`.
+- **Dynamic ecological state**: `EcologicalRegionState` as an entity concept; exposed to downstream contexts through `BiomeContext` or explicit read/query ports. The repository port is owned by `biome/dynamics` and should not be used by feature domains for arbitrary mutation.
+
+### 4.2 What Is Not Published
+
+- Internal infrastructure packages: `biome/*/infrastructure`, `seasons/*/infrastructure`.
+- Internal repository implementations: `YamlEcologicalRegionStateRepository`, `BukkitBiomeResolver`.
+- Internal configuration parsing details.
+- Any package not listed in the published vocabulary above.
+
+### 4.3 Consumption Rules
+
+- Downstream domains may import from `biome/*/domain` and `seasons/*/domain` only for types explicitly listed above.
+- Downstream domains must not depend on how `biome` or `seasons` persist or resolve their data.
+- If a downstream domain needs a new upstream concept, it must be explicitly added to the published language rather than reaching into internal packages.
+
+## 5. Layer Responsibilities
+
+### 5.1 `domain/`
+
+- Value objects, entities, and aggregates.
+- Domain services that encode business rules and invariants.
+- Domain events.
+- Repository and provider **ports** (interfaces).
+- Business rules and invariants live here.
+
+Rules:
+
+- No Bukkit/Paper imports.
+- No YAML, file I/O, or database implementation details.
+- No framework annotations.
+
+### 5.2 `application/`
+
+- Use-case orchestration only.
+- Loads inputs, calls domain behavior, saves results, coordinates ports.
+- Transactional boundaries (if any) live here.
+
+Rules:
+
+- Must not contain domain rules or invariants.
+- Must not import Bukkit events or listeners.
+- May import domain types and port interfaces.
+
+### 5.3 `infrastructure/`
+
+- Bukkit/Paper adapters (listeners, tasks, world access).
+- YAML parsing, file I/O, persistence adapters.
+- Framework-specific configuration loading.
+- Translation between framework types and domain value objects at boundaries.
+
+Rules:
+
+- Implements domain ports; does not define them.
+- May import Bukkit, Paper, SnakeYAML, and file I/O libraries.
+
+### 5.4 `presentation/` (optional)
+
+- Commands, admin UI, menus, user-facing adapters.
+- Use only when a capability has player-facing interaction.
+
+Rules:
+
+- Do not create empty `presentation/` packages.
+- Must not contain domain logic.
+
+## 6. Shared Kernel: Spatial
+
+`spatial` is **not** a full bounded context. It is a Shared Kernel containing pure, reusable spatial vocabulary.
+
+Responsibilities:
+
+- Owns value objects: `WorldReference`, `BlockPosition`, `ChunkPosition`, `EcologicalRegionId`.
+- Must own **no gameplay behavior**.
+- Must own **no persistence decisions**.
+- Must import **no Bukkit types**.
+
+Bukkit `Location` is translated into these value objects at infrastructure boundaries. Other contexts may freely import from `spatial` because it is a shared kernel, not a downstream dependency.
+
+## 7. Anti-Coupling Rules
 
 - `biome` must not contain ore, crop, tree, or animal vocabulary.
 - `seasons` must not reference `biome`.
@@ -91,17 +179,16 @@ Configuration files must be split by ownership:
 
 Raw YAML must not leak into domain. Bukkit types must not leak into domain.
 
-## 5. Target Structure
+## 8. Target Structure
 
 ```text
 io.github.henriquemichelini.dynamicbiomes/
 ├── spatial/
-│   └── positioning/
-│       └── domain/
-│           ├── WorldReference.java
-│           ├── BlockPosition.java
-│           ├── ChunkPosition.java
-│           └── EcologicalRegionId.java
+│   └── domain/
+│       ├── WorldReference.java
+│       ├── BlockPosition.java
+│       ├── ChunkPosition.java
+│       └── EcologicalRegionId.java
 │
 ├── biome/
 │   ├── identity/
@@ -110,8 +197,7 @@ io.github.henriquemichelini.dynamicbiomes/
 │   ├── resolution/
 │   │   ├── domain/
 │   │   │   ├── BiomeResolver.java
-│   │   │   ├── BiomeContext.java
-│   │   │   └── ResolvedBiome.java
+│   │   │   └── BiomeContext.java
 │   │   └── infrastructure/
 │   │       └── BukkitBiomeResolver.java
 │   ├── profile/
@@ -139,7 +225,7 @@ io.github.henriquemichelini.dynamicbiomes/
 │   │   │   ├── CurrentSeasonQuery.java
 │   │   │   └── SeasonStateRepository.java
 │   │   └── infrastructure/
-│   │       └── BukkitCurrentSeasonQuery.java
+│   │       ├── BukkitCurrentSeasonQuery.java
 │   │       └── YamlSeasonStateRepository.java
 │   └── profile/
 │       ├── domain/
@@ -192,14 +278,12 @@ io.github.henriquemichelini.dynamicbiomes/
     ├── lifecycle/
     │   └── infrastructure/
     │       └── DynamicBiomes.java
-    ├── composition/
-    │   └── application/
-    │       └── ModuleComposer.java
-    └── api/
-        └── DynamicBiomesApi.java
+    └── composition/
+        └── application/
+            └── ModuleComposer.java
 ```
 
-### 5.1 Spatial Value Objects
+### 8.1 Spatial Value Objects
 
 Replace generic `WorldPosition` with explicit spatial value objects:
 
@@ -208,28 +292,56 @@ Replace generic `WorldPosition` with explicit spatial value objects:
 - `ChunkPosition` — world + int chunkX + int chunkZ; used for chunk-level state if needed.
 - `EcologicalRegionId` — world + regionX + regionZ; used for plugin-owned ecological state.
 
-Bukkit `Location` is translated into these VOs at infrastructure boundaries.
+Optional spatial value objects (such as `ChunkPosition`) should not be implemented until used. Bukkit `Location` is translated into these VOs at infrastructure boundaries.
 
-### 5.2 Biome Dynamics = Ecological Region State
+### 8.2 Biome Read Model
 
-`biome/dynamics` owns plugin-owned ecological region state, not vanilla biome state.
+`BiomeContext` is the single read model for resolved biome/environment information.
 
-- `EcologicalRegionState` — dynamic state for a specific world region. Two `minecraft:plains` areas may have different state.
-- `BiomeProfile` — static or configured ecological properties for a biome type.
-- `BiomeContext` or `ResolvedBiomeContext` — read model combining `BiomeId` + `BiomeProfile` + optional `EcologicalRegionState`.
+It combines:
+
+- `BiomeId` — the identity of the resolved biome.
+- `BiomeProfile` — static or configured ecological properties for that biome type.
+- Optional `EcologicalRegionState` — plugin-owned dynamic ecological state for the specific region.
+
+There is no separate `ResolvedBiome`. `BiomeResolver` returns `BiomeContext`.
 
 Dynamic state must not contain ore, crop, or animal rule results.
 
-### 5.3 Ore Origin Separate from Ore Drops
+### 8.3 Ore Origin Separate from Ore Drops
 
 - `ore/origin` owns origin state and origin persistence (`OreOrigin`, `OreOriginRepository`).
 - `PaperOrePlaceListener` lives in `ore/origin/infrastructure`.
 - `ore/drops` consumes ore origin data but does not own origin tracking.
 - `OreOrigin` uses pure domain types only; no Bukkit imports.
 
-## 6. Persistence and Configuration Are Infrastructure
+## 9. EcologicalRegionState
 
-### 6.1 Persistence
+`EcologicalRegionState` is plugin-owned dynamic ecological state for a specific region.
+
+Properties:
+
+- Identified by `EcologicalRegionId`.
+- Treated as an **entity/aggregate concept**, not a passive data bag.
+- Encapsulates its own state transitions and invariants.
+- Must not contain feature-specific results such as `oreMultiplier`, `cropGrowthSpeed`, or `animalDeathChance`.
+
+Acceptable contents:
+
+- `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure` — environmental condition values that may change over time.
+- Transition methods that validate state changes against domain rules.
+
+## 10. Value Object Rules
+
+- **No empty wrappers.** A value object must carry meaningful, validated data.
+- **Validate construction invariants.** IDs cannot be null or blank. Namespaced keys must be valid. Coordinate objects must use explicit integer block/chunk/region semantics.
+- **Records are appropriate** for immutable value objects (`BiomeId`, `BlockPosition`, `SeasonId`, etc.).
+- **Entities/aggregates should not be passive records** unless immutability and all transition methods are explicitly modeled. `EcologicalRegionState` is an entity; it should encapsulate behavior.
+- **Equality is by value** for value objects, by identity for entities.
+
+## 11. Persistence and Configuration Are Infrastructure
+
+### 11.1 Persistence
 
 Persistence is infrastructure, not a bounded context. The domain that owns the state owns the repository port.
 
@@ -263,7 +375,7 @@ persistence/
 There is no `ecologypersistence/snapshot/domain/Snapshot.java` in the target design.
 Persistence format is an implementation detail, not a domain boundary.
 
-### 6.2 Configuration
+### 11.2 Configuration
 
 Configuration is infrastructure, not a bounded context. Each feature/environmental context owns its own typed configuration interpretation.
 
@@ -287,7 +399,7 @@ configuration/
 
 There is no generic `ConfigurationProvider` port in domain. Raw YAML is translated into typed domain objects at infrastructure boundaries.
 
-## 7. Port-Adapter Naming Convention
+## 12. Port-Adapter Naming Convention
 
 Not every port is a repository. Use naming that reflects responsibility:
 
@@ -295,10 +407,70 @@ Not every port is a repository. Use naming that reflects responsibility:
 |---|---|---|
 | **Repository** | Persisted collections of domain objects or mutable state | `EcologicalRegionStateRepository`, `OreOriginRepository` |
 | **Provider** | Configured policy/profile data | `OreDropPolicyProvider`, `BiomeProfileProvider`, `SeasonProfileProvider` |
-| **Resolver** | Mapping one concept to another | `BiomeResolver` maps `BlockPosition` to `ResolvedBiome` |
+| **Resolver** | Mapping one concept to another | `BiomeResolver` maps `BlockPosition` to `BiomeContext` |
 | **Query / Clock** | Current temporal state | `CurrentSeasonQuery` |
 
-## 8. Presentation Layer Is Optional
+## 13. Domain Events
+
+Domain events are allowed for cross-context reactions.
+
+Appropriate uses:
+
+- `SeasonTransitioned` — downstream domains react to season changes.
+- `EcologicalRegionStateChanged` — downstream domains react to ecological state transitions.
+
+Rules:
+
+- Do **not** force event-driven architecture for synchronous Minecraft actions such as block breaking or entity damage.
+- Synchronous feature evaluation may still query published upstream ports directly.
+- Events must be plain data objects; no Bukkit types.
+- Publish from domain; subscribe in application or infrastructure layers.
+
+## 14. Public Plugin API
+
+Avoid a god `DynamicBiomesApi`.
+
+- **Prefer no public API** until a real external plugin integration use case exists.
+- If a central API remains under `pluginruntime/api`, it must be **thin**, contain **no domain logic**, and delegate to context-specific capabilities.
+- Public API types must be stable, versioned, and part of the published language.
+- Public API must not expose internal repository implementations, YAML details, or Bukkit types to consumers.
+
+## 15. Module-Boundary Enforcement
+
+Enforce boundaries in phases:
+
+- **Phase 1 — Package conventions plus documented import rules.**
+  - Follow the layer responsibilities in Section 5.
+  - No downstream imports of upstream `infrastructure`.
+  - No imports of `pluginruntime` from other modules.
+  - Document exceptions explicitly.
+
+- **Phase 2 — ArchUnit-style tests.**
+  - Add tests that assert forbidden imports (e.g., `domain` must not import `org.bukkit`, downstream must not import upstream `infrastructure`).
+  - Run as part of the normal test suite.
+
+- **Phase 3 — Gradle subprojects (only if the project grows).**
+  - Consider Gradle subprojects with explicit `api`/`implementation` dependencies if the codebase exceeds ~50k lines or if independent release cycles are needed.
+  - Do **not** require Gradle subprojects immediately.
+
+## 16. Test Package Parity
+
+Tests mirror source package structure:
+
+```text
+src/main/java/biome/resolution/domain/BiomeContext.java
+src/test/java/biome/resolution/domain/BiomeContextTest.java
+```
+
+Rules:
+
+- Domain tests must not require Bukkit, YAML, or file I/O.
+- Use in-memory fakes/stubs for providers, repositories, resolvers, and queries.
+- Example: `InMemoryBiomeProfileProvider`, `InMemoryEcologicalRegionStateRepository`, `FixedCurrentSeasonQuery`.
+- Infrastructure tests may use Bukkit mocks or temporary files where appropriate.
+- Application tests use real domain objects with stubbed ports.
+
+## 17. Presentation Layer Is Optional
 
 Use `presentation/` only when a capability has commands, admin GUI, public UI, or other presentation-specific adapters.
 
@@ -313,9 +485,7 @@ ore/drops/
 
 Add `presentation/` only when needed. Do not create empty layer packages preemptively.
 
-The public plugin API for other plugins is **not** presentation. It lives under `pluginruntime/api/` (or `pluginapi/publicapi/` if separated).
-
-## 9. Migration Plan
+## 18. Migration Plan
 
 ### Section A — Architecture-Only Refactor
 
@@ -329,7 +499,8 @@ Safe, reviewable, no runtime behavior change:
 6. Rename ports to match naming convention (`Repository` for state, `Provider` for config, `Resolver` for mapping).
 7. Split generic `Snapshot`/`SnapshotRepository` into domain-owned repository ports.
 8. Replace generic `ConfigurationProvider` with typed capability-owned providers.
-9. Ensure test package parity.
+9. Consolidate biome read model to `BiomeContext`; remove `ResolvedBiome`.
+10. Ensure test package parity.
 
 ### Section B — Future Implementation (Out of Scope for Current Refactor)
 
@@ -340,7 +511,7 @@ Safe, reviewable, no runtime behavior change:
 - Actual ore drop behavior calculation.
 - Bukkit integration beyond existing empty listener shells.
 
-## 10. Preserved Principles
+## 19. Preserved Principles
 
 - `biome` is not a god/master domain.
 - `biome` owns biome identity, resolution, profile, and plugin-owned ecological state.
