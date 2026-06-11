@@ -50,3 +50,76 @@ tasks.processResources {
         expand(props)
     }
 }
+
+val pluginArchiveName = "dynamic-biomes"
+
+val repositoryRoot = if (rootDir.name == "java") {
+    rootDir.parentFile
+} else {
+    rootDir
+}
+
+val dockerDirectory = repositoryRoot.resolve("docker")
+val dockerComposeFile = dockerDirectory.resolve("compose.dev.yml")
+val paperPluginsDirectory = dockerDirectory.resolve("server-data/plugins")
+
+base {
+    archivesName.set(pluginArchiveName)
+}
+
+tasks.register<Delete>("cleanDockerPlugin") {
+    group = "docker"
+    description = "Removes old Dynamic Biomes plugin jars from the Docker Paper server plugins directory."
+
+    delete(
+        fileTree(paperPluginsDirectory) {
+            include("$pluginArchiveName-*.jar")
+            include("$pluginArchiveName.jar")
+        }
+    )
+}
+
+tasks.register<Copy>("copyPluginToDocker") {
+    group = "docker"
+    description = "Builds the plugin and copies the jar into the Docker Paper server plugins directory."
+
+    dependsOn("cleanDockerPlugin")
+    dependsOn(tasks.named("jar"))
+
+    from(tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    into(paperPluginsDirectory)
+
+    doFirst {
+        paperPluginsDirectory.mkdirs()
+    }
+
+    doLast {
+        println("Copied plugin jar to: ${paperPluginsDirectory.absolutePath}")
+    }
+}
+
+tasks.register<Exec>("startPaperDocker") {
+    group = "docker"
+    description = "Starts the Docker Paper server."
+
+    workingDir = dockerDirectory
+    commandLine("docker", "compose", "-f", dockerComposeFile.absolutePath, "up", "-d")
+}
+
+tasks.register<Exec>("stopPaperDocker") {
+    group = "docker"
+    description = "Stops the Docker Paper server."
+
+    workingDir = dockerDirectory
+    commandLine("docker", "compose", "-f", dockerComposeFile.absolutePath, "down")
+}
+
+tasks.register<Exec>("restartPaperDocker") {
+    group = "docker"
+    description = "Builds the plugin, copies it into the Paper server, and restarts Docker."
+
+    dependsOn("copyPluginToDocker")
+
+    workingDir = dockerDirectory
+    commandLine("docker", "compose", "-f", dockerComposeFile.absolutePath, "restart", "paper")
+}

@@ -1,0 +1,5 @@
+forest:
+  ores:
+    iron_ore:
+      min: 1.0
+      max: 1.2
