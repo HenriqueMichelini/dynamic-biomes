@@ -110,6 +110,7 @@ io.github.henriquemichelini.dynamicbiomes/
 │   ├── resolution/
 │   │   ├── domain/
 │   │   │   ├── BiomeResolver.java
+│   │   │   ├── BiomeContext.java
 │   │   │   └── ResolvedBiome.java
 │   │   └── infrastructure/
 │   │       └── BukkitBiomeResolver.java
@@ -139,6 +140,7 @@ io.github.henriquemichelini.dynamicbiomes/
 │   │   │   └── SeasonStateRepository.java
 │   │   └── infrastructure/
 │   │       └── BukkitCurrentSeasonQuery.java
+│   │       └── YamlSeasonStateRepository.java
 │   └── profile/
 │       ├── domain/
 │       │   ├── SeasonProfile.java
