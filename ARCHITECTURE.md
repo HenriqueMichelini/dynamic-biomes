@@ -509,12 +509,11 @@ Safe, reviewable, no runtime behavior change:
 
 ### Section B — Future Implementation (Out of Scope for Current Refactor)
 
-- Listener registration in Bukkit.
-- Runtime composition and `ModuleComposer` wiring.
-- Actual YAML loading and parsing.
+- Broader runtime composition beyond the existing ore origin listener wiring.
+- Actual YAML-backed policy loading and parsing.
 - Actual season progression.
 - Actual ore drop behavior calculation.
-- Bukkit integration beyond existing empty listener shells.
+- Bukkit integration beyond the existing ore origin place/break listener adapters.
 
 ## 19. Preserved Principles
 

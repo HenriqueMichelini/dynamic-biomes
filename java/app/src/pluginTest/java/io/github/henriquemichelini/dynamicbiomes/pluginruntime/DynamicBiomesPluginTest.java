@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.jar.JarFile;
+import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
@@ -54,7 +55,7 @@ class DynamicBiomesPluginTest {
         MessageRecordingHandler handler = new MessageRecordingHandler();
         plugin.getLogger().addHandler(handler);
 
-        plugin.onEnable();
+        server.getPluginManager().enablePlugin(plugin);
         plugin.onDisable();
 
         assertEquals(
@@ -77,6 +78,24 @@ class DynamicBiomesPluginTest {
                 plugin.getPluginMeta().getMainClass()
             );
         }
+    }
+
+    @Test
+    void registersOreOriginPlaceAndBreakListenersOnEnable() {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+
+        List<String> listenerClassNames = HandlerList.getRegisteredListeners(plugin)
+            .stream()
+            .map(registeredListener -> registeredListener.getListener().getClass().getName())
+            .toList();
+
+        assertTrue(listenerClassNames.contains(
+            "io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOrePlaceListener"
+        ));
+        assertTrue(listenerClassNames.contains(
+            "io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure.PaperOreBreakListener"
+        ));
     }
 
     private static final class MessageRecordingHandler extends Handler {
