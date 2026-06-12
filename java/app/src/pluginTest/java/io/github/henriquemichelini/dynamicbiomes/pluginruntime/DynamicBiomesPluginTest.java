@@ -1,13 +1,17 @@
-package io.github.henriquemichelini.dynamicbiomes.pluginruntime.lifecycle.infrastructure;
+package io.github.henriquemichelini.dynamicbiomes.pluginruntime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
+import java.util.jar.JarFile;
 import org.bukkit.plugin.Plugin;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
@@ -15,7 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class DynamicBiomesLifecycleSmokeTest {
+class DynamicBiomesPluginTest {
     private ServerMock server;
 
     @BeforeEach
@@ -57,6 +61,22 @@ class DynamicBiomesLifecycleSmokeTest {
             List.of("Dynamic Biomes enabled.", "Dynamic Biomes disabled."),
             handler.messages
         );
+    }
+
+    @Test
+    void packagedPluginKeepsItsResourceContract() throws IOException {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+
+        try (JarFile pluginJar = new JarFile(System.getProperty("dynamicBiomes.pluginJar"))) {
+            assertNotNull(pluginJar.getEntry("plugin.yml"));
+            assertNotNull(pluginJar.getEntry("ore-drops.yml"));
+            assertNull(pluginJar.getEntry("biomes.yml"));
+            assertEquals("1.0.0", plugin.getPluginMeta().getVersion());
+            assertEquals(
+                "io.github.henriquemichelini.dynamicbiomes.pluginruntime.lifecycle.infrastructure.DynamicBiomes",
+                plugin.getPluginMeta().getMainClass()
+            );
+        }
     }
 
     private static final class MessageRecordingHandler extends Handler {

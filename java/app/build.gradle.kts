@@ -5,7 +5,7 @@ plugins {
 group = "io.github.henriquemichelini"
 version = "1.0.0"
 
-val lifecycleSmokeTest by sourceSets.creating
+val pluginTest by sourceSets.creating
 
 repositories {
     mavenCentral()
@@ -31,10 +31,10 @@ dependencies {
 
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    add(lifecycleSmokeTest.implementationConfigurationName, libs.junit.jupiter)
-    add(lifecycleSmokeTest.implementationConfigurationName, libs.mockbukkit)
-    add(lifecycleSmokeTest.implementationConfigurationName, "io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
-    add(lifecycleSmokeTest.runtimeOnlyConfigurationName, "org.junit.platform:junit-platform-launcher")
+    add(pluginTest.implementationConfigurationName, libs.junit.jupiter)
+    add(pluginTest.implementationConfigurationName, libs.mockbukkit)
+    add(pluginTest.implementationConfigurationName, "io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    add(pluginTest.runtimeOnlyConfigurationName, "org.junit.platform:junit-platform-launcher")
 }
 
 java {
@@ -47,19 +47,19 @@ tasks.test {
     useJUnitPlatform()
 }
 
-val lifecycleSmokeTestTask = tasks.register<Test>("lifecycleSmokeTest") {
-    description = "Loads the built plugin JAR through MockBukkit's public API."
+val pluginTestTask = tasks.register<Test>("pluginTest") {
+    description = "Verifies the built plugin JAR through MockBukkit's public API."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
 
     dependsOn(tasks.jar)
-    testClassesDirs = lifecycleSmokeTest.output.classesDirs
-    classpath = lifecycleSmokeTest.runtimeClasspath
+    testClassesDirs = pluginTest.output.classesDirs
+    classpath = pluginTest.runtimeClasspath
     systemProperty("dynamicBiomes.pluginJar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
     useJUnitPlatform()
 }
 
 tasks.check {
-    dependsOn(lifecycleSmokeTestTask)
+    dependsOn(pluginTestTask)
 }
 
 tasks.processResources {
