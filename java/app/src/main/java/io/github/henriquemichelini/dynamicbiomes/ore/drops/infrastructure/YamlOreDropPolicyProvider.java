@@ -1,8 +1,10 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure;
 
+import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
@@ -12,6 +14,7 @@ import java.util.Map;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
+import org.yaml.snakeyaml.error.YAMLException;
 
 public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
     private final Path policyFile;
@@ -21,34 +24,77 @@ public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
     }
 
     @Override
-    public OreDropPolicy policyFor(String policyKey) {
+    public OreDropPolicy policyFor(BiomeId biomeId) {
         Map<?, ?> root = loadRoot();
-        Map<?, ?> policy = requiredMap(root, policyKey, "policy '" + policyKey + "'");
-        Map<?, ?> ores = requiredMap(policy, "ores", "policy '" + policyKey + "'.ores");
-        Map<String, OreDropMultiplierRange> ranges = new LinkedHashMap<>();
+        Map<BiomeId, OreDropPolicy> policies = new LinkedHashMap<>();
 
-        for (Map.Entry<?, ?> oreEntry : ores.entrySet()) {
-            String oreKey = requiredKey(oreEntry.getKey(), "ore key");
-            Map<?, ?> range = requiredMapValue(
-                oreEntry.getValue(),
-                "policy '" + policyKey + "'.ores." + oreKey
+        for (Map.Entry<?, ?> policyEntry : root.entrySet()) {
+            BiomeId configuredBiomeId = new BiomeId(
+                requiredKey(policyEntry.getKey(), "biome policy key")
             );
-            double minimum = requiredNumber(range, "min", policyKey, oreKey);
-            double maximum = requiredNumber(range, "max", policyKey, oreKey);
-            ranges.put(oreKey, new OreDropMultiplierRange(minimum, maximum));
+            OreDropPolicy previous = policies.put(
+                configuredBiomeId,
+                parsePolicy(configuredBiomeId, policyEntry.getValue())
+            );
+            if (previous != null) {
+                throw new IllegalArgumentException(
+                    "Duplicate ore drop policy for biome: " + configuredBiomeId.value()
+                );
+            }
         }
 
-        return new OreDropPolicy(policyKey, ranges);
+        OreDropPolicy policy = policies.get(biomeId);
+        if (policy == null) {
+            throw new IllegalArgumentException(
+                "Missing ore drop policy for biome: " + biomeId.value()
+            );
+        }
+        return policy;
+    }
+
+    private static OreDropPolicy parsePolicy(BiomeId biomeId, Object policyValue) {
+        String policyDescription = "policy '" + biomeId.value() + "'";
+        Map<?, ?> policy = requiredMapValue(policyValue, policyDescription);
+        Map<?, ?> ores = requiredMap(policy, "ores", policyDescription + ".ores");
+        Map<OreKind, OreDropMultiplierRange> ranges = new LinkedHashMap<>();
+
+        for (Map.Entry<?, ?> oreEntry : ores.entrySet()) {
+            OreKind oreKind = new OreKind(requiredKey(oreEntry.getKey(), "ore kind key"));
+            Map<?, ?> range = requiredMapValue(
+                oreEntry.getValue(),
+                policyDescription + ".ores." + oreKind.value()
+            );
+            double minimum = requiredNumber(range, "min", biomeId, oreKind);
+            double maximum = requiredNumber(range, "max", biomeId, oreKind);
+            OreDropMultiplierRange previous = ranges.put(
+                oreKind,
+                new OreDropMultiplierRange(minimum, maximum)
+            );
+            if (previous != null) {
+                throw new IllegalArgumentException(
+                    "Duplicate ore drop multiplier range for ore kind: " + oreKind.value()
+                );
+            }
+        }
+
+        return new OreDropPolicy(biomeId, ranges);
     }
 
     private Map<?, ?> loadRoot() {
-        Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+        LoaderOptions loaderOptions = new LoaderOptions();
+        loaderOptions.setAllowDuplicateKeys(false);
+        Yaml yaml = new Yaml(new SafeConstructor(loaderOptions));
         try (Reader reader = Files.newBufferedReader(policyFile)) {
             Object loaded = yaml.load(reader);
             return requiredMapValue(loaded, "ore drop policy root");
         } catch (IOException exception) {
             throw new IllegalArgumentException(
                 "Unable to read ore drop policy file: " + policyFile,
+                exception
+            );
+        } catch (YAMLException exception) {
+            throw new IllegalArgumentException(
+                "Invalid ore drop policy YAML file: " + policyFile,
                 exception
             );
         }
@@ -78,14 +124,14 @@ public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
     private static double requiredNumber(
         Map<?, ?> range,
         String bound,
-        String policyKey,
-        String oreKey
+        BiomeId biomeId,
+        OreKind oreKind
     ) {
         Object value = range.get(bound);
         if (!(value instanceof Number number)) {
             throw new IllegalArgumentException(
                 "Missing required " + bound + " for policy '"
-                    + policyKey + "'.ores." + oreKey
+                    + biomeId.value() + "'.ores." + oreKind.value()
             );
         }
         return number.doubleValue();

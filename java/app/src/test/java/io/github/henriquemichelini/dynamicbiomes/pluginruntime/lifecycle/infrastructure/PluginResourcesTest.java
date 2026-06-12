@@ -31,8 +31,9 @@ class PluginResourcesTest {
     void oreDropPolicyUsesItsCapabilityOwnedResourceName() throws IOException {
         String oreDropPolicy = readResource("ore-drops.yml");
 
+        assertTrue(oreDropPolicy.contains("minecraft:forest:"));
         assertTrue(oreDropPolicy.contains("ores:"));
-        assertTrue(oreDropPolicy.contains("iron_ore:"));
+        assertTrue(oreDropPolicy.contains("minecraft:iron_ore:"));
         assertNull(CLASS_LOADER.getResource("biomes.yml"));
     }
 

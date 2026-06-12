@@ -1,35 +1,37 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.drops.domain;
 
+import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
+import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import java.util.Map;
 
 public final class OreDropPolicy {
-    private final String key;
-    private final Map<String, OreDropMultiplierRange> multiplierRangesByOreKey;
+    private final BiomeId biomeId;
+    private final Map<OreKind, OreDropMultiplierRange> multiplierRangesByOreKind;
 
     public OreDropPolicy(
-        String key,
-        Map<String, OreDropMultiplierRange> multiplierRangesByOreKey
+        BiomeId biomeId,
+        Map<OreKind, OreDropMultiplierRange> multiplierRangesByOreKind
     ) {
-        if (key == null || key.isBlank()) {
-            throw new IllegalArgumentException("Ore drop policy key must not be blank");
+        if (biomeId == null) {
+            throw new IllegalArgumentException("Ore drop policy biome identity must not be null");
         }
-        if (multiplierRangesByOreKey == null || multiplierRangesByOreKey.isEmpty()) {
+        if (multiplierRangesByOreKind == null || multiplierRangesByOreKind.isEmpty()) {
             throw new IllegalArgumentException("Ore drop policy must define at least one ore multiplier range");
         }
 
-        this.key = key;
-        this.multiplierRangesByOreKey = Map.copyOf(multiplierRangesByOreKey);
+        this.biomeId = biomeId;
+        this.multiplierRangesByOreKind = Map.copyOf(multiplierRangesByOreKind);
     }
 
-    public String key() {
-        return key;
+    public BiomeId biomeId() {
+        return biomeId;
     }
 
-    public OreDropMultiplierRange multiplierRangeFor(String oreKey) {
-        OreDropMultiplierRange range = multiplierRangesByOreKey.get(oreKey);
+    public OreDropMultiplierRange multiplierRangeFor(OreKind oreKind) {
+        OreDropMultiplierRange range = multiplierRangesByOreKind.get(oreKind);
         if (range == null) {
             throw new IllegalArgumentException(
-                "Missing ore drop multiplier range for ore key: " + oreKey
+                "Missing ore drop multiplier range for ore kind: " + oreKind
             );
         }
         return range;
