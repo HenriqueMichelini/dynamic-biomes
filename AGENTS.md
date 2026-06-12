@@ -2,6 +2,16 @@
 
 This file gives coding agents project-specific instructions for working on DynamicBiomes. Follow it before editing code. When this file conflicts with `ARCHITECTURE.md`, `ARCHITECTURE.md` is authoritative.
 
+## Skill Ecosystem
+
+Use only `.codex/skills/` for this repository. Do not use `.kimi-code/skills/`.
+
+Canonical skills:
+
+- `create-goal-card` — creates or updates a Goal Card only; does not implement.
+- `implement-card` — implements exactly one selected Goal Card only.
+- `reverify-implementation` — audits a completed implementation only; does not edit files by default.
+
 ## Project Overview
 
 DynamicBiomes is a Java/Paper Minecraft plugin organized as a DDD-inspired modular monolith.
@@ -36,8 +46,9 @@ java/app/src/test/java                  # Tests, including architecture tests
 5. Do not create unused scaffolding, empty packages, placeholder contracts, or speculative layers.
 6. Preserve runtime behavior unless the current task explicitly requires changing it.
 7. After implementation, run verification commands and report exact results.
+8. If you modified any files/styles/structures/configurations/workflows/... mentioned in `AGENTS.md` or `ARCHITECTURE.md`, you MUST update the corresponding document to keep it up to date.
 
-## Architecture Rules
+## Architecture Quick Reference
 
 The codebase follows this package shape:
 
@@ -50,103 +61,46 @@ root package
 
 Layers are created only when needed. Do not create empty layer packages preemptively.
 
-### `domain/`
+Layer responsibilities, dependency direction, published language, value object rules, domain events, and test parity are defined in `ARCHITECTURE.md`:
 
-Allowed:
+- Layer responsibilities: Section 5
+- Dependency direction: Section 3
+- Published language: Section 4
+- Value object rules: Section 10
+- Domain events: Section 13
+- Test package parity: Section 16
+- Optional `presentation/` layer: Section 5.4
 
-- value objects;
-- entities and aggregates;
-- domain services;
-- domain events;
-- repository/provider/resolver/query ports;
-- business rules and invariants.
+Operational reminders not restated in `ARCHITECTURE.md`:
 
-Forbidden:
-
-- Bukkit/Paper imports;
-- YAML/config parsing;
-- file I/O;
-- database implementation details;
-- framework annotations;
-- runtime wiring.
-
-### `application/`
-
-Allowed:
-
-- use-case orchestration;
-- loading inputs;
-- calling domain behavior;
-- coordinating ports;
-- saving through repository ports.
-
-Forbidden:
-
-- domain rules or invariants;
-- Bukkit events/listeners;
-- YAML/file/database implementation details;
-- plugin runtime wiring.
-
-### `infrastructure/`
-
-Allowed:
-
-- Bukkit/Paper listeners and adapters;
-- YAML parsing;
-- file I/O;
-- persistence adapters;
-- translating framework types into domain value objects.
-
-Rules:
-
-- infrastructure implements domain ports; it does not define them;
-- infrastructure must not contain domain rules;
-- listener registration is not added unless the task explicitly requires runtime wiring.
-
-### `pluginruntime/`
-
-`pluginruntime` is the composition root and lifecycle boundary.
-
-Rules:
-
-- `pluginruntime` may import contexts only for startup/composition;
-- no package outside `pluginruntime` may import `pluginruntime`;
-- do not place business rules in `pluginruntime`;
-- do not add `ModuleComposer` or runtime wiring unless the task explicitly requires it.
+- `pluginruntime` may import contexts only for startup/composition.
+- No package outside `pluginruntime` may import `pluginruntime`.
+- Do not add `ModuleComposer` or runtime wiring unless the task explicitly requires it.
+- Listener registration is not added unless the task explicitly requires runtime wiring.
+- Runtime ore drop modification must not be shipped unless anti-exploit origin tracking is present in the runtime path.
+- Do not implement the Minecraft Fortune algorithm unless a task explicitly asks for it. Current drop quantity logic treats vanilla/Fortune quantity as already computed.
+- Lombok compile-time annotations are allowed in domain for boilerplate reduction and invariant enforcement; runtime framework annotations are forbidden there. See `ARCHITECTURE.md` Section 5.1.
 
 ## Context Dependency Rules
 
-- `biome` and `seasons` are upstream environmental contexts.
-- Feature contexts such as `ore`, `crops`, `trees`, and `animals` are downstream contexts.
-- Upstream contexts must not depend on downstream feature contexts.
-- `seasons` must not depend on `biome`.
-- Downstream feature contexts may consume only explicitly published upstream domain contracts.
-- Downstream feature contexts must never import upstream infrastructure.
-- `spatial` is a shared kernel. It may be imported by other contexts, but it must stay pure and must not contain gameplay behavior or persistence decisions.
+See `ARCHITECTURE.md` Section 3 and Section 4.
 
 ## Current Ore Context Rules
 
-The ore feature is split by ownership:
+See `ARCHITECTURE.md` Section 8.3 for structural ownership.
 
-```text
-ore/origin    # owns natural vs player-placed ore origin tracking and origin persistence
-ore/drops     # owns ore drop policies, multiplier calculation, and drop quantity orchestration
-```
-
-Rules:
+Additional runtime rules:
 
 - `ore/origin` owns `OreOrigin`, `OreOriginRepository`, origin tracking, cleanup, and origin persistence.
 - `ore/drops` may consume origin eligibility but must not own origin tracking.
 - `PaperOrePlaceListener` belongs in `ore/origin/infrastructure`.
 - `PaperOreBreakListener` belongs in `ore/drops/infrastructure`.
-- Runtime ore drop modification must not be shipped unless anti-exploit origin tracking is present in the runtime path.
-- Do not implement the Minecraft Fortune algorithm unless a task explicitly asks for it. Current drop quantity logic treats vanilla/Fortune quantity as already computed.
 
 ## Configuration and Persistence Rules
 
-Configuration files are owned by their capability.
+See `ARCHITECTURE.md` Section 11 for persistence and configuration architecture.
 
-Known resource ownership:
+Resource ownership:
 
 ```text
 ore-drops.yml        -> ore/drops
@@ -154,7 +108,7 @@ biome-profiles.yml   -> biome/profile, when introduced
 season-profiles.yml  -> seasons/profile, when introduced
 ```
 
-Rules:
+Additional rules:
 
 - Raw YAML must not leak into domain.
 - Do not introduce a generic domain `ConfigurationProvider`.
@@ -166,16 +120,16 @@ Rules:
 
 ## Testing Rules
 
-Tests mirror production package structure.
+See `ARCHITECTURE.md` Section 16 for test architecture.
 
-Example:
+Test package parity example:
 
 ```text
 src/main/java/io/github/henriquemichelini/dynamicbiomes/ore/drops/domain/OreDropQuantityCalculator.java
 src/test/java/io/github/henriquemichelini/dynamicbiomes/ore/drops/domain/OreDropQuantityCalculatorTest.java
 ```
 
-Rules:
+Additional rules:
 
 - Domain tests must use pure Java/domain objects only.
 - Domain tests must not require Bukkit, YAML, file I/O, or database access.
@@ -291,25 +245,9 @@ git commit -m "feat(ore): record placed ore blocks"
 
 Do not combine architecture, domain, infrastructure, and runtime wiring changes in one commit unless explicitly required for atomic correctness.
 
-## Current Continuation Note
+## Continuing Work
 
-If continuing the current ore feature work, first inspect the repository. The likely next slice after the placement listener is:
-
-```text
-Implement PaperOreBreakListener under ore/drops/infrastructure without runtime wiring.
-```
-
-Do not assume it is still pending. Verify current files and tests first.
-
-When implementing that slice:
-
-- keep Bukkit/Paper imports in infrastructure only;
-- delegate drop quantity calculation to the ore drop application service;
-- delegate origin cleanup through the ore origin application boundary;
-- do not instantiate repositories/providers in the listener;
-- do not register the listener in `pluginruntime`;
-- do not add `ModuleComposer`;
-- do not introduce biome/season/ecological integration.
+If continuing an existing feature, inspect the repository first. Do not assume a slice is still pending. Verify current files and tests before proposing the next task.
 
 When working on this repository:
 1. Follow the user’s explicit task.

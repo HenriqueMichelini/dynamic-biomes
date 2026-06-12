@@ -23,6 +23,7 @@
 hs_err_pid*
 replay_pid*
 
+/bin/
 java/app/bin/
 java/app/.zed/
 java/.gradle/
