@@ -333,7 +333,7 @@ Properties:
 
 Acceptable contents:
 
-- `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure` — environmental condition values that may change over time.
+- `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure` — environmental condition value objects owned by `biome/profile` and referenced here as dynamic state values that may change over time.
 - Transition methods that validate state changes against domain rules.
 
 ## 10. Value Object Rules

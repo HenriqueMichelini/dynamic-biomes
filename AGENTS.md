@@ -1,4 +1,4 @@
-# AGENT.md — DynamicBiomes Agent Guide
+# AGENTS.md — DynamicBiomes Agent Guide
 
 This file gives coding agents project-specific instructions for working on DynamicBiomes. Follow it before editing code. When this file conflicts with `ARCHITECTURE.md`, `ARCHITECTURE.md` is authoritative.
 
@@ -192,7 +192,7 @@ Run after each implementation:
 git status --short
 git diff --stat
 git diff --check
-./gradlew test build --no-daemon
+cd java && ./gradlew test build --no-daemon
 ```
 
 Inspect changed files:
@@ -215,8 +215,8 @@ git grep -n "pluginruntime" -- java/app/src/main/java | grep -v "/pluginruntime/
 JAR/resource check:
 
 ```bash
-./gradlew build --no-daemon
-jar tf java/app/build/libs/*.jar | sort | grep -E "plugin.yml|ore-drops.yml|biomes.yml|DynamicBiomes"
+cd java && ./gradlew build --no-daemon
+jar tf app/build/libs/*.jar | sort | grep -E "plugin.yml|ore-drops.yml|biomes.yml|DynamicBiomes"
 ```
 
 ## Agent Task Format
@@ -270,7 +270,7 @@ Check:
 - downstream contexts do not import upstream infrastructure;
 - tests mirror production package structure where relevant;
 - runtime behavior was not changed unless explicitly required by the task;
-- ./gradlew test build --no-daemon passes or the reason it was not run is reported.
+- `cd java && ./gradlew test build --no-daemon` passes or the reason it was not run is reported.
 
 Report findings by severity: HIGH, MEDIUM, LOW. Include exact files and lines when possible.
 ```
@@ -310,3 +310,9 @@ When implementing that slice:
 - do not register the listener in `pluginruntime`;
 - do not add `ModuleComposer`;
 - do not introduce biome/season/ecological integration.
+
+When working on this repository:
+1. Follow the user’s explicit task.
+2. Follow AGENTS.md for workflow and verification.
+3. Follow ARCHITECTURE.md for design boundaries.
+4. If the user task conflicts with ARCHITECTURE.md, stop and report the conflict before editing.
