@@ -20,6 +20,7 @@ dependencies {
     compileOnly("org.projectlombok:lombok:1.18.46")
     annotationProcessor("org.projectlombok:lombok:1.18.46")
 
+    testImplementation(libs.archunit.junit5)
     testImplementation(libs.junit.jupiter)
     testImplementation("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
 

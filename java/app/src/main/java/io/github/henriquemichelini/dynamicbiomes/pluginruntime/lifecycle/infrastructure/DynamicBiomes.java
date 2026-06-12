@@ -1,4 +1,4 @@
-package io.github.henriquemichelini.dynamicbiomes;
+package io.github.henriquemichelini.dynamicbiomes.pluginruntime.lifecycle.infrastructure;
 
 import org.bukkit.plugin.java.JavaPlugin;
 
