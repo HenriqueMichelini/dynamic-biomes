@@ -21,6 +21,7 @@ dependencies {
 
     compileOnly("org.projectlombok:lombok:1.18.46")
     annotationProcessor("org.projectlombok:lombok:1.18.46")
+    implementation("org.yaml:snakeyaml:2.4")
 
     testImplementation(libs.archunit.junit5)
     testImplementation(libs.junit.jupiter)
