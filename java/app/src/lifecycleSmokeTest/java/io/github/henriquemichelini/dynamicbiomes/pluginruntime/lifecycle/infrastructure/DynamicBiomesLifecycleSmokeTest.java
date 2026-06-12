@@ -1,0 +1,76 @@
+package io.github.henriquemichelini.dynamicbiomes.pluginruntime.lifecycle.infrastructure;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import org.bukkit.plugin.Plugin;
+import org.mockbukkit.mockbukkit.MockBukkit;
+import org.mockbukkit.mockbukkit.ServerMock;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+class DynamicBiomesLifecycleSmokeTest {
+    private ServerMock server;
+
+    @BeforeEach
+    void setUp() {
+        server = MockBukkit.mock();
+    }
+
+    @AfterEach
+    void tearDown() {
+        MockBukkit.unmock();
+    }
+
+    @Test
+    void loadsEnablesAndDisablesThePackagedPlugin() {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+
+        assertTrue(plugin.isEnabled());
+        assertEquals(
+            "io.github.henriquemichelini.dynamicbiomes.pluginruntime.lifecycle.infrastructure.DynamicBiomes",
+            plugin.getClass().getName()
+        );
+
+        server.getPluginManager().disablePlugin(plugin);
+
+        assertFalse(plugin.isEnabled());
+    }
+
+    @Test
+    void packagedPluginKeepsItsExactLifecycleLogMessages() {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        MessageRecordingHandler handler = new MessageRecordingHandler();
+        plugin.getLogger().addHandler(handler);
+
+        plugin.onEnable();
+        plugin.onDisable();
+
+        assertEquals(
+            List.of("Dynamic Biomes enabled.", "Dynamic Biomes disabled."),
+            handler.messages
+        );
+    }
+
+    private static final class MessageRecordingHandler extends Handler {
+        private final List<String> messages = new ArrayList<>();
+
+        @Override
+        public void publish(LogRecord record) {
+            messages.add(record.getMessage());
+        }
+
+        @Override
+        public void flush() {}
+
+        @Override
+        public void close() {}
+    }
+}
