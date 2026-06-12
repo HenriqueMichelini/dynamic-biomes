@@ -1,12 +1,12 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.drops.domain;
 
-import java.util.Objects;
+import lombok.NonNull;
 
 public final class OreDropQuantityCalculator {
     private final OreDropQuantityVariationSource variationSource;
 
-    public OreDropQuantityCalculator(OreDropQuantityVariationSource variationSource) {
-        this.variationSource = Objects.requireNonNull(variationSource, "variationSource");
+    public OreDropQuantityCalculator(@NonNull OreDropQuantityVariationSource variationSource) {
+        this.variationSource = variationSource;
     }
 
     public int calculate(int vanillaDropQuantity, double multiplier) {

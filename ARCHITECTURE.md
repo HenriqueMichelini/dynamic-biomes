@@ -89,7 +89,10 @@ Rules:
 
 - No Bukkit/Paper imports.
 - No YAML, file I/O, or database implementation details.
-- No framework annotations.
+- No runtime framework annotations.
+- Lombok compile-time annotations are allowed only for boilerplate reduction and
+  invariant enforcement, such as null checks. Domain behavior and invariants
+  must remain explicit in the domain model.
 
 ### 5.2 `application/`
 
@@ -135,6 +138,8 @@ Responsibilities:
 - Must own **no gameplay behavior**.
 - Must own **no persistence decisions**.
 - Must import **no Bukkit types**.
+- May use Lombok compile-time annotations under the same restrictions as domain
+  packages.
 
 Bukkit `Location` is translated into these value objects at infrastructure boundaries. Other contexts may freely import from `spatial` because it is a shared kernel, not a downstream dependency.
 
