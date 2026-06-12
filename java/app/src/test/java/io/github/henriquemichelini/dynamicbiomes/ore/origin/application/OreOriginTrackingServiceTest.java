@@ -83,6 +83,32 @@ class OreOriginTrackingServiceTest {
         assertTrue(service.isEligibleForBiomeMultiplier(POSITION));
     }
 
+    @Test
+    void clearingTrackedOriginRestoresUnknownOreEligibility() {
+        InMemoryOreOriginRepository repository =
+            new InMemoryOreOriginRepository();
+        OreOriginTrackingService service = new OreOriginTrackingService(
+            repository
+        );
+        service.recordPlayerPlacedOre(POSITION);
+        assertFalse(service.isEligibleForBiomeMultiplier(POSITION));
+
+        service.clearTrackedOrigin(POSITION);
+
+        assertTrue(service.isEligibleForBiomeMultiplier(POSITION));
+    }
+
+    @Test
+    void clearingUnknownOriginIsSafe() {
+        OreOriginTrackingService service = new OreOriginTrackingService(
+            new InMemoryOreOriginRepository()
+        );
+
+        service.clearTrackedOrigin(POSITION);
+
+        assertTrue(service.isEligibleForBiomeMultiplier(POSITION));
+    }
+
     private static final class InMemoryOreOriginRepository
         implements OreOriginRepository
     {
@@ -97,6 +123,11 @@ class OreOriginTrackingServiceTest {
         @Override
         public Optional<OreOrigin> findByPosition(BlockPosition position) {
             return Optional.ofNullable(origins.get(position));
+        }
+
+        @Override
+        public void removeByPosition(BlockPosition position) {
+            origins.remove(position);
         }
     }
 }

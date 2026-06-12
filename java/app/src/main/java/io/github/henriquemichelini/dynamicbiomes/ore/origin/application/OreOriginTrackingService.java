@@ -21,4 +21,8 @@ public final class OreOriginTrackingService {
             .map(OreOrigin::isEligibleForBiomeBasedMultiplier)
             .orElse(true);
     }
+
+    public void clearTrackedOrigin(BlockPosition position) {
+        repository.removeByPosition(position);
+    }
 }

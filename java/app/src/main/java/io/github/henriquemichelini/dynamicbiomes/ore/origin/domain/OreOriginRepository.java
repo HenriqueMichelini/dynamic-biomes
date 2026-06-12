@@ -7,4 +7,6 @@ public interface OreOriginRepository {
     void save(OreOrigin origin);
 
     Optional<OreOrigin> findByPosition(BlockPosition position);
+
+    void removeByPosition(BlockPosition position);
 }
