@@ -71,7 +71,7 @@ class DynamicBiomesPluginTest {
             assertNotNull(pluginJar.getEntry("plugin.yml"));
             assertNotNull(pluginJar.getEntry("ore-drops.yml"));
             assertNull(pluginJar.getEntry("biomes.yml"));
-            assertEquals("1.0.0", plugin.getPluginMeta().getVersion());
+            assertEquals(System.getProperty("dynamicBiomes.pluginVersion"), plugin.getPluginMeta().getVersion());
             assertEquals(
                 "io.github.henriquemichelini.dynamicbiomes.pluginruntime.lifecycle.infrastructure.DynamicBiomes",
                 plugin.getPluginMeta().getMainClass()

@@ -20,7 +20,10 @@ class PluginResourcesTest {
 
         assertEquals(DynamicBiomes.class, Class.forName(mainClassName));
         assertTrue(pluginMetadata.contains("name: dynamic-biomes"));
-        assertTrue(pluginMetadata.contains("version: \"1.0.0\""));
+        assertEquals(
+            '"' + System.getProperty("dynamicBiomes.pluginVersion") + '"',
+            valueFor(pluginMetadata, "version")
+        );
         assertTrue(pluginMetadata.contains("api-version: '1.21'"));
     }
 

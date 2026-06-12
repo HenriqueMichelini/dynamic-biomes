@@ -45,6 +45,7 @@ java {
 }
 
 tasks.test {
+    systemProperty("dynamicBiomes.pluginVersion", project.version.toString())
     useJUnitPlatform()
 }
 
@@ -56,6 +57,7 @@ val pluginTestTask = tasks.register<Test>("pluginTest") {
     testClassesDirs = pluginTest.output.classesDirs
     classpath = pluginTest.runtimeClasspath
     systemProperty("dynamicBiomes.pluginJar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
+    systemProperty("dynamicBiomes.pluginVersion", project.version.toString())
     useJUnitPlatform()
 }
 
@@ -70,7 +72,7 @@ tasks.processResources {
 
     inputs.properties(props)
 
-    filesMatching(listOf("plugin.yml", "paper-plugin.yml")) {
+    filesMatching("plugin.yml") {
         expand(props)
     }
 }
