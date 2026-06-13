@@ -37,6 +37,15 @@ class PluginResourcesTest {
         assertNull(CLASS_LOADER.getResource("biomes.yml"));
     }
 
+    @Test
+    void biomeProfilesUseTheirCapabilityOwnedResourceName() throws IOException {
+        String biomeProfiles = readResource("biome-profiles.yml");
+
+        assertTrue(biomeProfiles.contains("profiles:"));
+        assertTrue(biomeProfiles.contains("minecraft:forest:"));
+        assertNull(CLASS_LOADER.getResource("biomes.yml"));
+    }
+
     private static String readResource(String name) throws IOException {
         try (InputStream resource = CLASS_LOADER.getResourceAsStream(name)) {
             assertNotNull(resource, () -> "Missing resource: " + name);

@@ -71,6 +71,7 @@ class DynamicBiomesPluginTest {
         try (JarFile pluginJar = new JarFile(System.getProperty("dynamicBiomes.pluginJar"))) {
             assertNotNull(pluginJar.getEntry("plugin.yml"));
             assertNotNull(pluginJar.getEntry("ore-drops.yml"));
+            assertNotNull(pluginJar.getEntry("biome-profiles.yml"));
             assertNull(pluginJar.getEntry("biomes.yml"));
             assertEquals(System.getProperty("dynamicBiomes.pluginVersion"), plugin.getPluginMeta().getVersion());
             assertEquals(

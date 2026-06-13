@@ -3,19 +3,38 @@ package io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
+import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
+import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
+import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.EcologicalPressure;
+import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Fertility;
+import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
+import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
+import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropQuantityCalculator;
+import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginRepository;
+import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.inventory.PlayerInventory;
 import org.junit.jupiter.api.Test;
 
 class PaperOreBreakListenerTest {
@@ -28,14 +47,18 @@ class PaperOreBreakListenerTest {
         64,
         -20
     );
+    private static final BiomeId FOREST = new BiomeId("minecraft:forest");
+    private static final OreKind IRON_ORE = new OreKind("minecraft:iron_ore");
+    private BlockPosition resolvedPosition;
 
     @Test
-    void clearsTrackedOriginForConfiguredOreBreak() {
+    void invokesBiomeAwareDropsBeforeClearingTrackedOrigin() {
         RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
         PaperOreBreakListener listener = listener(repository);
 
-        listener.onBlockBreak(eventFor(Material.IRON_ORE));
+        listener.onBlockBreak(eventFor(Material.IRON_ORE, world()));
 
+        assertEquals(POSITION, resolvedPosition);
         assertEquals(POSITION, repository.removedPosition);
     }
 
@@ -44,20 +67,58 @@ class PaperOreBreakListenerTest {
         RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
         PaperOreBreakListener listener = listener(repository);
 
-        listener.onBlockBreak(eventFor(Material.STONE));
+        listener.onBlockBreak(eventFor(Material.STONE, world()));
 
+        assertNull(resolvedPosition);
         assertNull(repository.removedPosition);
     }
 
-    private static PaperOreBreakListener listener(OreOriginRepository repository) {
-        return new PaperOreBreakListener(new OreOriginTrackingService(repository));
+    @Test
+    void checksPlayerPlacedOriginBeforeClearingIt() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        repository.save(new OreOrigin(POSITION, OreOriginType.PLAYER_PLACED));
+        PaperOreBreakListener listener = listener(repository);
+
+        listener.onBlockBreak(eventFor(Material.IRON_ORE, world()));
+
+        assertNull(resolvedPosition);
+        assertEquals(POSITION, repository.removedPosition);
     }
 
-    private static BlockBreakEvent eventFor(Material material) {
-        World world = proxy(
-            World.class,
-            Map.of("getUID", WORLD_ID)
+    private PaperOreBreakListener listener(OreOriginRepository repository) {
+        OreOriginTrackingService originTracking = new OreOriginTrackingService(repository);
+        BiomeContext forestContext = new BiomeContext(
+            FOREST,
+            new BiomeProfile(
+                FOREST,
+                new ClimateProfile(new Humidity(0.4), new Temperature(0.8)),
+                new Fertility(0.7),
+                new MineralRichness(0.3),
+                new EcologicalPressure(0.2)
+            )
         );
+        OreDropService dropService = new OreDropService(
+            originTracking,
+            position -> {
+                resolvedPosition = position;
+                return forestContext;
+            },
+            biomeId -> new OreDropPolicy(
+                biomeId,
+                Map.of(IRON_ORE, new OreDropMultiplierRange(2.0, 2.0))
+            ),
+            new OreDropMultiplierCalculator(() -> 0.5),
+            new OreDropQuantityCalculator(() -> 0.5)
+        );
+        return new PaperOreBreakListener(dropService, originTracking);
+    }
+
+    private static BlockBreakEvent eventFor(Material material, World world) {
+        PlayerInventory inventory = proxy(
+            PlayerInventory.class,
+            Map.of()
+        );
+        Player player = proxy(Player.class, Map.of("getInventory", inventory));
         Block block = proxy(
             Block.class,
             Map.of(
@@ -65,10 +126,11 @@ class PaperOreBreakListenerTest {
                 "getWorld", world,
                 "getX", POSITION.x(),
                 "getY", POSITION.y(),
-                "getZ", POSITION.z()
+                "getZ", POSITION.z(),
+                "getDrops", List.of()
             )
         );
-        return new BlockBreakEvent(block, null);
+        return new BlockBreakEvent(block, player);
     }
 
     @SuppressWarnings("unchecked")
@@ -80,22 +142,28 @@ class PaperOreBreakListenerTest {
         );
     }
 
+    private static World world() {
+        return proxy(World.class, Map.of("getUID", WORLD_ID));
+    }
+
     private static final class RecordingOreOriginRepository
         implements OreOriginRepository {
+        private OreOrigin origin;
         private BlockPosition removedPosition;
 
         @Override
         public void save(OreOrigin origin) {
-            throw new UnsupportedOperationException();
+            this.origin = origin;
         }
 
         @Override
         public Optional<OreOrigin> findByPosition(BlockPosition position) {
-            throw new UnsupportedOperationException();
+            return Optional.ofNullable(origin);
         }
 
         @Override
         public void removeByPosition(BlockPosition position) {
+            origin = null;
             removedPosition = position;
         }
     }
