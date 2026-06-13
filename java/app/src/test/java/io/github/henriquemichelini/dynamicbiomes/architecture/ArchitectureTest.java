@@ -42,6 +42,8 @@ class ArchitectureTest {
         ROOT + ".seasons.identity.domain.SeasonId",
         ROOT + ".seasons.cycle.domain.CurrentSeasonQuery",
         ROOT + ".seasons.profile.domain.SeasonProfile",
+        ROOT + ".seasons.profile.domain.SeasonClimateAdjustment",
+        ROOT + ".seasons.profile.domain.SeasonalAdjustment",
         ROOT + ".seasons.profile.domain.SeasonProfileProvider"
     );
     private static final Set<String> FILE_IO_TYPES = Set.of(
