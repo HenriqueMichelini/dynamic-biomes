@@ -12,7 +12,6 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
-import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
@@ -22,6 +21,10 @@ import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginRepository;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonalAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.util.HashMap;
@@ -51,10 +54,22 @@ class OreDropServiceTest {
             new EcologicalPressure(0.2)
         )
     );
+    private static final SeasonProfile SPRING_PROFILE = new SeasonProfile(
+        new SeasonId("minecraft:spring"),
+        new SeasonClimateAdjustment(
+            new SeasonalAdjustment(0.2),
+            new SeasonalAdjustment(0.3)
+        )
+    );
 
     @Test
     void appliesResolvedBiomePolicyAndOreKindToEligibleQuantity() {
-        RecordingBiomeResolver biomeResolver = new RecordingBiomeResolver(FOREST_CONTEXT);
+        BlockPosition[] capturedPosition = new BlockPosition[1];
+        OreDropEnvironmentQueryService environmentQuery = fixedEnvironmentQuery(
+            FOREST_CONTEXT,
+            SPRING_PROFILE,
+            capturedPosition
+        );
         RecordingPolicyProvider policyProvider = new RecordingPolicyProvider(
             new OreDropPolicy(
                 FOREST,
@@ -63,25 +78,33 @@ class OreDropServiceTest {
         );
         OreDropService service = serviceWith(
             new InMemoryOreOriginRepository(),
-            biomeResolver,
+            environmentQuery,
             policyProvider
         );
 
         assertEquals(5, service.calculateDrops(POSITION, IRON_ORE, 3));
-        assertEquals(POSITION, biomeResolver.resolvedPosition);
+        assertEquals(POSITION, capturedPosition[0]);
         assertEquals(FOREST, policyProvider.requestedBiomeId);
     }
 
     @Test
-    void preservesQuantityAndSkipsBiomeResolutionForPlayerPlacedOre() {
+    void preservesQuantityAndSkipsEnvironmentResolutionForPlayerPlacedOre() {
         InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
         OreOriginTrackingService originTracking = new OreOriginTrackingService(repository);
         originTracking.recordPlayerPlacedOre(POSITION);
         OreDropService service = new OreDropService(
             originTracking,
-            position -> {
-                throw new AssertionError("Biome resolution is unnecessary for ineligible ore");
-            },
+            new OreDropEnvironmentQueryService(
+                position -> {
+                    throw new AssertionError("Environment query is unnecessary for ineligible ore");
+                },
+                () -> {
+                    throw new AssertionError("Season query is unnecessary for ineligible ore");
+                },
+                seasonId -> {
+                    throw new AssertionError("Profile provider is unnecessary for ineligible ore");
+                }
+            ),
             biomeId -> {
                 throw new AssertionError("Policy lookup is unnecessary for ineligible ore");
             },
@@ -100,7 +123,7 @@ class OreDropServiceTest {
     void propagatesMissingBiomePolicyFailure() {
         OreDropService service = serviceWith(
             new InMemoryOreOriginRepository(),
-            position -> FOREST_CONTEXT,
+            fixedEnvironmentQuery(FOREST_CONTEXT, SPRING_PROFILE, null),
             biomeId -> {
                 throw new IllegalArgumentException(
                     "Missing ore drop policy for biome: " + biomeId.value()
@@ -130,7 +153,7 @@ class OreDropServiceTest {
         );
         OreDropService service = serviceWith(
             new InMemoryOreOriginRepository(),
-            position -> FOREST_CONTEXT,
+            fixedEnvironmentQuery(FOREST_CONTEXT, SPRING_PROFILE, null),
             biomeId -> policy
         );
 
@@ -140,33 +163,63 @@ class OreDropServiceTest {
         );
     }
 
+    @Test
+    void propagatesEnvironmentQueryFailure() {
+        OreDropService service = serviceWith(
+            new InMemoryOreOriginRepository(),
+            new OreDropEnvironmentQueryService(
+                position -> {
+                    throw new IllegalStateException("Current season is not initialized");
+                },
+                () -> {
+                    throw new AssertionError("Query should not be called when resolver fails");
+                },
+                seasonId -> {
+                    throw new AssertionError("Provider should not be called when resolver fails");
+                }
+            ),
+            biomeId -> {
+                throw new AssertionError("Policy lookup should not be called when query fails");
+            }
+        );
+
+        IllegalStateException exception = assertThrows(
+            IllegalStateException.class,
+            () -> service.calculateDrops(POSITION, IRON_ORE, 3)
+        );
+
+        assertEquals("Current season is not initialized", exception.getMessage());
+    }
+
     private static OreDropService serviceWith(
         OreOriginRepository repository,
-        BiomeResolver biomeResolver,
+        OreDropEnvironmentQueryService environmentQuery,
         OreDropPolicyProvider policyProvider
     ) {
         return new OreDropService(
             new OreOriginTrackingService(repository),
-            biomeResolver,
+            environmentQuery,
             policyProvider,
             new OreDropMultiplierCalculator(() -> 0.5),
             new OreDropQuantityCalculator(() -> 0.49)
         );
     }
 
-    private static final class RecordingBiomeResolver implements BiomeResolver {
-        private final BiomeContext context;
-        private BlockPosition resolvedPosition;
-
-        private RecordingBiomeResolver(BiomeContext context) {
-            this.context = context;
-        }
-
-        @Override
-        public BiomeContext resolve(BlockPosition position) {
-            resolvedPosition = position;
-            return context;
-        }
+    private static OreDropEnvironmentQueryService fixedEnvironmentQuery(
+        BiomeContext biomeContext,
+        SeasonProfile seasonProfile,
+        BlockPosition[] capturedPosition
+    ) {
+        return new OreDropEnvironmentQueryService(
+            position -> {
+                if (capturedPosition != null && capturedPosition.length > 0) {
+                    capturedPosition[0] = position;
+                }
+                return biomeContext;
+            },
+            () -> seasonProfile.seasonId(),
+            seasonId -> seasonProfile
+        );
     }
 
     private static final class RecordingPolicyProvider implements OreDropPolicyProvider {

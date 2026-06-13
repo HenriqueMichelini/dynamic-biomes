@@ -1,0 +1,17 @@
+profiles:
+  minecraft:spring:
+    climate-adjustment:
+      temperature: 0.0
+      humidity: 0.1
+  minecraft:summer:
+    climate-adjustment:
+      temperature: 0.2
+      humidity: -0.1
+  minecraft:autumn:
+    climate-adjustment:
+      temperature: -0.1
+      humidity: 0.0
+  minecraft:winter:
+    climate-adjustment:
+      temperature: -0.2
+      humidity: 0.1

@@ -46,6 +46,19 @@ class PluginResourcesTest {
         assertNull(CLASS_LOADER.getResource("biomes.yml"));
     }
 
+    @Test
+    void seasonProfilesUseTheirCapabilityOwnedResourceName() throws IOException {
+        String seasonProfiles = readResource("season-profiles.yml");
+
+        assertTrue(seasonProfiles.contains("profiles:"));
+        assertTrue(seasonProfiles.contains("climate-adjustment:"));
+        assertTrue(seasonProfiles.contains("minecraft:spring:"));
+        assertTrue(seasonProfiles.contains("minecraft:summer:"));
+        assertTrue(seasonProfiles.contains("minecraft:autumn:"));
+        assertTrue(seasonProfiles.contains("minecraft:winter:"));
+        assertNull(CLASS_LOADER.getResource("seasons.yml"));
+    }
+
     private static String readResource(String name) throws IOException {
         try (InputStream resource = CLASS_LOADER.getResourceAsStream(name)) {
             assertNotNull(resource, () -> "Missing resource: " + name);
