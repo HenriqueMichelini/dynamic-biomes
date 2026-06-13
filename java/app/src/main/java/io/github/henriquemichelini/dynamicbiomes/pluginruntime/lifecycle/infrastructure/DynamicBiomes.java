@@ -13,7 +13,12 @@ import io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure.YamlOr
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOrePlaceListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.YamlOreOriginRepository;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.SeasonInitializationService;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCalendar;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure.YamlSeasonStateRepository;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.nio.file.Path;
+import java.util.List;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class DynamicBiomes extends JavaPlugin {
@@ -24,19 +29,40 @@ public final class DynamicBiomes extends JavaPlugin {
         saveResource("biome-profiles.yml", false);
 
         Path dataPath = getDataFolder().toPath();
+        
+        SeasonCalendar seasonCalendar = new SeasonCalendar(
+            List.of(
+                new SeasonId("minecraft:spring"),
+                new SeasonId("minecraft:summer"),
+                new SeasonId("minecraft:autumn"),
+                new SeasonId("minecraft:winter")
+            )
+        );
+        
+        SeasonInitializationService seasonInitialization = new SeasonInitializationService(
+            seasonCalendar,
+            new YamlSeasonStateRepository(dataPath.resolve("season-state.yml"))
+        );
+        
+        seasonInitialization.initializeIfMissing();
+
         OreOriginTrackingService originTracking = new OreOriginTrackingService(
             new YamlOreOriginRepository(dataPath.resolve("ore-origins.yml"))
         );
+        
         BiomeProfileProvider biomeProfileProvider = new YamlBiomeProfileProvider(
             dataPath.resolve("biome-profiles.yml")
         );
+        
         BiomeResolver biomeResolver = new BukkitBiomeResolver(
             getServer(),
             biomeProfileProvider
         );
+        
         OreDropPolicyProvider oreDropPolicyProvider = new YamlOreDropPolicyProvider(
             dataPath.resolve("ore-drops.yml")
         );
+
         OreDropService oreDropService = new OreDropService(
             originTracking,
             biomeResolver,
@@ -49,6 +75,7 @@ public final class DynamicBiomes extends JavaPlugin {
             new PaperOrePlaceListener(originTracking),
             this
         );
+
         getServer().getPluginManager().registerEvents(
             new PaperOreBreakListener(oreDropService, originTracking),
             this

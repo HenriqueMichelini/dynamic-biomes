@@ -20,7 +20,7 @@ public final class SeasonInitializationService {
             return currentSeason.get();
         }
 
-        SeasonId firstSeason = calendar.seasons().get(0);
+        SeasonId firstSeason = calendar.seasons().getFirst();
         repository.saveCurrentSeason(firstSeason);
         return firstSeason;
     }
