@@ -26,7 +26,6 @@ import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginRepository;
-import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.CachedCurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
@@ -139,8 +138,8 @@ class OreDropServiceTest {
     }
 
     @Test
-    void readsCurrentSeasonFromCacheWithoutRepositoryAccess() {
-        CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(SUMMER);
+    void readsCurrentSeasonFromPublishedQuery() {
+        RecordingCurrentSeasonQuery currentSeasonQuery = new RecordingCurrentSeasonQuery(SUMMER);
         OreDropPolicy policy = new OreDropPolicy(
             FOREST,
             Map.of(
@@ -159,6 +158,7 @@ class OreDropServiceTest {
         );
 
         assertEquals(9, service.calculateDrops(POSITION, IRON_ORE, 3));
+        assertEquals(1, currentSeasonQuery.calls());
     }
 
     @Test
@@ -305,6 +305,25 @@ class OreDropServiceTest {
         public OreDropPolicy policyFor(BiomeId biomeId) {
             requestedBiomeId = biomeId;
             return policy;
+        }
+    }
+
+    private static final class RecordingCurrentSeasonQuery implements CurrentSeasonQuery {
+        private final SeasonId currentSeason;
+        private int calls;
+
+        private RecordingCurrentSeasonQuery(SeasonId currentSeason) {
+            this.currentSeason = currentSeason;
+        }
+
+        @Override
+        public SeasonId currentSeason() {
+            calls++;
+            return currentSeason;
+        }
+
+        private int calls() {
+            return calls;
         }
     }
 
