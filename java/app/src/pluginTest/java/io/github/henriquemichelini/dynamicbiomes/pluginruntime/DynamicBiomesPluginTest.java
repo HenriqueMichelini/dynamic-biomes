@@ -97,6 +97,9 @@ class DynamicBiomesPluginTest {
         assertTrue(listenerClassNames.contains(
             "io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure.PaperOreBreakListener"
         ));
+        assertTrue(listenerClassNames.contains(
+            "io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOreMovementListener"
+        ));
     }
 
     private static final class MessageRecordingHandler extends Handler {

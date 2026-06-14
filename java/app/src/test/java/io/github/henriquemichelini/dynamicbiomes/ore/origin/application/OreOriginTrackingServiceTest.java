@@ -109,6 +109,73 @@ class OreOriginTrackingServiceTest {
         assertTrue(service.isEligibleForBiomeMultiplier(POSITION));
     }
 
+    @Test
+    void moveTrackedOriginTransfersPlayerPlacedToDestination() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        repository.save(new OreOrigin(POSITION, OreOriginType.PLAYER_PLACED));
+        OreOriginTrackingService service = new OreOriginTrackingService(repository);
+
+        BlockPosition destination = new BlockPosition(
+            POSITION.world(),
+            POSITION.x() + 1,
+            POSITION.y(),
+            POSITION.z()
+        );
+        service.moveTrackedOrigin(POSITION, destination);
+
+        assertAll(
+            () -> assertTrue(repository.findByPosition(POSITION).isEmpty()),
+            () -> assertEquals(
+                new OreOrigin(destination, OreOriginType.PLAYER_PLACED),
+                repository.findByPosition(destination).orElseThrow()
+            ),
+            () -> assertFalse(service.isEligibleForBiomeMultiplier(destination))
+        );
+    }
+
+    @Test
+    void moveTrackedOriginTransfersNaturalToDestination() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        repository.save(new OreOrigin(POSITION, OreOriginType.NATURAL));
+        OreOriginTrackingService service = new OreOriginTrackingService(repository);
+
+        BlockPosition destination = new BlockPosition(
+            POSITION.world(),
+            POSITION.x(),
+            POSITION.y() + 1,
+            POSITION.z()
+        );
+        service.moveTrackedOrigin(POSITION, destination);
+
+        assertAll(
+            () -> assertTrue(repository.findByPosition(POSITION).isEmpty()),
+            () -> assertEquals(
+                new OreOrigin(destination, OreOriginType.NATURAL),
+                repository.findByPosition(destination).orElseThrow()
+            ),
+            () -> assertTrue(service.isEligibleForBiomeMultiplier(destination))
+        );
+    }
+
+    @Test
+    void moveTrackedOriginForUntrackedOreDoesNothing() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        OreOriginTrackingService service = new OreOriginTrackingService(repository);
+
+        BlockPosition destination = new BlockPosition(
+            POSITION.world(),
+            POSITION.x(),
+            POSITION.y(),
+            POSITION.z() + 1
+        );
+        service.moveTrackedOrigin(POSITION, destination);
+
+        assertAll(
+            () -> assertTrue(repository.findByPosition(POSITION).isEmpty()),
+            () -> assertTrue(repository.findByPosition(destination).isEmpty())
+        );
+    }
+
     private static final class InMemoryOreOriginRepository
         implements OreOriginRepository
     {

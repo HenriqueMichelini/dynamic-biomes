@@ -25,4 +25,11 @@ public final class OreOriginTrackingService {
     public void clearTrackedOrigin(BlockPosition position) {
         repository.removeByPosition(position);
     }
+
+    public void moveTrackedOrigin(BlockPosition from, BlockPosition to) {
+        repository.findByPosition(from).ifPresent(origin -> {
+            repository.removeByPosition(from);
+            repository.save(new OreOrigin(to, origin.type()));
+        });
+    }
 }
