@@ -30,9 +30,12 @@ public final class YamlBiomeProfileProvider implements BiomeProfileProvider {
     public BiomeProfile profileFor(BiomeId biomeId) {
         Map<?, ?> root = loadRoot();
         Map<?, ?> profiles = requiredMap(root, "profiles", "biome profiles");
-        Map<?, ?> profile = requiredMap(
-            profiles,
-            biomeId.value(),
+        if (!profiles.containsKey(biomeId.value())) {
+            return null;
+        }
+
+        Map<?, ?> profile = requiredMapValue(
+            profiles.get(biomeId.value()),
             "biome profile '" + biomeId.value() + "'"
         );
         Map<?, ?> climate = requiredMap(

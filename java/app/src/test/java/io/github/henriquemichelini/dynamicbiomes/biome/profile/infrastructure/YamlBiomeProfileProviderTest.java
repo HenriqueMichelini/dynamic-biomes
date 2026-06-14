@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.biome.profile.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,16 +45,30 @@ class YamlBiomeProfileProviderTest {
     }
 
     @Test
-    void failsClearlyWhenRequestedProfileIsMissing() throws IOException {
+    void returnsNullWhenRequestedProfileIsMissing() throws IOException {
         Path profileFile = writeProfiles(validProfiles());
         BiomeId desert = new BiomeId("minecraft:desert");
 
-        IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> new YamlBiomeProfileProvider(profileFile).profileFor(desert)
+        BiomeProfile profile = new YamlBiomeProfileProvider(profileFile).profileFor(desert);
+
+        assertNull(profile);
+    }
+
+    @Test
+    void failsClearlyWhenConfiguredProfileIsNotAMapping() throws IOException {
+        Path profileFile = writeProfiles(
+            """
+            profiles:
+              minecraft:plains:
+            """
         );
 
-        assertTrue(exception.getMessage().contains(desert.value()));
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlBiomeProfileProvider(profileFile).profileFor(PLAINS)
+        );
+
+        assertTrue(exception.getMessage().contains("must be a mapping"));
     }
 
     @Test

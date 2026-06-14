@@ -1,0 +1,8 @@
+minecraft:forest:
+  ores:
+    minecraft:iron_ore:
+      min: 1.0
+      max: 1.2
+    minecraft:coal:
+      min: 0.9
+      max: 1.05

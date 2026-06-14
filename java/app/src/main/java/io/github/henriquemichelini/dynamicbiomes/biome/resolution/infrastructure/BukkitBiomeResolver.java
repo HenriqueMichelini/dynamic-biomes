@@ -39,14 +39,18 @@ public final class BukkitBiomeResolver implements BiomeResolver {
 
         Biome biome = world.getBiome(position.x(), position.y(), position.z());
         BiomeId biomeId = new BiomeId(biome.getKey().toString());
+        return resolveContext(biomeId);
+    }
+
+    BiomeContext resolveContext(BiomeId biomeId) {
         BiomeProfile profile = profileProvider.profileFor(biomeId);
-        
+
         if (profile == null) {
             throw new UnsupportedBiomeException(
                 "Missing static biome profile for resolved biome: " + biomeId.value()
             );
         }
-        
+
         return new BiomeContext(biomeId, profile);
     }
 }
