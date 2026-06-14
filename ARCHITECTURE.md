@@ -58,15 +58,14 @@ Downstream feature contexts must consume only explicitly published upstream cont
 
 - **Biome identity and resolution**: `BiomeId`, `BiomeContext`, `BiomeResolver` port, `UnsupportedBiomeException`.
 - **Biome static profile**: `BiomeProfile`, `BiomeProfileProvider` port, `ClimateProfile`, `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure`.
-- **Season identity and query**: `SeasonId`, `CurrentSeasonQuery` port, `SeasonProfile`, `SeasonClimateAdjustment`, `SeasonalAdjustment`, `SeasonProfileProvider` port.
+- **Season identity and profile**: `SeasonId`, `SeasonProfile`, `SeasonClimateAdjustment`, `SeasonalAdjustment`, `SeasonProfileProvider` port.
 - **Ore drops safety contract**: `UnsupportedOreDropConfigurationException` (thrown when a biome has no ore drop policy or an `OreKind` has no configured rule; caught by `ore/drops/application` to preserve vanilla drops).
 - **Spatial vocabulary**: `WorldReference`, `BlockPosition`.
-- **Dynamic ecological state**: `EcologicalRegionState` as an entity concept; exposed to downstream contexts through `BiomeContext` or explicit read/query ports. The repository port is owned by `biome/dynamics` and should not be used by feature domains for arbitrary mutation.
 
 ### 4.2 What Is Not Published
 
 - Internal infrastructure packages: `biome/*/infrastructure`, `seasons/*/infrastructure`.
-- Internal repository implementations: `YamlEcologicalRegionStateRepository`, `BukkitBiomeResolver`.
+- Internal repository implementations: `BukkitBiomeResolver`.
 - Internal configuration parsing details.
 - Any package not listed in the published vocabulary above.
 
@@ -161,18 +160,16 @@ animalDeathChance
 treeSpreadChance
 ```
 
-Acceptable inside `biome/profile` or `biome/dynamics`:
+Acceptable inside `biome/profile`:
 
 ```java
 // Acceptable
-BiomeTag
 ClimateProfile
 Humidity
 Temperature
 Fertility
 MineralRichness
 EcologicalPressure
-EcologicalRegionState
 ```
 
 Do **not** introduce `BiomeEffect`, `EffectType`, or any biome-owned rule vocabulary such as `ORE_DROP_MULTIPLIER`.
@@ -225,10 +222,8 @@ io.github.henriquemichelini.dynamicbiomes/
 │   ├── cycle/
 │   │   ├── domain/
 │   │   │   ├── SeasonCalendar.java
-│   │   │   ├── CurrentSeasonQuery.java
 │   │   │   └── SeasonStateRepository.java
 │   │   ├── application/
-│   │   │   ├── RepositoryCurrentSeasonQuery.java
 │   │   │   └── SeasonInitializationService.java
 │   │   └── infrastructure/
 │   │       └── YamlSeasonStateRepository.java
@@ -295,7 +290,6 @@ It combines:
 
 - `BiomeId` — the identity of the resolved biome.
 - `BiomeProfile` — static or configured ecological properties for that biome type.
-- Optional `EcologicalRegionState` — plugin-owned dynamic ecological state for the specific region.
 
 There is no separate `ResolvedBiome`. `BiomeResolver` returns `BiomeContext`.
 
@@ -308,28 +302,12 @@ Dynamic state must not contain ore, crop, or animal rule results.
 - `ore/drops` consumes ore origin data but does not own origin tracking.
 - `OreOrigin` uses pure domain types only; no Bukkit imports.
 
-## 9. EcologicalRegionState
-
-`EcologicalRegionState` is plugin-owned dynamic ecological state for a specific region.
-
-Properties:
-
-- Identified by `EcologicalRegionId`.
-- Treated as an **entity/aggregate concept**, not a passive data bag.
-- Encapsulates its own state transitions and invariants.
-- Must not contain feature-specific results such as `oreMultiplier`, `cropGrowthSpeed`, or `animalDeathChance`.
-
-Acceptable contents:
-
-- `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure` — environmental condition value objects owned by `biome/profile` and referenced here as dynamic state values that may change over time.
-- Transition methods that validate state changes against domain rules.
-
-## 10. Value Object Rules
+## 9. Value Object Rules
 
 - **No empty wrappers.** A value object must carry meaningful, validated data.
 - **Validate construction invariants.** IDs cannot be null or blank. Namespaced keys must be valid. Coordinate objects must use explicit integer block/chunk/region semantics.
 - **Records are appropriate** for immutable value objects (`BiomeId`, `BlockPosition`, `SeasonId`, etc.).
-- **Entities/aggregates should not be passive records** unless immutability and all transition methods are explicitly modeled. `EcologicalRegionState` is an entity; it should encapsulate behavior.
+- **Entities/aggregates should not be passive records** unless immutability and all transition methods are explicitly modeled.
 - **Equality is by value** for value objects, by identity for entities.
 
 ## 11. Persistence and Configuration Are Infrastructure
@@ -341,7 +319,6 @@ Persistence is infrastructure, not a bounded context. The domain that owns the s
 State repository ports live inside the owning domain/capability:
 
 ```text
-biome/dynamics/domain/EcologicalRegionStateRepository.java
 ore/origin/domain/OreOriginRepository.java
 seasons/cycle/domain/SeasonStateRepository.java
 ```
@@ -349,23 +326,11 @@ seasons/cycle/domain/SeasonStateRepository.java
 Persistence adapters implement those ports:
 
 ```text
-biome/dynamics/infrastructure/YamlEcologicalRegionStateRepository.java
 ore/origin/infrastructure/YamlOreOriginRepository.java
 seasons/cycle/infrastructure/YamlSeasonStateRepository.java
 ```
 
-Shared persistence utilities, if needed, are technical support infrastructure only:
-
-```text
-persistence/
-└── yaml/
-    └── infrastructure/
-        ├── YamlStore.java
-        ├── AtomicYamlWriter.java
-        └── DataVersion.java
-```
-
-There is no `ecologypersistence/snapshot/domain/Snapshot.java` in the target design.
+Shared persistence utilities, if needed, are technical support infrastructure only. There is no generic snapshot/repository abstraction; each domain owns its own repository port.
 Persistence format is an implementation detail, not a domain boundary.
 
 ### 11.2 Configuration
@@ -380,17 +345,7 @@ ore/drops/infrastructure/YamlOreDropPolicyProvider.java
 seasons/profile/infrastructure/YamlSeasonProfileProvider.java
 ```
 
-Shared YAML loading/parsing, if needed, is infrastructure support only:
-
-```text
-configuration/
-└── yaml/
-    └── infrastructure/
-        ├── YamlConfigurationLoader.java
-        └── YamlValidationReporter.java
-```
-
-There is no generic `ConfigurationProvider` port in domain. Raw YAML is translated into typed domain objects at infrastructure boundaries.
+Shared YAML loading/parsing utilities, if needed, are infrastructure support only. There is no generic `ConfigurationProvider` port in domain. Raw YAML is translated into typed domain objects at infrastructure boundaries.
 
 ## 12. Port-Adapter Naming Convention
 
@@ -398,10 +353,9 @@ Not every port is a repository. Use naming that reflects responsibility:
 
 | Pattern | Use For | Example |
 |---|---|---|
-| **Repository** | Persisted collections of domain objects or mutable state | `EcologicalRegionStateRepository`, `OreOriginRepository` |
+| **Repository** | Persisted collections of domain objects or mutable state | `OreOriginRepository` |
 | **Provider** | Configured policy/profile data | `OreDropPolicyProvider`, `BiomeProfileProvider`, `SeasonProfileProvider` |
 | **Resolver** | Mapping one concept to another | `BiomeResolver` maps `BlockPosition` to `BiomeContext` |
-| **Query / Clock** | Current temporal state | `CurrentSeasonQuery` |
 
 ## 13. Domain Events
 
@@ -410,7 +364,6 @@ Domain events are allowed for cross-context reactions.
 Appropriate uses:
 
 - `SeasonTransitioned` — downstream domains react to season changes.
-- `EcologicalRegionStateChanged` — downstream domains react to ecological state transitions.
 
 Rules:
 
@@ -459,7 +412,7 @@ Rules:
 
 - Domain tests must not require Bukkit, YAML, or file I/O.
 - Use in-memory fakes/stubs for providers, repositories, resolvers, and queries.
-- Example: `InMemoryBiomeProfileProvider`, `InMemoryEcologicalRegionStateRepository`, `FixedCurrentSeasonQuery`.
+- Example: `InMemoryBiomeProfileProvider`, `InMemoryOreOriginRepository`.
 - Infrastructure tests may use Bukkit mocks or temporary files where appropriate.
 - Application tests use real domain objects with stubbed ports.
 
