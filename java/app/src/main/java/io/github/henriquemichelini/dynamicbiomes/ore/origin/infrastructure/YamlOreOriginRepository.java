@@ -23,9 +23,11 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.yaml.snakeyaml.representer.Representer;
 
 public final class YamlOreOriginRepository implements OreOriginRepository {
+
     private static final String ORIGINS_KEY = "origins";
 
     private final Path repositoryFile;
+    private Map<BlockPosition, OreOrigin> origins;
 
     public YamlOreOriginRepository(Path repositoryFile) {
         this.repositoryFile = repositoryFile;
@@ -33,34 +35,40 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
 
     @Override
     public void save(OreOrigin origin) {
-        Map<BlockPosition, OreOrigin> origins = loadOrigins();
+        ensureLoaded();
         origins.put(origin.position(), origin);
-        writeOrigins(origins.values());
+        writeOrigins();
     }
 
     @Override
     public Optional<OreOrigin> findByPosition(BlockPosition position) {
-        return Optional.ofNullable(loadOrigins().get(position));
+        ensureLoaded();
+        return Optional.ofNullable(origins.get(position));
     }
 
     @Override
     public void removeByPosition(BlockPosition position) {
-        Map<BlockPosition, OreOrigin> origins = loadOrigins();
+        ensureLoaded();
         if (origins.remove(position) != null) {
-            writeOrigins(origins.values());
+            writeOrigins();
         }
     }
 
-    private Map<BlockPosition, OreOrigin> loadOrigins() {
+    private void ensureLoaded() {
+        if (origins != null) {
+            return;
+        }
+
         if (Files.notExists(repositoryFile)) {
-            return new LinkedHashMap<>();
+            origins = new LinkedHashMap<>();
+            return;
         }
 
         try (Reader reader = Files.newBufferedReader(repositoryFile)) {
             Object loaded = yaml().load(reader);
             Map<?, ?> root = requiredMap(loaded, "repository root");
             List<?> entries = requiredList(root.get(ORIGINS_KEY), ORIGINS_KEY);
-            Map<BlockPosition, OreOrigin> origins = new LinkedHashMap<>();
+            origins = new LinkedHashMap<>();
 
             for (int index = 0; index < entries.size(); index++) {
                 OreOrigin origin = parseOrigin(
@@ -68,10 +76,11 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
                     index
                 );
                 if (origins.put(origin.position(), origin) != null) {
-                    throw invalid("duplicate position at origins[" + index + "]");
+                    throw invalid(
+                        "duplicate position at origins[" + index + "]"
+                    );
                 }
             }
-            return origins;
         } catch (IOException exception) {
             throw new IllegalStateException(
                 "Unable to read ore origin repository file: " + repositoryFile,
@@ -97,16 +106,21 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
         );
         OreOriginType type;
         try {
-            type = OreOriginType.valueOf(requiredString(entry, "type", context));
+            type = OreOriginType.valueOf(
+                requiredString(entry, "type", context)
+            );
         } catch (IllegalArgumentException exception) {
-            throw invalid(context + ".type must be a valid ore origin type", exception);
+            throw invalid(
+                context + ".type must be a valid ore origin type",
+                exception
+            );
         }
         return new OreOrigin(position, type);
     }
 
-    private void writeOrigins(Iterable<OreOrigin> origins) {
+    private void writeOrigins() {
         List<Map<String, Object>> entries = new ArrayList<>();
-        for (OreOrigin origin : origins) {
+        for (OreOrigin origin : origins.values()) {
             BlockPosition position = origin.position();
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("world", position.world().id().toString());
@@ -161,7 +175,11 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
         return list;
     }
 
-    private static String requiredString(Map<?, ?> entry, String key, String context) {
+    private static String requiredString(
+        Map<?, ?> entry,
+        String key,
+        String context
+    ) {
         Object value = entry.get(key);
         if (!(value instanceof String string) || string.isBlank()) {
             throw invalid(context + "." + key + " must be a non-blank string");
@@ -169,25 +187,36 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
         return string;
     }
 
-    private static int requiredInteger(Map<?, ?> entry, String key, String context) {
+    private static int requiredInteger(
+        Map<?, ?> entry,
+        String key,
+        String context
+    ) {
         Object value = entry.get(key);
         if (!(value instanceof Number number)) {
             throw invalid(context + "." + key + " must be an integer");
         }
         long longValue = number.longValue();
-        if (longValue < Integer.MIN_VALUE
-            || longValue > Integer.MAX_VALUE
-            || number.doubleValue() != longValue) {
+        if (
+            longValue < Integer.MIN_VALUE ||
+            longValue > Integer.MAX_VALUE ||
+            number.doubleValue() != longValue
+        ) {
             throw invalid(context + "." + key + " must be an integer");
         }
         return (int) longValue;
     }
 
     private static IllegalArgumentException invalid(String detail) {
-        return new IllegalArgumentException("Invalid ore origin repository data: " + detail);
+        return new IllegalArgumentException(
+            "Invalid ore origin repository data: " + detail
+        );
     }
 
-    private static IllegalArgumentException invalid(String detail, Exception cause) {
+    private static IllegalArgumentException invalid(
+        String detail,
+        Exception cause
+    ) {
         return new IllegalArgumentException(
             "Invalid ore origin repository data: " + detail,
             cause

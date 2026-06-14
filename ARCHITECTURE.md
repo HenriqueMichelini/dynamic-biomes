@@ -57,9 +57,10 @@ Downstream feature contexts must consume only explicitly published upstream cont
 ### 4.1 What Is Published
 
 - **Biome identity and resolution**: `BiomeId`, `BiomeContext`, `BiomeResolver` port, `UnsupportedBiomeException`.
-- **Biome static profile**: `BiomeProfile`, `BiomeProfileProvider` port, `BiomeTag`, `ClimateProfile`, `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure`.
+- **Biome static profile**: `BiomeProfile`, `BiomeProfileProvider` port, `ClimateProfile`, `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure`.
 - **Season identity and query**: `SeasonId`, `CurrentSeasonQuery` port, `SeasonProfile`, `SeasonClimateAdjustment`, `SeasonalAdjustment`, `SeasonProfileProvider` port.
-- **Spatial vocabulary**: `WorldReference`, `BlockPosition`, `ChunkPosition`, `EcologicalRegionId`.
+- **Ore drops safety contract**: `UnsupportedOreDropConfigurationException` (thrown when a biome has no ore drop policy or an `OreKind` has no configured rule; caught by `ore/drops/application` to preserve vanilla drops).
+- **Spatial vocabulary**: `WorldReference`, `BlockPosition`.
 - **Dynamic ecological state**: `EcologicalRegionState` as an entity concept; exposed to downstream contexts through `BiomeContext` or explicit read/query ports. The repository port is owned by `biome/dynamics` and should not be used by feature domains for arbitrary mutation.
 
 ### 4.2 What Is Not Published
@@ -191,9 +192,7 @@ io.github.henriquemichelini.dynamicbiomes/
 ├── spatial/
 │   └── domain/
 │       ├── WorldReference.java
-│       ├── BlockPosition.java
-│       ├── ChunkPosition.java
-│       └── EcologicalRegionId.java
+│       └── BlockPosition.java
 │
 ├── biome/
 │   ├── identity/
@@ -202,23 +201,22 @@ io.github.henriquemichelini.dynamicbiomes/
 │   ├── resolution/
 │   │   ├── domain/
 │   │   │   ├── BiomeResolver.java
-│   │   │   └── BiomeContext.java
+│   │   │   ├── BiomeContext.java
+│   │   │   └── UnsupportedBiomeException.java
 │   │   └── infrastructure/
 │   │       └── BukkitBiomeResolver.java
-│   ├── profile/
-│   │   ├── domain/
-│   │   │   ├── BiomeProfile.java
-│   │   │   ├── BiomeTag.java
-│   │   │   ├── ClimateProfile.java
-│   │   │   └── BiomeProfileProvider.java
-│   │   └── infrastructure/
-│   │       └── YamlBiomeProfileProvider.java
-│   └── dynamics/
+│   └── profile/
 │       ├── domain/
-│       │   ├── EcologicalRegionState.java
-│       │   └── EcologicalRegionStateRepository.java
+│       │   ├── BiomeProfile.java
+│       │   ├── ClimateProfile.java
+│       │   ├── BiomeProfileProvider.java
+│       │   ├── Humidity.java
+│       │   ├── Temperature.java
+│       │   ├── Fertility.java
+│       │   ├── MineralRichness.java
+│       │   └── EcologicalPressure.java
 │       └── infrastructure/
-│           └── YamlEcologicalRegionStateRepository.java
+│           └── YamlBiomeProfileProvider.java
 │
 ├── seasons/
 │   ├── identity/
@@ -229,8 +227,12 @@ io.github.henriquemichelini.dynamicbiomes/
 │   │   │   ├── SeasonCalendar.java
 │   │   │   ├── CurrentSeasonQuery.java
 │   │   │   └── SeasonStateRepository.java
+│   │   ├── application/
+│   │   │   ├── RepositoryCurrentSeasonQuery.java
+│   │   │   ├── SeasonInitializationService.java
+│   │   │   └── SeasonAdvancementService.java
 │   │   └── infrastructure/
-│   │       ├── BukkitCurrentSeasonQuery.java
+│   │       ├── SeasonAdvancementTask.java
 │   │       └── YamlSeasonStateRepository.java
 │   └── profile/
 │       ├── domain/
@@ -238,6 +240,8 @@ io.github.henriquemichelini.dynamicbiomes/
 │       │   ├── SeasonClimateAdjustment.java
 │       │   ├── SeasonalAdjustment.java
 │       │   └── SeasonProfileProvider.java
+│       ├── application/
+│       │   └── SeasonProfileQueryService.java
 │       └── infrastructure/
 │           └── YamlSeasonProfileProvider.java
 │
@@ -249,45 +253,33 @@ io.github.henriquemichelini.dynamicbiomes/
 │   │   ├── domain/
 │   │   │   ├── OreOrigin.java
 │   │   │   ├── OreOriginRepository.java
-│   │   │   └── OrePlacementOriginPolicy.java
+│   │   │   └── OreOriginType.java
 │   │   ├── application/
 │   │   │   └── OreOriginTrackingService.java
 │   │   └── infrastructure/
-│   │       └── PaperOrePlaceListener.java
+│   │       ├── PaperOrePlaceListener.java
+│   │       ├── PaperOreMovementListener.java
+│   │       └── YamlOreOriginRepository.java
 │   └── drops/
 │       ├── domain/
-│       │   ├── OreDropRequest.java
-│       │   ├── OreDropOutcome.java
+│       │   ├── OreDropMultiplierCalculator.java
+│       │   ├── OreDropMultiplierRange.java
+│       │   ├── OreDropMultiplierVariationSource.java
 │       │   ├── OreDropPolicy.java
 │       │   ├── OreDropPolicyProvider.java
-│       │   ├── SilkTouchPolicy.java
-│       │   └── OreDropCalculator.java
+│       │   ├── OreDropQuantityCalculator.java
+│       │   ├── OreDropQuantityVariationSource.java
+│       │   └── UnsupportedOreDropConfigurationException.java
 │       ├── application/
 │       │   └── OreDropService.java
 │       └── infrastructure/
 │           ├── PaperOreBreakListener.java
 │           └── YamlOreDropPolicyProvider.java
 │
-├── configuration/
-│   └── yaml/
-│       └── infrastructure/
-│           ├── YamlConfigurationLoader.java
-│           └── YamlValidationReporter.java
-│
-├── persistence/
-│   └── yaml/
-│       └── infrastructure/
-│           ├── YamlStore.java
-│           ├── AtomicYamlWriter.java
-│           └── DataVersion.java
-│
 └── pluginruntime/
-    ├── lifecycle/
-    │   └── infrastructure/
-    │       └── DynamicBiomes.java
-    └── composition/
-        └── application/
-            └── ModuleComposer.java
+    └── lifecycle/
+        └── infrastructure/
+            └── DynamicBiomes.java
 ```
 
 ### 8.1 Spatial Value Objects
@@ -296,10 +288,8 @@ Replace generic `WorldPosition` with explicit spatial value objects:
 
 - `WorldReference` — pure Java representation of a world; prefer UUID for identity; may carry name for diagnostics.
 - `BlockPosition` — world + int x + int y + int z; used for block events and biome resolution.
-- `ChunkPosition` — world + int chunkX + int chunkZ; used for chunk-level state if needed.
-- `EcologicalRegionId` — world + regionX + regionZ; used for plugin-owned ecological state.
 
-Optional spatial value objects (such as `ChunkPosition`) should not be implemented until used. Bukkit `Location` is translated into these VOs at infrastructure boundaries.
+Additional spatial value objects (`ChunkPosition`, `EcologicalRegionId`) should not be implemented until used. Bukkit `Location` is translated into these VOs at infrastructure boundaries.
 
 ### 8.2 Biome Read Model
 
@@ -492,30 +482,36 @@ ore/drops/
 
 Add `presentation/` only when needed. Do not create empty layer packages preemptively.
 
-## 18. Migration Plan
+## 18. Implemented Runtime and Deferred Work
 
-### Section A — Architecture-Only Refactor
+### 18.1 Implemented Runtime Behavior
 
-Safe, reviewable, no runtime behavior change:
+The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/DynamicBiomes` and active at runtime:
 
-1. Correct package structure to match target layout.
-2. Rename `BiomeState` → `EcologicalRegionState` (or explicitly define it as region-scoped).
-3. Extract pure spatial value objects (`BlockPosition`, `ChunkPosition`, `EcologicalRegionId`, `WorldReference`).
-4. Move `PaperOrePlaceListener` from `ore/drops/infrastructure` to `ore/origin/infrastructure`.
-5. Remove Bukkit imports from all domain packages.
-6. Rename ports to match naming convention (`Repository` for state, `Provider` for config, `Resolver` for mapping).
-7. Split generic `Snapshot`/`SnapshotRepository` into domain-owned repository ports.
-8. Replace generic `ConfigurationProvider` with typed capability-owned providers.
-9. Consolidate biome read model to `BiomeContext`; remove `ResolvedBiome`.
-10. Ensure test package parity.
+- **Ore origin tracking**: `PaperOrePlaceListener` records player-placed ore; `PaperOreBreakListener` clears origin on break; `PaperOreMovementListener` transfers tracked origin across piston movement.
+- **Ore drop behavior**: `PaperOreBreakListener` delegates to `OreDropService`, which resolves the biome, looks up the ore drop policy, and applies the multiplier.
+- **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, and `YamlSeasonProfileProvider` load configured profiles and policies at startup.
+- **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar` and initializes the first season if none exists.
+- **Ore origin persistence**: `YamlOreOriginRepository` lazily loads origin state into memory and writes updates back to disk.
 
-### Section B — Future Implementation (Out of Scope for Current Refactor)
+### 18.2 Implemented Safety Behavior
 
-- Broader runtime composition beyond the existing ore origin listener wiring.
-- Actual YAML-backed policy loading and parsing.
-- Actual season progression.
-- Actual ore drop behavior calculation.
-- Bukkit integration beyond the existing ore origin place/break listener adapters.
+- **Silk Touch bypass**: `PaperOreBreakListener` detects when the broken ore would drop itself (Silk Touch) and skips `OreDropService`, preserving vanilla drops.
+- **Unsupported configuration fallback**: `OreDropService` catches `UnsupportedBiomeException` and `UnsupportedOreDropConfigurationException` and returns the vanilla quantity, so unsupported biomes, missing policies, and missing ore rules do not suppress vanilla drops.
+- **Real failures still propagate**: malformed YAML, I/O failures, invalid numeric values, invalid namespaced IDs, duplicate keys, and programming errors are not swallowed by the fallback.
+- **Persisted season validation**: `SeasonInitializationService` throws `IllegalStateException` if a persisted `SeasonId` is absent from the configured `SeasonCalendar`.
+- **Origin cache safety**: `YamlOreOriginRepository` loads once and serves subsequent reads from memory; save/remove still persist.
+
+### 18.3 Still-Deferred Work
+
+The following are intentionally not implemented or not wired at runtime:
+
+- Automatic season scheduling or recurring `SeasonAdvancementTask` execution.
+- Season effects on ore/crops/trees/animals (season profile data is loaded but not consumed by feature domains).
+- Ecological region state and dynamic biome state.
+- Admin commands, public API, or configuration reload commands.
+- Database persistence.
+- Broader gameplay balancing beyond the current ore drop multiplier.
 
 ## 19. Preserved Principles
 

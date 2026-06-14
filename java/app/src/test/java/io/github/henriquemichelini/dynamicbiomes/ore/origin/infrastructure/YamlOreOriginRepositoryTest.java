@@ -75,6 +75,30 @@ class YamlOreOriginRepositoryTest {
     }
 
     @Test
+    void savedOriginIsVisibleToSubsequentFindsOnSameInstance() {
+        Path repositoryFile = temporaryDirectory.resolve("ore-origins.yml");
+        YamlOreOriginRepository repository = new YamlOreOriginRepository(repositoryFile);
+
+        repository.save(PLAYER_PLACED_ORIGIN);
+
+        assertEquals(
+            PLAYER_PLACED_ORIGIN,
+            repository.findByPosition(POSITION).orElseThrow()
+        );
+    }
+
+    @Test
+    void removedOriginIsNotVisibleToSubsequentFindsOnSameInstance() {
+        Path repositoryFile = temporaryDirectory.resolve("ore-origins.yml");
+        YamlOreOriginRepository repository = new YamlOreOriginRepository(repositoryFile);
+        repository.save(PLAYER_PLACED_ORIGIN);
+
+        repository.removeByPosition(POSITION);
+
+        assertTrue(repository.findByPosition(POSITION).isEmpty());
+    }
+
+    @Test
     void invalidPersistedDataFailsClearly() throws IOException {
         Path repositoryFile = temporaryDirectory.resolve("ore-origins.yml");
         Files.writeString(

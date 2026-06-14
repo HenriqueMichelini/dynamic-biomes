@@ -24,6 +24,7 @@ hs_err_pid*
 replay_pid*
 
 bin/
+bin
 java/app/bin/
 java/app/.zed/
 java/.gradle/

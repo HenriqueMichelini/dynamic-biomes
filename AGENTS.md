@@ -170,7 +170,7 @@ JAR/resource check:
 
 ```bash
 cd java && ./gradlew build --no-daemon
-jar tf app/build/libs/*.jar | sort | grep -E "plugin.yml|ore-drops.yml|biomes.yml|DynamicBiomes"
+jar tf app/build/libs/*.jar | sort | grep -E "plugin.yml|ore-drops.yml|biome-profiles.yml|season-profiles.yml|DynamicBiomes"
 ```
 
 ## Agent Task Format
