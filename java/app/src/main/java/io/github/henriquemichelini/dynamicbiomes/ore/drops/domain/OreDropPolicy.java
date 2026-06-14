@@ -30,7 +30,7 @@ public final class OreDropPolicy {
     public OreDropMultiplierRange multiplierRangeFor(OreKind oreKind) {
         OreDropMultiplierRange range = multiplierRangesByOreKind.get(oreKind);
         if (range == null) {
-            throw new IllegalArgumentException(
+            throw new UnsupportedOreDropConfigurationException(
                 "Missing ore drop multiplier range for ore kind: " + oreKind
             );
         }

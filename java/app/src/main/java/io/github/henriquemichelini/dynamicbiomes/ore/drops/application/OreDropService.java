@@ -1,15 +1,18 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.drops.application;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropQuantityCalculator;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 
 public final class OreDropService {
+
     private final OreOriginTrackingService originTracking;
     private final OreDropEnvironmentQueryService environmentQuery;
     private final OreDropPolicyProvider policyProvider;
@@ -39,16 +42,26 @@ public final class OreDropService {
             return vanillaFortuneQuantity;
         }
 
-        OreDropEnvironmentContext environmentContext = environmentQuery.resolve(position);
-        BiomeContext biomeContext = environmentContext.biomeContext();
-        OreDropPolicy policy = policyProvider.policyFor(biomeContext.biomeId());
-        double selectedMultiplier = multiplierCalculator.calculate(
-            policy.multiplierRangeFor(oreKind)
-        );
+        try {
+            OreDropEnvironmentContext environmentContext =
+                environmentQuery.resolve(position);
+            BiomeContext biomeContext = environmentContext.biomeContext();
+            OreDropPolicy policy = policyProvider.policyFor(
+                biomeContext.biomeId()
+            );
+            double selectedMultiplier = multiplierCalculator.calculate(
+                policy.multiplierRangeFor(oreKind)
+            );
 
-        return quantityCalculator.calculate(
-            vanillaFortuneQuantity,
-            selectedMultiplier
-        );
+            return quantityCalculator.calculate(
+                vanillaFortuneQuantity,
+                selectedMultiplier
+            );
+        } catch (
+            UnsupportedBiomeException
+            | UnsupportedOreDropConfigurationException e
+        ) {
+            return vanillaFortuneQuantity;
+        }
     }
 }

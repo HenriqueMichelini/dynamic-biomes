@@ -56,7 +56,7 @@ Downstream feature contexts must consume only explicitly published upstream cont
 
 ### 4.1 What Is Published
 
-- **Biome identity and resolution**: `BiomeId`, `BiomeContext`, `BiomeResolver` port.
+- **Biome identity and resolution**: `BiomeId`, `BiomeContext`, `BiomeResolver` port, `UnsupportedBiomeException`.
 - **Biome static profile**: `BiomeProfile`, `BiomeProfileProvider` port, `BiomeTag`, `ClimateProfile`, `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure`.
 - **Season identity and query**: `SeasonId`, `CurrentSeasonQuery` port, `SeasonProfile`, `SeasonClimateAdjustment`, `SeasonalAdjustment`, `SeasonProfileProvider` port.
 - **Spatial vocabulary**: `WorldReference`, `BlockPosition`, `ChunkPosition`, `EcologicalRegionId`.

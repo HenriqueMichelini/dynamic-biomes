@@ -30,7 +30,7 @@ class OreDropPolicyTest {
         OreKind missingOre = new OreKind("minecraft:gold_ore");
 
         assertThrows(
-            IllegalArgumentException.class,
+            UnsupportedOreDropConfigurationException.class,
             () -> policy.multiplierRangeFor(missingOre)
         );
     }

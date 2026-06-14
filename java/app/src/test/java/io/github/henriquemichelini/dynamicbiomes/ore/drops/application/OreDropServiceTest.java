@@ -12,11 +12,13 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropQuantityCalculator;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
@@ -120,30 +122,22 @@ class OreDropServiceTest {
     }
 
     @Test
-    void propagatesMissingBiomePolicyFailure() {
+    void preservesVanillaDropsForMissingBiomePolicy() {
         OreDropService service = serviceWith(
             new InMemoryOreOriginRepository(),
             fixedEnvironmentQuery(FOREST_CONTEXT, SPRING_PROFILE, null),
             biomeId -> {
-                throw new IllegalArgumentException(
+                throw new UnsupportedOreDropConfigurationException(
                     "Missing ore drop policy for biome: " + biomeId.value()
                 );
             }
         );
 
-        IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> service.calculateDrops(POSITION, IRON_ORE, 3)
-        );
-
-        assertEquals(
-            "Missing ore drop policy for biome: minecraft:forest",
-            exception.getMessage()
-        );
+        assertEquals(3, service.calculateDrops(POSITION, IRON_ORE, 3));
     }
 
     @Test
-    void propagatesMissingOreRuleFailure() {
+    void preservesVanillaDropsForMissingOreRule() {
         OreDropPolicy policy = new OreDropPolicy(
             FOREST,
             Map.of(
@@ -157,10 +151,32 @@ class OreDropServiceTest {
             biomeId -> policy
         );
 
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> service.calculateDrops(POSITION, IRON_ORE, 3)
+        assertEquals(3, service.calculateDrops(POSITION, IRON_ORE, 3));
+    }
+
+    @Test
+    void preservesVanillaDropsForUnsupportedBiome() {
+        OreDropService service = serviceWith(
+            new InMemoryOreOriginRepository(),
+            new OreDropEnvironmentQueryService(
+                position -> {
+                    throw new UnsupportedBiomeException(
+                        "Missing static biome profile for resolved biome: minecraft:ocean"
+                    );
+                },
+                () -> {
+                    throw new AssertionError("Query should not be called when resolver fails");
+                },
+                seasonId -> {
+                    throw new AssertionError("Provider should not be called when resolver fails");
+                }
+            ),
+            biomeId -> {
+                throw new AssertionError("Policy lookup should not be called when query fails");
+            }
         );
+
+        assertEquals(3, service.calculateDrops(POSITION, IRON_ORE, 3));
     }
 
     @Test

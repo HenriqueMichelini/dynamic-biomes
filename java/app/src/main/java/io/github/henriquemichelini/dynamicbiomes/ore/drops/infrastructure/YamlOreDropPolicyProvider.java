@@ -4,6 +4,7 @@ import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import java.io.IOException;
 import java.io.Reader;
@@ -17,6 +18,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.yaml.snakeyaml.error.YAMLException;
 
 public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
+
     private final Path policyFile;
 
     public YamlOreDropPolicyProvider(Path policyFile) {
@@ -38,28 +40,38 @@ public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
             );
             if (previous != null) {
                 throw new IllegalArgumentException(
-                    "Duplicate ore drop policy for biome: " + configuredBiomeId.value()
+                    "Duplicate ore drop policy for biome: " +
+                        configuredBiomeId.value()
                 );
             }
         }
 
         OreDropPolicy policy = policies.get(biomeId);
         if (policy == null) {
-            throw new IllegalArgumentException(
+            throw new UnsupportedOreDropConfigurationException(
                 "Missing ore drop policy for biome: " + biomeId.value()
             );
         }
         return policy;
     }
 
-    private static OreDropPolicy parsePolicy(BiomeId biomeId, Object policyValue) {
+    private static OreDropPolicy parsePolicy(
+        BiomeId biomeId,
+        Object policyValue
+    ) {
         String policyDescription = "policy '" + biomeId.value() + "'";
         Map<?, ?> policy = requiredMapValue(policyValue, policyDescription);
-        Map<?, ?> ores = requiredMap(policy, "ores", policyDescription + ".ores");
+        Map<?, ?> ores = requiredMap(
+            policy,
+            "ores",
+            policyDescription + ".ores"
+        );
         Map<OreKind, OreDropMultiplierRange> ranges = new LinkedHashMap<>();
 
         for (Map.Entry<?, ?> oreEntry : ores.entrySet()) {
-            OreKind oreKind = new OreKind(requiredKey(oreEntry.getKey(), "ore kind key"));
+            OreKind oreKind = new OreKind(
+                requiredKey(oreEntry.getKey(), "ore kind key")
+            );
             Map<?, ?> range = requiredMapValue(
                 oreEntry.getValue(),
                 policyDescription + ".ores." + oreKind.value()
@@ -72,7 +84,8 @@ public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
             );
             if (previous != null) {
                 throw new IllegalArgumentException(
-                    "Duplicate ore drop multiplier range for ore kind: " + oreKind.value()
+                    "Duplicate ore drop multiplier range for ore kind: " +
+                        oreKind.value()
                 );
             }
         }
@@ -100,23 +113,36 @@ public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
         }
     }
 
-    private static Map<?, ?> requiredMap(Map<?, ?> parent, String key, String description) {
+    private static Map<?, ?> requiredMap(
+        Map<?, ?> parent,
+        String key,
+        String description
+    ) {
         if (!parent.containsKey(key)) {
-            throw new IllegalArgumentException("Missing required " + description);
+            throw new IllegalArgumentException(
+                "Missing required " + description
+            );
         }
         return requiredMapValue(parent.get(key), description);
     }
 
-    private static Map<?, ?> requiredMapValue(Object value, String description) {
+    private static Map<?, ?> requiredMapValue(
+        Object value,
+        String description
+    ) {
         if (!(value instanceof Map<?, ?> map)) {
-            throw new IllegalArgumentException("Required " + description + " must be a mapping");
+            throw new IllegalArgumentException(
+                "Required " + description + " must be a mapping"
+            );
         }
         return map;
     }
 
     private static String requiredKey(Object key, String description) {
         if (!(key instanceof String stringKey) || stringKey.isBlank()) {
-            throw new IllegalArgumentException("Required " + description + " must not be blank");
+            throw new IllegalArgumentException(
+                "Required " + description + " must not be blank"
+            );
         }
         return stringKey;
     }
@@ -130,8 +156,12 @@ public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
         Object value = range.get(bound);
         if (!(value instanceof Number number)) {
             throw new IllegalArgumentException(
-                "Missing required " + bound + " for policy '"
-                    + biomeId.value() + "'.ores." + oreKind.value()
+                "Missing required " +
+                    bound +
+                    " for policy '" +
+                    biomeId.value() +
+                    "'.ores." +
+                    oreKind.value()
             );
         }
         return number.doubleValue();

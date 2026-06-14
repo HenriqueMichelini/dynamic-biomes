@@ -29,6 +29,7 @@ class ArchitectureTest {
         ROOT + ".biome.identity.domain.BiomeId",
         ROOT + ".biome.resolution.domain.BiomeContext",
         ROOT + ".biome.resolution.domain.BiomeResolver",
+        ROOT + ".biome.resolution.domain.UnsupportedBiomeException",
         ROOT + ".biome.profile.domain.BiomeProfile",
         ROOT + ".biome.profile.domain.BiomeProfileProvider",
         ROOT + ".biome.profile.domain.BiomeTag",

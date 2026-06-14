@@ -5,6 +5,7 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfi
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfileProvider;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import java.util.Objects;
 import org.bukkit.Server;
@@ -41,7 +42,7 @@ public final class BukkitBiomeResolver implements BiomeResolver {
         BiomeProfile profile = profileProvider.profileFor(biomeId);
         
         if (profile == null) {
-            throw new IllegalStateException(
+            throw new UnsupportedBiomeException(
                 "Missing static biome profile for resolved biome: " + biomeId.value()
             );
         }

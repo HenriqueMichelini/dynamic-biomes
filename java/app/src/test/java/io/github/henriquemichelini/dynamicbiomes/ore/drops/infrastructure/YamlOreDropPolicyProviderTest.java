@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -92,8 +93,8 @@ class YamlOreDropPolicyProviderTest {
             """
         );
 
-        IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
+        UnsupportedOreDropConfigurationException exception = assertThrows(
+            UnsupportedOreDropConfigurationException.class,
             () -> new YamlOreDropPolicyProvider(policyFile)
                 .policyFor(new BiomeId("minecraft:desert"))
         );
