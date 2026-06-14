@@ -229,10 +229,8 @@ io.github.henriquemichelini.dynamicbiomes/
 │   │   │   └── SeasonStateRepository.java
 │   │   ├── application/
 │   │   │   ├── RepositoryCurrentSeasonQuery.java
-│   │   │   ├── SeasonInitializationService.java
-│   │   │   └── SeasonAdvancementService.java
+│   │   │   └── SeasonInitializationService.java
 │   │   └── infrastructure/
-│   │       ├── SeasonAdvancementTask.java
 │   │       └── YamlSeasonStateRepository.java
 │   └── profile/
 │       ├── domain/
@@ -504,7 +502,7 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 
 The following are intentionally not implemented or not wired at runtime:
 
-- Automatic season scheduling or recurring `SeasonAdvancementTask` execution.
+- Automatic season scheduling or recurring season advancement task execution.
 - Season effects on ore/crops/trees/animals (season profile data is loaded but not consumed by feature domains).
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
