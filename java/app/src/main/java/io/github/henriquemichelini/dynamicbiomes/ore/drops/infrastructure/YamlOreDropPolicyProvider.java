@@ -2,10 +2,13 @@ package io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropOreRule;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropSeasonalAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
@@ -18,6 +21,12 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.yaml.snakeyaml.error.YAMLException;
 
 public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
+
+    private static final String MULTIPLIER_KEY = "multiplier";
+    private static final String MIN_KEY = "min";
+    private static final String MAX_KEY = "max";
+    private static final String SEASONAL_ADJUSTMENTS_KEY = "seasonal-adjustments";
+    private static final String MULTIPLIER_FACTOR_KEY = "multiplier-factor";
 
     private final Path policyFile;
 
@@ -66,31 +75,114 @@ public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
             "ores",
             policyDescription + ".ores"
         );
-        Map<OreKind, OreDropMultiplierRange> ranges = new LinkedHashMap<>();
+        Map<OreKind, OreDropOreRule> rules = new LinkedHashMap<>();
 
         for (Map.Entry<?, ?> oreEntry : ores.entrySet()) {
             OreKind oreKind = new OreKind(
                 requiredKey(oreEntry.getKey(), "ore kind key")
             );
-            Map<?, ?> range = requiredMapValue(
+            Map<?, ?> oreRule = requiredMapValue(
                 oreEntry.getValue(),
                 policyDescription + ".ores." + oreKind.value()
             );
-            double minimum = requiredNumber(range, "min", biomeId, oreKind);
-            double maximum = requiredNumber(range, "max", biomeId, oreKind);
-            OreDropMultiplierRange previous = ranges.put(
+            OreDropMultiplierRange multiplierRange = parseMultiplierRange(
+                oreRule,
+                biomeId,
+                oreKind
+            );
+            Map<SeasonId, OreDropSeasonalAdjustment> seasonalAdjustments =
+                parseSeasonalAdjustments(oreRule, biomeId, oreKind);
+            OreDropOreRule previous = rules.put(
                 oreKind,
-                new OreDropMultiplierRange(minimum, maximum)
+                new OreDropOreRule(multiplierRange, seasonalAdjustments)
             );
             if (previous != null) {
                 throw new IllegalArgumentException(
-                    "Duplicate ore drop multiplier range for ore kind: " +
-                        oreKind.value()
+                    "Duplicate ore drop rule for ore kind: " + oreKind.value()
                 );
             }
         }
 
-        return new OreDropPolicy(biomeId, ranges);
+        return new OreDropPolicy(biomeId, rules);
+    }
+
+    private static OreDropMultiplierRange parseMultiplierRange(
+        Map<?, ?> oreRule,
+        BiomeId biomeId,
+        OreKind oreKind
+    ) {
+        String rulePath = "policy '" + biomeId.value() + "'.ores." + oreKind.value();
+        Object multiplierValue = oreRule.get(MULTIPLIER_KEY);
+        Map<?, ?> rangeMap = multiplierValue == null
+            ? oreRule
+            : requiredMapValue(multiplierValue, rulePath + ".multiplier");
+
+        double minimum = requiredNumber(rangeMap, MIN_KEY, biomeId, oreKind);
+        double maximum = requiredNumber(rangeMap, MAX_KEY, biomeId, oreKind);
+        return new OreDropMultiplierRange(minimum, maximum);
+    }
+
+    private static Map<SeasonId, OreDropSeasonalAdjustment> parseSeasonalAdjustments(
+        Map<?, ?> oreRule,
+        BiomeId biomeId,
+        OreKind oreKind
+    ) {
+        Object adjustmentsValue = oreRule.get(SEASONAL_ADJUSTMENTS_KEY);
+        if (adjustmentsValue == null) {
+            return Map.of();
+        }
+
+        String adjustmentsPath = "policy '" + biomeId.value() + "'.ores." +
+            oreKind.value() + "." + SEASONAL_ADJUSTMENTS_KEY;
+        Map<?, ?> adjustments = requiredMapValue(adjustmentsValue, adjustmentsPath);
+        Map<SeasonId, OreDropSeasonalAdjustment> result = new LinkedHashMap<>();
+
+        for (Map.Entry<?, ?> adjustmentEntry : adjustments.entrySet()) {
+            SeasonId seasonId = new SeasonId(
+                requiredKey(adjustmentEntry.getKey(), adjustmentsPath + " key")
+            );
+            Map<?, ?> adjustment = requiredMapValue(
+                adjustmentEntry.getValue(),
+                adjustmentsPath + "." + seasonId.value()
+            );
+            double factor = requiredMultiplierFactor(
+                adjustment,
+                biomeId,
+                oreKind,
+                seasonId
+            );
+            OreDropSeasonalAdjustment previous = result.put(
+                seasonId,
+                new OreDropSeasonalAdjustment(factor)
+            );
+            if (previous != null) {
+                throw new IllegalArgumentException(
+                    "Duplicate seasonal adjustment for season: " + seasonId.value()
+                );
+            }
+        }
+
+        return result;
+    }
+
+    private static double requiredMultiplierFactor(
+        Map<?, ?> adjustment,
+        BiomeId biomeId,
+        OreKind oreKind,
+        SeasonId seasonId
+    ) {
+        Object value = adjustment.get(MULTIPLIER_FACTOR_KEY);
+        if (!(value instanceof Number number)) {
+            throw new IllegalArgumentException(
+                "Missing required multiplier-factor for policy '" +
+                    biomeId.value() +
+                    "'.ores." +
+                    oreKind.value() +
+                    ".seasonal-adjustments." +
+                    seasonId.value()
+            );
+        }
+        return number.doubleValue();
     }
 
     private Map<?, ?> loadRoot() {

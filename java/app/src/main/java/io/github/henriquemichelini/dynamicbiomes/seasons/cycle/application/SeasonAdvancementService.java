@@ -7,22 +7,23 @@ import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonI
 public final class SeasonAdvancementService {
     private final SeasonCalendar calendar;
     private final SeasonStateRepository repository;
+    private final CachedCurrentSeasonQuery currentSeasonQuery;
 
     public SeasonAdvancementService(
         SeasonCalendar calendar,
-        SeasonStateRepository repository
+        SeasonStateRepository repository,
+        CachedCurrentSeasonQuery currentSeasonQuery
     ) {
         this.calendar = calendar;
         this.repository = repository;
+        this.currentSeasonQuery = currentSeasonQuery;
     }
 
     public SeasonId advance() {
-        SeasonId currentSeason = repository.findCurrentSeason()
-            .orElseThrow(() -> new IllegalStateException(
-                "Current season is not initialized"
-            ));
+        SeasonId currentSeason = currentSeasonQuery.currentSeason();
         SeasonId nextSeason = calendar.nextAfter(currentSeason);
         repository.saveCurrentSeason(nextSeason);
+        currentSeasonQuery.updateCurrentSeason(nextSeason);
         return nextSeason;
     }
 }

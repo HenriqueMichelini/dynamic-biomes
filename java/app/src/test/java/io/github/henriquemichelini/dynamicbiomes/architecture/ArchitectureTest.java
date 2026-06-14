@@ -39,6 +39,7 @@ class ArchitectureTest {
         ROOT + ".biome.profile.domain.MineralRichness",
         ROOT + ".biome.profile.domain.EcologicalPressure",
         ROOT + ".seasons.identity.domain.SeasonId",
+        ROOT + ".seasons.cycle.domain.CurrentSeasonQuery",
         ROOT + ".seasons.profile.domain.SeasonProfile",
         ROOT + ".seasons.profile.domain.SeasonClimateAdjustment",
         ROOT + ".seasons.profile.domain.SeasonalAdjustment",

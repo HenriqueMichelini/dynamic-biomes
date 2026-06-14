@@ -2,6 +2,7 @@ package io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.CachedCurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.SeasonAdvancementService;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCalendar;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStateRepository;
@@ -23,7 +24,8 @@ class SeasonAdvancementTaskTest {
         );
         SeasonAdvancementService service = new SeasonAdvancementService(
             calendar,
-            repository
+            repository,
+            new CachedCurrentSeasonQuery(new SeasonId("minecraft:spring"))
         );
         Runnable task = new SeasonAdvancementTask(service);
 

@@ -58,7 +58,7 @@ Downstream feature contexts must consume only explicitly published upstream cont
 
 - **Biome identity and resolution**: `BiomeId`, `BiomeContext`, `BiomeResolver` port, `UnsupportedBiomeException`.
 - **Biome static profile**: `BiomeProfile`, `BiomeProfileProvider` port, `ClimateProfile`, `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure`.
-- **Season identity and profile**: `SeasonId`, `SeasonProfile`, `SeasonClimateAdjustment`, `SeasonalAdjustment`, `SeasonProfileProvider` port.
+- **Season identity and profile**: `SeasonId`, `CurrentSeasonQuery` port, `SeasonProfile`, `SeasonClimateAdjustment`, `SeasonalAdjustment`, `SeasonProfileProvider` port.
 - **Ore drops safety contract**: `UnsupportedOreDropConfigurationException` (thrown when a biome has no ore drop policy or an `OreKind` has no configured rule; caught by `ore/drops/application` to preserve vanilla drops).
 - **Spatial vocabulary**: `WorldReference`, `BlockPosition`.
 
@@ -223,10 +223,12 @@ io.github.henriquemichelini.dynamicbiomes/
 │   │   ├── domain/
 │   │   │   ├── SeasonCalendar.java
 │   │   │   ├── SeasonStateRepository.java
+│   │   │   ├── CurrentSeasonQuery.java
 │   │   │   └── SeasonCycleSettings.java
 │   │   ├── application/
 │   │   │   ├── SeasonInitializationService.java
-│   │   │   └── SeasonAdvancementService.java
+│   │   │   ├── SeasonAdvancementService.java
+│   │   │   └── CachedCurrentSeasonQuery.java
 │   │   └── infrastructure/
 │   │       ├── YamlSeasonStateRepository.java
 │   │       ├── YamlSeasonCycleSettingsProvider.java
@@ -260,10 +262,12 @@ io.github.henriquemichelini.dynamicbiomes/
 │       │   ├── OreDropMultiplierCalculator.java
 │       │   ├── OreDropMultiplierRange.java
 │       │   ├── OreDropMultiplierVariationSource.java
+│       │   ├── OreDropOreRule.java
 │       │   ├── OreDropPolicy.java
 │       │   ├── OreDropPolicyProvider.java
 │       │   ├── OreDropQuantityCalculator.java
 │       │   ├── OreDropQuantityVariationSource.java
+│       │   ├── OreDropSeasonalAdjustment.java
 │       │   └── UnsupportedOreDropConfigurationException.java
 │       ├── application/
 │       │   └── OreDropService.java
@@ -442,9 +446,9 @@ Add `presentation/` only when needed. Do not create empty layer packages preempt
 The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/DynamicBiomes` and active at runtime:
 
 - **Ore origin tracking**: `PaperOrePlaceListener` records player-placed ore; `PaperOreBreakListener` clears origin on break; `PaperOreMovementListener` transfers tracked origin across piston movement.
-- **Ore drop behavior**: `PaperOreBreakListener` delegates to `OreDropService`, which resolves the biome, looks up the ore drop policy, and applies the multiplier.
+- **Ore drop behavior**: `PaperOreBreakListener` delegates to `OreDropService`, which resolves the biome, looks up the ore drop policy, applies the base multiplier, and applies an optional ore-owned seasonal multiplier factor from `ore-drops.yml` based on the cached current season.
 - **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlSeasonProfileProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup.
-- **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar` and initializes the first season if none exists.
+- **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar`, initializes the first season if none exists, and `CachedCurrentSeasonQuery` keeps the runtime season in memory for hot-path reads.
 - **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.
 - **Ore origin persistence**: `YamlOreOriginRepository` lazily loads origin state into memory and writes updates back to disk.
 
@@ -460,7 +464,7 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 
 The following are intentionally not implemented or not wired at runtime:
 
-- Season effects on ore/crops/trees/animals (season profile data is loaded but not consumed by feature domains).
+- Season effects on crops/trees/animals (season profile data is loaded but not consumed by those feature domains).
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
 - Database persistence.

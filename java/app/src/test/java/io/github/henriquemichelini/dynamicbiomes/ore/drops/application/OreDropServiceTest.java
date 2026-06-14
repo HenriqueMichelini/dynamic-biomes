@@ -16,14 +16,19 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeRe
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropOreRule;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropQuantityCalculator;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropSeasonalAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginRepository;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.CachedCurrentSeasonQuery;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.util.HashMap;
@@ -43,6 +48,8 @@ class OreDropServiceTest {
     );
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
     private static final OreKind IRON_ORE = new OreKind("minecraft:iron_ore");
+    private static final SeasonId SUMMER = new SeasonId("minecraft:summer");
+    private static final SeasonId WINTER = new SeasonId("minecraft:winter");
     private static final BiomeContext FOREST_CONTEXT = new BiomeContext(
         FOREST,
         new BiomeProfile(
@@ -66,18 +73,92 @@ class OreDropServiceTest {
         RecordingPolicyProvider policyProvider = new RecordingPolicyProvider(
             new OreDropPolicy(
                 FOREST,
-                Map.of(IRON_ORE, new OreDropMultiplierRange(1.5, 1.5))
+                Map.of(
+                    IRON_ORE,
+                    new OreDropOreRule(
+                        new OreDropMultiplierRange(1.5, 1.5),
+                        Map.of()
+                    )
+                )
             )
         );
         OreDropService service = serviceWith(
             new InMemoryOreOriginRepository(),
             biomeResolver,
-            policyProvider
+            policyProvider,
+            () -> SUMMER
         );
 
         assertEquals(5, service.calculateDrops(POSITION, IRON_ORE, 3));
         assertEquals(POSITION, capturedPosition[0]);
         assertEquals(FOREST, policyProvider.requestedBiomeId);
+    }
+
+    @Test
+    void appliesConfiguredSeasonalMultiplierFactor() {
+        OreDropPolicy policy = new OreDropPolicy(
+            FOREST,
+            Map.of(
+                IRON_ORE,
+                new OreDropOreRule(
+                    new OreDropMultiplierRange(2.0, 2.0),
+                    Map.of(SUMMER, new OreDropSeasonalAdjustment(1.5))
+                )
+            )
+        );
+        OreDropService service = serviceWith(
+            new InMemoryOreOriginRepository(),
+            position -> FOREST_CONTEXT,
+            biomeId -> policy,
+            () -> SUMMER
+        );
+
+        assertEquals(9, service.calculateDrops(POSITION, IRON_ORE, 3));
+    }
+
+    @Test
+    void usesNeutralFactorWhenCurrentSeasonHasNoAdjustment() {
+        OreDropPolicy policy = new OreDropPolicy(
+            FOREST,
+            Map.of(
+                IRON_ORE,
+                new OreDropOreRule(
+                    new OreDropMultiplierRange(2.0, 2.0),
+                    Map.of(SUMMER, new OreDropSeasonalAdjustment(1.5))
+                )
+            )
+        );
+        OreDropService service = serviceWith(
+            new InMemoryOreOriginRepository(),
+            position -> FOREST_CONTEXT,
+            biomeId -> policy,
+            () -> WINTER
+        );
+
+        assertEquals(6, service.calculateDrops(POSITION, IRON_ORE, 3));
+    }
+
+    @Test
+    void readsCurrentSeasonFromCacheWithoutRepositoryAccess() {
+        CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(SUMMER);
+        OreDropPolicy policy = new OreDropPolicy(
+            FOREST,
+            Map.of(
+                IRON_ORE,
+                new OreDropOreRule(
+                    new OreDropMultiplierRange(2.0, 2.0),
+                    Map.of(SUMMER, new OreDropSeasonalAdjustment(1.5))
+                )
+            )
+        );
+        OreDropService service = serviceWith(
+            new InMemoryOreOriginRepository(),
+            position -> FOREST_CONTEXT,
+            biomeId -> policy,
+            currentSeasonQuery
+        );
+
+        assertEquals(9, service.calculateDrops(POSITION, IRON_ORE, 3));
     }
 
     @Test
@@ -92,6 +173,9 @@ class OreDropServiceTest {
             },
             biomeId -> {
                 throw new AssertionError("Policy lookup is unnecessary for ineligible ore");
+            },
+            () -> {
+                throw new AssertionError("Current season query is unnecessary for ineligible ore");
             },
             new OreDropMultiplierCalculator(() -> {
                 throw new AssertionError("Multiplier selection is unnecessary for ineligible ore");
@@ -113,6 +197,11 @@ class OreDropServiceTest {
                 throw new UnsupportedOreDropConfigurationException(
                     "Missing ore drop policy for biome: " + biomeId.value()
                 );
+            },
+            () -> {
+                throw new AssertionError(
+                    "Current season query should not be called when policy is missing"
+                );
             }
         );
 
@@ -125,13 +214,21 @@ class OreDropServiceTest {
             FOREST,
             Map.of(
                 new OreKind("minecraft:gold_ore"),
-                new OreDropMultiplierRange(1.0, 1.0)
+                new OreDropOreRule(
+                    new OreDropMultiplierRange(1.0, 1.0),
+                    Map.of()
+                )
             )
         );
         OreDropService service = serviceWith(
             new InMemoryOreOriginRepository(),
             position -> FOREST_CONTEXT,
-            biomeId -> policy
+            biomeId -> policy,
+            () -> {
+                throw new AssertionError(
+                    "Current season query should not be called when ore rule is missing"
+                );
+            }
         );
 
         assertEquals(3, service.calculateDrops(POSITION, IRON_ORE, 3));
@@ -148,6 +245,11 @@ class OreDropServiceTest {
             },
             biomeId -> {
                 throw new AssertionError("Policy lookup should not be called when resolver fails");
+            },
+            () -> {
+                throw new AssertionError(
+                    "Current season query should not be called when biome is unsupported"
+                );
             }
         );
 
@@ -159,11 +261,12 @@ class OreDropServiceTest {
         OreDropService service = serviceWith(
             new InMemoryOreOriginRepository(),
             position -> {
-                throw new IllegalStateException("Current season is not initialized");
+                throw new IllegalStateException("Resolver failure");
             },
             biomeId -> {
                 throw new AssertionError("Policy lookup should not be called when resolver fails");
-            }
+            },
+            () -> SUMMER
         );
 
         IllegalStateException exception = assertThrows(
@@ -171,18 +274,20 @@ class OreDropServiceTest {
             () -> service.calculateDrops(POSITION, IRON_ORE, 3)
         );
 
-        assertEquals("Current season is not initialized", exception.getMessage());
+        assertEquals("Resolver failure", exception.getMessage());
     }
 
     private static OreDropService serviceWith(
         OreOriginRepository repository,
         BiomeResolver biomeResolver,
-        OreDropPolicyProvider policyProvider
+        OreDropPolicyProvider policyProvider,
+        CurrentSeasonQuery currentSeasonQuery
     ) {
         return new OreDropService(
             new OreOriginTrackingService(repository),
             biomeResolver,
             policyProvider,
+            currentSeasonQuery,
             new OreDropMultiplierCalculator(() -> 0.5),
             new OreDropQuantityCalculator(() -> 0.49)
         );

@@ -14,6 +14,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOrigi
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOreMovementListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOrePlaceListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.YamlOreOriginRepository;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.CachedCurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.SeasonAdvancementService;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.SeasonInitializationService;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCalendar;
@@ -55,7 +56,10 @@ public final class DynamicBiomes extends JavaPlugin {
             seasonStateRepository
         );
 
-        seasonInitialization.initializeIfMissing();
+        SeasonId initialSeason = seasonInitialization.initializeIfMissing();
+        CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(
+            initialSeason
+        );
 
         SeasonCycleSettings cycleSettings = new YamlSeasonCycleSettingsProvider(
             dataPath.resolve("season-cycle.yml")
@@ -65,7 +69,11 @@ public final class DynamicBiomes extends JavaPlugin {
             getServer().getScheduler().runTaskTimer(
                 this,
                 new SeasonAdvancementTask(
-                    new SeasonAdvancementService(seasonCalendar, seasonStateRepository)
+                    new SeasonAdvancementService(
+                        seasonCalendar,
+                        seasonStateRepository,
+                        currentSeasonQuery
+                    )
                 ),
                 cycleSettings.initialDelayTicks(),
                 cycleSettings.intervalTicks()
@@ -93,6 +101,7 @@ public final class DynamicBiomes extends JavaPlugin {
             originTracking,
             biomeResolver,
             oreDropPolicyProvider,
+            currentSeasonQuery,
             new OreDropMultiplierCalculator(Math::random),
             new OreDropQuantityCalculator(Math::random)
         );

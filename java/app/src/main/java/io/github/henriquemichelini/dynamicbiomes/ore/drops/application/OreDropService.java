@@ -10,6 +10,8 @@ import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropQuantit
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 
 public final class OreDropService {
@@ -17,6 +19,7 @@ public final class OreDropService {
     private final OreOriginTrackingService originTracking;
     private final BiomeResolver biomeResolver;
     private final OreDropPolicyProvider policyProvider;
+    private final CurrentSeasonQuery currentSeasonQuery;
     private final OreDropMultiplierCalculator multiplierCalculator;
     private final OreDropQuantityCalculator quantityCalculator;
 
@@ -24,12 +27,14 @@ public final class OreDropService {
         OreOriginTrackingService originTracking,
         BiomeResolver biomeResolver,
         OreDropPolicyProvider policyProvider,
+        CurrentSeasonQuery currentSeasonQuery,
         OreDropMultiplierCalculator multiplierCalculator,
         OreDropQuantityCalculator quantityCalculator
     ) {
         this.originTracking = originTracking;
         this.biomeResolver = biomeResolver;
         this.policyProvider = policyProvider;
+        this.currentSeasonQuery = currentSeasonQuery;
         this.multiplierCalculator = multiplierCalculator;
         this.quantityCalculator = quantityCalculator;
     }
@@ -49,10 +54,15 @@ public final class OreDropService {
             double selectedMultiplier = multiplierCalculator.calculate(
                 policy.multiplierRangeFor(oreKind)
             );
+            SeasonId currentSeason = currentSeasonQuery.currentSeason();
+            double seasonalFactor = policy.seasonalMultiplierFactorFor(
+                oreKind,
+                currentSeason
+            );
 
             return quantityCalculator.calculate(
                 vanillaFortuneQuantity,
-                selectedMultiplier
+                selectedMultiplier * seasonalFactor
             );
         } catch (
             UnsupportedBiomeException

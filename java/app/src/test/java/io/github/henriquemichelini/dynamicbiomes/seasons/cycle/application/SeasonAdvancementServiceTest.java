@@ -11,72 +11,97 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class SeasonAdvancementServiceTest {
+    private static final SeasonId SPRING = new SeasonId("minecraft:spring");
+    private static final SeasonId SUMMER = new SeasonId("minecraft:summer");
+    private static final SeasonId WINTER = new SeasonId("minecraft:winter");
     private static final SeasonCalendar CALENDAR = new SeasonCalendar(List.of(
-        new SeasonId("minecraft:spring"),
-        new SeasonId("minecraft:summer"),
+        SPRING,
+        SUMMER,
         new SeasonId("minecraft:autumn"),
-        new SeasonId("minecraft:winter")
+        WINTER
     ));
 
     @Test
-    void advancesToNextSeason() {
+    void advancesToNextSeasonAndUpdatesCache() {
         RecordingSeasonStateRepository repository = new RecordingSeasonStateRepository(
-            new SeasonId("minecraft:spring")
+            SPRING
+        );
+        CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(
+            SPRING
         );
         SeasonAdvancementService service = new SeasonAdvancementService(
             CALENDAR,
-            repository
+            repository,
+            currentSeasonQuery
         );
 
         SeasonId nextSeason = service.advance();
 
-        assertEquals(new SeasonId("minecraft:summer"), nextSeason);
-        assertEquals(new SeasonId("minecraft:summer"), repository.savedSeason);
+        assertEquals(SUMMER, nextSeason);
+        assertEquals(SUMMER, repository.savedSeason);
+        assertEquals(SUMMER, currentSeasonQuery.currentSeason());
     }
 
     @Test
-    void wrapsFromLastSeasonToFirst() {
+    void wrapsFromLastSeasonToFirstAndUpdatesCache() {
         RecordingSeasonStateRepository repository = new RecordingSeasonStateRepository(
-            new SeasonId("minecraft:winter")
+            WINTER
+        );
+        CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(
+            WINTER
         );
         SeasonAdvancementService service = new SeasonAdvancementService(
             CALENDAR,
-            repository
+            repository,
+            currentSeasonQuery
         );
 
         SeasonId nextSeason = service.advance();
 
-        assertEquals(new SeasonId("minecraft:spring"), nextSeason);
-        assertEquals(new SeasonId("minecraft:spring"), repository.savedSeason);
+        assertEquals(SPRING, nextSeason);
+        assertEquals(SPRING, repository.savedSeason);
+        assertEquals(SPRING, currentSeasonQuery.currentSeason());
     }
 
     @Test
-    void failsWhenCurrentSeasonIsNotInitialized() {
-        RecordingSeasonStateRepository repository = new RecordingSeasonStateRepository(null);
+    void doesNotUpdateCacheWhenPersistenceFails() {
+        FailingSeasonStateRepository repository = new FailingSeasonStateRepository(
+            SPRING
+        );
+        CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(
+            SPRING
+        );
         SeasonAdvancementService service = new SeasonAdvancementService(
             CALENDAR,
-            repository
+            repository,
+            currentSeasonQuery
         );
 
-        IllegalStateException exception = assertThrows(
+        assertThrows(
             IllegalStateException.class,
             service::advance
         );
 
-        assertEquals("Current season is not initialized", exception.getMessage());
+        assertEquals(SPRING, currentSeasonQuery.currentSeason());
     }
 
     @Test
     void failsWhenCurrentSeasonIsNotInCalendar() {
+        SeasonId monsoon = new SeasonId("minecraft:monsoon");
         RecordingSeasonStateRepository repository = new RecordingSeasonStateRepository(
-            new SeasonId("minecraft:monsoon")
+            monsoon
+        );
+        CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(
+            monsoon
         );
         SeasonAdvancementService service = new SeasonAdvancementService(
             CALENDAR,
-            repository
+            repository,
+            currentSeasonQuery
         );
 
         assertThrows(IllegalArgumentException.class, service::advance);
+        assertEquals(monsoon, currentSeasonQuery.currentSeason());
     }
 
     private static final class RecordingSeasonStateRepository
@@ -97,6 +122,25 @@ class SeasonAdvancementServiceTest {
         public void saveCurrentSeason(SeasonId seasonId) {
             this.savedSeason = seasonId;
             this.currentSeason = seasonId;
+        }
+    }
+
+    private static final class FailingSeasonStateRepository
+        implements SeasonStateRepository {
+        private final SeasonId currentSeason;
+
+        FailingSeasonStateRepository(SeasonId currentSeason) {
+            this.currentSeason = currentSeason;
+        }
+
+        @Override
+        public Optional<SeasonId> findCurrentSeason() {
+            return Optional.of(currentSeason);
+        }
+
+        @Override
+        public void saveCurrentSeason(SeasonId seasonId) {
+            throw new IllegalStateException("Persistence failed");
         }
     }
 }

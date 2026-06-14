@@ -9,6 +9,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultipl
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +19,8 @@ import org.junit.jupiter.api.io.TempDir;
 class YamlOreDropPolicyProviderTest {
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
     private static final OreKind IRON_ORE = new OreKind("minecraft:iron_ore");
+    private static final SeasonId SUMMER = new SeasonId("minecraft:summer");
+    private static final SeasonId WINTER = new SeasonId("minecraft:winter");
 
     @TempDir
     Path temporaryDirectory;
@@ -45,6 +48,70 @@ class YamlOreDropPolicyProviderTest {
     }
 
     @Test
+    void loadsMultiplierRangeUnderMultiplierKey() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            minecraft:forest:
+              ores:
+                minecraft:iron_ore:
+                  multiplier:
+                    min: 1.0
+                    max: 1.5
+            """
+        );
+
+        OreDropPolicy policy = new YamlOreDropPolicyProvider(policyFile)
+            .policyFor(FOREST);
+
+        assertEquals(
+            new OreDropMultiplierRange(1.0, 1.5),
+            policy.multiplierRangeFor(IRON_ORE)
+        );
+    }
+
+    @Test
+    void loadsSeasonalAdjustments() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            minecraft:forest:
+              ores:
+                minecraft:iron_ore:
+                  min: 1.0
+                  max: 1.5
+                  seasonal-adjustments:
+                    minecraft:summer:
+                      multiplier-factor: 1.10
+                    minecraft:winter:
+                      multiplier-factor: 0.85
+            """
+        );
+
+        OreDropPolicy policy = new YamlOreDropPolicyProvider(policyFile)
+            .policyFor(FOREST);
+
+        assertEquals(1.10, policy.seasonalMultiplierFactorFor(IRON_ORE, SUMMER));
+        assertEquals(0.85, policy.seasonalMultiplierFactorFor(IRON_ORE, WINTER));
+    }
+
+    @Test
+    void seasonalAdjustmentsAreOptional() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            minecraft:forest:
+              ores:
+                minecraft:iron_ore:
+                  min: 1.0
+                  max: 1.2
+            """
+        );
+
+        OreDropPolicy policy = new YamlOreDropPolicyProvider(policyFile)
+            .policyFor(FOREST);
+
+        assertEquals(1.0, policy.seasonalMultiplierFactorFor(IRON_ORE, SUMMER));
+    }
+
+    @Test
     void rejectsInvalidMultiplierRangeThroughDomainValidation() throws IOException {
         Path policyFile = writePolicy(
             """
@@ -60,6 +127,52 @@ class YamlOreDropPolicyProviderTest {
             IllegalArgumentException.class,
             () -> new YamlOreDropPolicyProvider(policyFile).policyFor(FOREST)
         );
+    }
+
+    @Test
+    void rejectsNonPositiveSeasonalMultiplierFactor() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            minecraft:forest:
+              ores:
+                minecraft:iron_ore:
+                  min: 1.0
+                  max: 1.2
+                  seasonal-adjustments:
+                    minecraft:summer:
+                      multiplier-factor: 0.0
+            """
+        );
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlOreDropPolicyProvider(policyFile).policyFor(FOREST)
+        );
+
+        assertTrue(exception.getMessage().contains("finite positive"));
+    }
+
+    @Test
+    void rejectsNonNumericSeasonalMultiplierFactor() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            minecraft:forest:
+              ores:
+                minecraft:iron_ore:
+                  min: 1.0
+                  max: 1.2
+                  seasonal-adjustments:
+                    minecraft:summer:
+                      multiplier-factor: "high"
+            """
+        );
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlOreDropPolicyProvider(policyFile).policyFor(FOREST)
+        );
+
+        assertTrue(exception.getMessage().contains("multiplier-factor"));
     }
 
     @Test
@@ -139,6 +252,27 @@ class YamlOreDropPolicyProviderTest {
     }
 
     @Test
+    void rejectsMalformedSeasonIdKey() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            minecraft:forest:
+              ores:
+                minecraft:iron_ore:
+                  min: 1.0
+                  max: 1.2
+                  seasonal-adjustments:
+                    summer:
+                      multiplier-factor: 1.10
+            """
+        );
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlOreDropPolicyProvider(policyFile).policyFor(FOREST)
+        );
+    }
+
+    @Test
     void rejectsDuplicateBiomePolicyKeys() throws IOException {
         Path policyFile = writePolicy(
             """
@@ -173,6 +307,29 @@ class YamlOreDropPolicyProviderTest {
                 minecraft:iron_ore:
                   min: 1.1
                   max: 1.3
+            """
+        );
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlOreDropPolicyProvider(policyFile).policyFor(FOREST)
+        );
+    }
+
+    @Test
+    void rejectsDuplicateSeasonalAdjustmentKeys() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            minecraft:forest:
+              ores:
+                minecraft:iron_ore:
+                  min: 1.0
+                  max: 1.2
+                  seasonal-adjustments:
+                    minecraft:summer:
+                      multiplier-factor: 1.10
+                    minecraft:summer:
+                      multiplier-factor: 1.20
             """
         );
 

@@ -16,8 +16,10 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeRe
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropOreRule;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropQuantityCalculator;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
@@ -136,8 +138,15 @@ class PaperOreBreakListenerTest {
             biomeResolver,
             biomeId -> new OreDropPolicy(
                 biomeId,
-                Map.of(IRON_ORE, new OreDropMultiplierRange(2.0, 2.0))
+                Map.of(
+                    IRON_ORE,
+                    new OreDropOreRule(
+                        new OreDropMultiplierRange(2.0, 2.0),
+                        Map.of()
+                    )
+                )
             ),
+            () -> new SeasonId("minecraft:summer"),
             new OreDropMultiplierCalculator(() -> 0.5),
             new OreDropQuantityCalculator(() -> 0.5)
         );
