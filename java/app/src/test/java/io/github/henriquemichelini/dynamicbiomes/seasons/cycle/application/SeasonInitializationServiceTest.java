@@ -57,6 +57,24 @@ class SeasonInitializationServiceTest {
     }
 
     @Test
+    void throwsWhenPersistedSeasonIsNotInCalendar() {
+        SeasonId unknown = new SeasonId("minecraft:monsoon");
+        InMemorySeasonStateRepository repository = new InMemorySeasonStateRepository(unknown);
+        SeasonInitializationService service = new SeasonInitializationService(CALENDAR, repository);
+
+        IllegalStateException exception = assertThrows(
+            IllegalStateException.class,
+            service::initializeIfMissing
+        );
+
+        assertEquals(
+            "Persisted current season is not in configured calendar: minecraft:monsoon",
+            exception.getMessage()
+        );
+        assertEquals(0, repository.saveCount);
+    }
+
+    @Test
     void rejectsEmptyCalendarThroughDomainValidation() {
         assertThrows(
             IllegalArgumentException.class,
