@@ -114,14 +114,6 @@ tasks.register<Copy>("copyPluginToDocker") {
 
     from(tasks.named<Jar>("jar").flatMap { it.archiveFile })
     into(paperPluginsDirectory)
-
-    doFirst {
-        paperPluginsDirectory.mkdirs()
-    }
-
-    doLast {
-        println("Copied plugin jar to: ${paperPluginsDirectory.absolutePath}")
-    }
 }
 
 tasks.register<Exec>("startPaperDocker") {
