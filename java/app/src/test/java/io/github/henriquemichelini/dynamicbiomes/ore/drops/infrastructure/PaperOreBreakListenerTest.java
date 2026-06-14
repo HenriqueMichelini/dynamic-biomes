@@ -39,6 +39,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.junit.jupiter.api.Test;
 
@@ -90,6 +91,34 @@ class PaperOreBreakListenerTest {
         assertEquals(POSITION, repository.removedPosition);
     }
 
+    @Test
+    void silkTouchBypassesMultiplierAndPreservesVanillaDrops() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        repository.save(new OreOrigin(POSITION, OreOriginType.NATURAL));
+        PaperOreBreakListener listener = listener(repository);
+
+        List<ItemStack> silkTouchDrops = List.of(new FakeItemStack(Material.IRON_ORE));
+        BlockBreakEvent event = eventFor(Material.IRON_ORE, world(), silkTouchDrops);
+        listener.onBlockBreak(event);
+
+        assertNull(resolvedPosition);
+        assertEquals(POSITION, repository.removedPosition);
+    }
+
+    @Test
+    void nonSilkTouchStillCallsOreDropService() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        repository.save(new OreOrigin(POSITION, OreOriginType.NATURAL));
+        PaperOreBreakListener listener = listener(repository);
+
+        List<ItemStack> normalDrops = List.of(new FakeItemStack(Material.RAW_IRON));
+        BlockBreakEvent event = eventFor(Material.IRON_ORE, world(), normalDrops);
+        listener.onBlockBreak(event);
+
+        assertEquals(POSITION, resolvedPosition);
+        assertEquals(POSITION, repository.removedPosition);
+    }
+
     private PaperOreBreakListener listener(OreOriginRepository repository) {
         OreOriginTrackingService originTracking = new OreOriginTrackingService(repository);
         BiomeContext forestContext = new BiomeContext(
@@ -131,6 +160,14 @@ class PaperOreBreakListenerTest {
     }
 
     private static BlockBreakEvent eventFor(Material material, World world) {
+        return eventFor(material, world, List.of());
+    }
+
+    private static BlockBreakEvent eventFor(
+        Material material,
+        World world,
+        List<ItemStack> drops
+    ) {
         PlayerInventory inventory = proxy(
             PlayerInventory.class,
             Map.of()
@@ -144,7 +181,7 @@ class PaperOreBreakListenerTest {
                 "getX", POSITION.x(),
                 "getY", POSITION.y(),
                 "getZ", POSITION.z(),
-                "getDrops", List.of()
+                "getDrops", drops
             )
         );
         return new BlockBreakEvent(block, player);
@@ -182,6 +219,38 @@ class PaperOreBreakListenerTest {
         public void removeByPosition(BlockPosition position) {
             origin = null;
             removedPosition = position;
+        }
+    }
+
+    private static final class FakeItemStack extends ItemStack {
+        private final Material type;
+        private int amount = 1;
+
+        FakeItemStack(Material type) {
+            super();
+            this.type = type;
+        }
+
+        @Override
+        public Material getType() {
+            return type;
+        }
+
+        @Override
+        public int getAmount() {
+            return amount;
+        }
+
+        @Override
+        public void setAmount(int amount) {
+            this.amount = amount;
+        }
+
+        @Override
+        public ItemStack clone() {
+            FakeItemStack copy = new FakeItemStack(type);
+            copy.amount = this.amount;
+            return copy;
         }
     }
 }

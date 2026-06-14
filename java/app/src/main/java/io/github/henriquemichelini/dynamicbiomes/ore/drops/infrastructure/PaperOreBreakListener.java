@@ -45,12 +45,19 @@ public final class PaperOreBreakListener implements Listener {
             event.getPlayer().getInventory().getItemInMainHand(),
             event.getPlayer()
         );
-        
-        int vanillaFortuneQuantity = vanillaDrops.stream()
-            .mapToInt(ItemStack::getAmount)
-            .sum();
+
+        boolean wouldDropOreBlock = vanillaDrops.stream()
+            .anyMatch(drop -> drop.getType() == block.getType());
 
         try {
+            if (wouldDropOreBlock) {
+                return;
+            }
+
+            int vanillaFortuneQuantity = vanillaDrops.stream()
+                .mapToInt(ItemStack::getAmount)
+                .sum();
+
             int quantity = dropService.calculateDrops(
                 position,
                 IRON_ORE,
