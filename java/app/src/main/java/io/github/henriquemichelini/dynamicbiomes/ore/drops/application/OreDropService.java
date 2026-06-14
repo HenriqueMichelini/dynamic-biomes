@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.drops.application;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
@@ -14,20 +15,20 @@ import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 public final class OreDropService {
 
     private final OreOriginTrackingService originTracking;
-    private final OreDropEnvironmentQueryService environmentQuery;
+    private final BiomeResolver biomeResolver;
     private final OreDropPolicyProvider policyProvider;
     private final OreDropMultiplierCalculator multiplierCalculator;
     private final OreDropQuantityCalculator quantityCalculator;
 
     public OreDropService(
         OreOriginTrackingService originTracking,
-        OreDropEnvironmentQueryService environmentQuery,
+        BiomeResolver biomeResolver,
         OreDropPolicyProvider policyProvider,
         OreDropMultiplierCalculator multiplierCalculator,
         OreDropQuantityCalculator quantityCalculator
     ) {
         this.originTracking = originTracking;
-        this.environmentQuery = environmentQuery;
+        this.biomeResolver = biomeResolver;
         this.policyProvider = policyProvider;
         this.multiplierCalculator = multiplierCalculator;
         this.quantityCalculator = quantityCalculator;
@@ -43,12 +44,8 @@ public final class OreDropService {
         }
 
         try {
-            OreDropEnvironmentContext environmentContext =
-                environmentQuery.resolve(position);
-            BiomeContext biomeContext = environmentContext.biomeContext();
-            OreDropPolicy policy = policyProvider.policyFor(
-                biomeContext.biomeId()
-            );
+            BiomeContext biomeContext = biomeResolver.resolve(position);
+            OreDropPolicy policy = policyProvider.policyFor(biomeContext.biomeId());
             double selectedMultiplier = multiplierCalculator.calculate(
                 policy.multiplierRangeFor(oreKind)
             );

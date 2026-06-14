@@ -12,17 +12,13 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
-import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropEnvironmentQueryService;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropQuantityCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
-import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonalAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginRepository;
@@ -131,24 +127,13 @@ class PaperOreBreakListenerTest {
                 new EcologicalPressure(0.2)
             )
         );
-        SeasonProfile springProfile = new SeasonProfile(
-            new SeasonId("minecraft:spring"),
-            new SeasonClimateAdjustment(
-                new SeasonalAdjustment(0.0),
-                new SeasonalAdjustment(0.1)
-            )
-        );
-        OreDropEnvironmentQueryService environmentQuery = new OreDropEnvironmentQueryService(
-            position -> {
-                resolvedPosition = position;
-                return forestContext;
-            },
-            () -> springProfile.seasonId(),
-            seasonId -> springProfile
-        );
+        BiomeResolver biomeResolver = position -> {
+            resolvedPosition = position;
+            return forestContext;
+        };
         OreDropService dropService = new OreDropService(
             originTracking,
-            environmentQuery,
+            biomeResolver,
             biomeId -> new OreDropPolicy(
                 biomeId,
                 Map.of(IRON_ORE, new OreDropMultiplierRange(2.0, 2.0))
