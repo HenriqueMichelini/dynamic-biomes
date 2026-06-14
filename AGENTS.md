@@ -104,8 +104,9 @@ Resource ownership:
 
 ```text
 ore-drops.yml        -> ore/drops
-biome-profiles.yml   -> biome/profile, when introduced
-season-profiles.yml  -> seasons/profile, when introduced
+biome-profiles.yml   -> biome/profile
+season-profiles.yml  -> seasons/profile
+season-cycle.yml     -> seasons/cycle
 ```
 
 Additional rules:
@@ -170,7 +171,7 @@ JAR/resource check:
 
 ```bash
 cd java && ./gradlew build --no-daemon
-jar tf app/build/libs/*.jar | sort | grep -E "plugin.yml|ore-drops.yml|biome-profiles.yml|season-profiles.yml|DynamicBiomes"
+jar tf app/build/libs/*.jar | sort | grep -E "plugin.yml|ore-drops.yml|biome-profiles.yml|season-profiles.yml|season-cycle.yml|DynamicBiomes"
 ```
 
 ## Agent Task Format

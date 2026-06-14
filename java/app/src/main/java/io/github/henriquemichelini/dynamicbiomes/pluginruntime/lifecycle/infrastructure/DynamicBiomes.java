@@ -14,8 +14,12 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOrigi
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOreMovementListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOrePlaceListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.YamlOreOriginRepository;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.SeasonAdvancementService;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.SeasonInitializationService;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCalendar;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCycleSettings;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure.SeasonAdvancementTask;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure.YamlSeasonCycleSettingsProvider;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure.YamlSeasonStateRepository;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.nio.file.Path;
@@ -29,6 +33,7 @@ public final class DynamicBiomes extends JavaPlugin {
         saveResource("ore-drops.yml", false);
         saveResource("biome-profiles.yml", false);
         saveResource("season-profiles.yml", false);
+        saveResource("season-cycle.yml", false);
 
         Path dataPath = getDataFolder().toPath();
 
@@ -51,6 +56,21 @@ public final class DynamicBiomes extends JavaPlugin {
         );
 
         seasonInitialization.initializeIfMissing();
+
+        SeasonCycleSettings cycleSettings = new YamlSeasonCycleSettingsProvider(
+            dataPath.resolve("season-cycle.yml")
+        ).settings();
+
+        if (cycleSettings.enabled()) {
+            getServer().getScheduler().runTaskTimer(
+                this,
+                new SeasonAdvancementTask(
+                    new SeasonAdvancementService(seasonCalendar, seasonStateRepository)
+                ),
+                cycleSettings.initialDelayTicks(),
+                cycleSettings.intervalTicks()
+            );
+        }
 
         OreOriginTrackingService originTracking = new OreOriginTrackingService(
             new YamlOreOriginRepository(dataPath.resolve("ore-origins.yml"))

@@ -222,11 +222,15 @@ io.github.henriquemichelini.dynamicbiomes/
 │   ├── cycle/
 │   │   ├── domain/
 │   │   │   ├── SeasonCalendar.java
-│   │   │   └── SeasonStateRepository.java
+│   │   │   ├── SeasonStateRepository.java
+│   │   │   └── SeasonCycleSettings.java
 │   │   ├── application/
-│   │   │   └── SeasonInitializationService.java
+│   │   │   ├── SeasonInitializationService.java
+│   │   │   └── SeasonAdvancementService.java
 │   │   └── infrastructure/
-│   │       └── YamlSeasonStateRepository.java
+│   │       ├── YamlSeasonStateRepository.java
+│   │       ├── YamlSeasonCycleSettingsProvider.java
+│   │       └── SeasonAdvancementTask.java
 │   └── profile/
 │       ├── domain/
 │       │   ├── SeasonProfile.java
@@ -439,8 +443,9 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 
 - **Ore origin tracking**: `PaperOrePlaceListener` records player-placed ore; `PaperOreBreakListener` clears origin on break; `PaperOreMovementListener` transfers tracked origin across piston movement.
 - **Ore drop behavior**: `PaperOreBreakListener` delegates to `OreDropService`, which resolves the biome, looks up the ore drop policy, and applies the multiplier.
-- **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, and `YamlSeasonProfileProvider` load configured profiles and policies at startup.
+- **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlSeasonProfileProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup.
 - **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar` and initializes the first season if none exists.
+- **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.
 - **Ore origin persistence**: `YamlOreOriginRepository` lazily loads origin state into memory and writes updates back to disk.
 
 ### 18.2 Implemented Safety Behavior
@@ -455,7 +460,6 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 
 The following are intentionally not implemented or not wired at runtime:
 
-- Automatic season scheduling or recurring season advancement task execution.
 - Season effects on ore/crops/trees/animals (season profile data is loaded but not consumed by feature domains).
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
