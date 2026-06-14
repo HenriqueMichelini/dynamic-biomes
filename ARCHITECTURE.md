@@ -240,8 +240,6 @@ io.github.henriquemichelini.dynamicbiomes/
 │       │   ├── SeasonClimateAdjustment.java
 │       │   ├── SeasonalAdjustment.java
 │       │   └── SeasonProfileProvider.java
-│       ├── application/
-│       │   └── SeasonProfileQueryService.java
 │       └── infrastructure/
 │           └── YamlSeasonProfileProvider.java
 │
