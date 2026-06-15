@@ -2,3 +2,7 @@ name: dynamic-biomes
 version: "${version}"
 main: io.github.henriquemichelini.dynamicbiomes.pluginruntime.lifecycle.infrastructure.DynamicBiomes
 api-version: '1.21'
+commands:
+  dynamicbiomes:
+    description: Shows DynamicBiomes information
+    usage: /dynamicbiomes season

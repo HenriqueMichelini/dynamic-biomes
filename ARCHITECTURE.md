@@ -229,10 +229,12 @@ io.github.henriquemichelini.dynamicbiomes/
 │   │   │   ├── SeasonInitializationService.java
 │   │   │   ├── SeasonAdvancementService.java
 │   │   │   └── CachedCurrentSeasonQuery.java
-│   │   └── infrastructure/
-│   │       ├── YamlSeasonStateRepository.java
-│   │       ├── YamlSeasonCycleSettingsProvider.java
-│   │       └── SeasonAdvancementTask.java
+│   │   ├── infrastructure/
+│   │   │   ├── YamlSeasonStateRepository.java
+│   │   │   ├── YamlSeasonCycleSettingsProvider.java
+│   │   │   └── SeasonAdvancementTask.java
+│   │   └── presentation/
+│   │       └── SeasonCommandExecutor.java
 │   └── profile/
 │       ├── domain/
 │       │   ├── SeasonProfile.java
@@ -450,6 +452,7 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 - **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlSeasonProfileProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup.
 - **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar`, initializes the first season if none exists, and `CachedCurrentSeasonQuery` keeps the runtime season in memory for hot-path reads.
 - **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.
+- **Current season command**: `/dynamicbiomes season` reads the cached `CurrentSeasonQuery` and reports the current `SeasonId`.
 - **Ore origin persistence**: `YamlOreOriginRepository` lazily loads origin state into memory and writes updates back to disk.
 
 ### 18.2 Implemented Safety Behavior

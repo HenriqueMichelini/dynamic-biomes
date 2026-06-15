@@ -20,6 +20,7 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
+import org.mockbukkit.mockbukkit.command.CommandResult;
 import org.mockbukkit.mockbukkit.scheduler.BukkitSchedulerMock;
 import org.mockbukkit.mockbukkit.scheduler.RepeatingTask;
 import org.mockbukkit.mockbukkit.scheduler.ScheduledTask;
@@ -112,6 +113,22 @@ class DynamicBiomesPluginTest {
         assertTrue(listenerClassNames.contains(
             "io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOreMovementListener"
         ));
+    }
+
+    @Test
+    void registersAndExecutesTheCurrentSeasonCommand() {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+
+        assertNotNull(server.getPluginCommand("dynamicbiomes"));
+
+        CommandResult result = server.executeConsole("dynamicbiomes", "season");
+
+        assertTrue(result.hasSucceeded());
+        assertEquals(
+            "Current season: minecraft:spring",
+            result.getSender().nextMessage()
+        );
     }
 
     @Test

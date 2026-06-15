@@ -22,9 +22,11 @@ import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCycl
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure.SeasonAdvancementTask;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure.YamlSeasonCycleSettingsProvider;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure.YamlSeasonStateRepository;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.presentation.SeasonCommandExecutor;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class DynamicBiomes extends JavaPlugin {
@@ -60,6 +62,11 @@ public final class DynamicBiomes extends JavaPlugin {
         CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(
             initialSeason
         );
+
+        Objects.requireNonNull(
+            getCommand("dynamicbiomes"),
+            "Missing dynamicbiomes command metadata"
+        ).setExecutor(new SeasonCommandExecutor(currentSeasonQuery));
 
         SeasonCycleSettings cycleSettings = new YamlSeasonCycleSettingsProvider(
             dataPath.resolve("season-cycle.yml")
