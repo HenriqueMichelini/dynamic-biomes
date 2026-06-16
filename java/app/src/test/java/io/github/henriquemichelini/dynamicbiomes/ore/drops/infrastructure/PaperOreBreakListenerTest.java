@@ -13,12 +13,15 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRic
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropOreRule;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropQuantityCalculator;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
@@ -28,10 +31,13 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -67,6 +73,126 @@ class PaperOreBreakListenerTest {
     }
 
     @Test
+    void sendsActionBarWhenFinalQuantityIsGreaterThanVanillaQuantity() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
+        PaperOreBreakListener listener = listener(repository, 2.0, notifier);
+
+        listener.onBlockBreak(
+            eventFor(
+                Material.IRON_ORE,
+                world(),
+                List.of(new FakeItemStack(Material.RAW_IRON))
+            )
+        );
+
+        assertEquals(
+            List.of(
+                new ActionBarNotification(
+                    "+1 iron ore extra!",
+                    TextColor.color(0x90EE90),
+                    OreDropDeltaTone.POSITIVE
+                )
+            ),
+            notifier.notifications
+        );
+    }
+
+    @Test
+    void sendsActionBarWhenFinalQuantityIsLessThanVanillaQuantity() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
+        PaperOreBreakListener listener = listener(repository, 0.5, notifier);
+
+        listener.onBlockBreak(
+            eventFor(
+                Material.IRON_ORE,
+                world(),
+                List.of(new FakeItemStack(Material.RAW_IRON, 2))
+            )
+        );
+
+        assertEquals(
+            List.of(
+                new ActionBarNotification(
+                    "-1 iron ore",
+                    NamedTextColor.RED,
+                    OreDropDeltaTone.NEGATIVE
+                )
+            ),
+            notifier.notifications
+        );
+    }
+
+    @Test
+    void doesNotSendActionBarWhenFinalQuantityEqualsVanillaQuantity() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
+        PaperOreBreakListener listener = listener(repository, 1.0, notifier);
+
+        listener.onBlockBreak(
+            eventFor(
+                Material.IRON_ORE,
+                world(),
+                List.of(new FakeItemStack(Material.RAW_IRON))
+            )
+        );
+
+        assertEquals(List.of(), notifier.notifications);
+    }
+
+    @Test
+    void doesNotSendActionBarWhenUnsupportedBiomeFallbackPreservesVanillaQuantity() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
+        PaperOreBreakListener listener = listener(
+            repository,
+            position -> {
+                throw new UnsupportedBiomeException(
+                    "Missing static biome profile for resolved biome: minecraft:dripstone_caves"
+                );
+            },
+            2.0,
+            notifier
+        );
+
+        listener.onBlockBreak(
+            eventFor(
+                Material.IRON_ORE,
+                world(),
+                List.of(new FakeItemStack(Material.RAW_IRON))
+            )
+        );
+
+        assertEquals(List.of(), notifier.notifications);
+    }
+
+    @Test
+    void doesNotSendActionBarWhenUnsupportedPolicyFallbackPreservesVanillaQuantity() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
+        PaperOreBreakListener listener = listener(
+            repository,
+            biomeId -> {
+                throw new UnsupportedOreDropConfigurationException(
+                    "Missing ore drop policy for biome: " + biomeId.value()
+                );
+            },
+            notifier
+        );
+
+        listener.onBlockBreak(
+            eventFor(
+                Material.IRON_ORE,
+                world(),
+                List.of(new FakeItemStack(Material.RAW_IRON))
+            )
+        );
+
+        assertEquals(List.of(), notifier.notifications);
+    }
+
+    @Test
     void ignoresNonOreBreak() {
         RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
         PaperOreBreakListener listener = listener(repository);
@@ -81,19 +207,22 @@ class PaperOreBreakListenerTest {
     void checksPlayerPlacedOriginBeforeClearingIt() {
         RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
         repository.save(new OreOrigin(POSITION, OreOriginType.PLAYER_PLACED));
-        PaperOreBreakListener listener = listener(repository);
+        RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
+        PaperOreBreakListener listener = listener(repository, 2.0, notifier);
 
         listener.onBlockBreak(eventFor(Material.IRON_ORE, world()));
 
         assertNull(resolvedPosition);
         assertEquals(POSITION, repository.removedPosition);
+        assertEquals(List.of(), notifier.notifications);
     }
 
     @Test
     void silkTouchBypassesMultiplierAndPreservesVanillaDrops() {
         RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
         repository.save(new OreOrigin(POSITION, OreOriginType.NATURAL));
-        PaperOreBreakListener listener = listener(repository);
+        RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
+        PaperOreBreakListener listener = listener(repository, 2.0, notifier);
 
         List<ItemStack> silkTouchDrops = List.of(new FakeItemStack(Material.IRON_ORE));
         BlockBreakEvent event = eventFor(Material.IRON_ORE, world(), silkTouchDrops);
@@ -101,6 +230,7 @@ class PaperOreBreakListenerTest {
 
         assertNull(resolvedPosition);
         assertEquals(POSITION, repository.removedPosition);
+        assertEquals(List.of(), notifier.notifications);
     }
 
     @Test
@@ -118,7 +248,14 @@ class PaperOreBreakListenerTest {
     }
 
     private PaperOreBreakListener listener(OreOriginRepository repository) {
-        OreOriginTrackingService originTracking = new OreOriginTrackingService(repository);
+        return listener(repository, 2.0, (player, message, color, sound) -> {});
+    }
+
+    private PaperOreBreakListener listener(
+        OreOriginRepository repository,
+        double multiplier,
+        OreDropActionBarNotifier notifier
+    ) {
         BiomeContext forestContext = new BiomeContext(
             FOREST,
             new BiomeProfile(
@@ -133,24 +270,70 @@ class PaperOreBreakListenerTest {
             resolvedPosition = position;
             return forestContext;
         };
-        OreDropService dropService = new OreDropService(
-            originTracking,
+        return listener(repository, biomeResolver, multiplier, notifier);
+    }
+
+    private PaperOreBreakListener listener(
+        OreOriginRepository repository,
+        BiomeResolver biomeResolver,
+        double multiplier,
+        OreDropActionBarNotifier notifier
+    ) {
+        return listener(
+            repository,
             biomeResolver,
             biomeId -> new OreDropPolicy(
                 biomeId,
                 Map.of(
                     IRON_ORE,
                     new OreDropOreRule(
-                        new OreDropMultiplierRange(2.0, 2.0),
+                        new OreDropMultiplierRange(multiplier, multiplier),
                         Map.of()
                     )
                 )
             ),
+            notifier
+        );
+    }
+
+    private PaperOreBreakListener listener(
+        OreOriginRepository repository,
+        OreDropPolicyProvider policyProvider,
+        OreDropActionBarNotifier notifier
+    ) {
+        BiomeContext forestContext = new BiomeContext(
+            FOREST,
+            new BiomeProfile(
+                FOREST,
+                new ClimateProfile(new Humidity(0.4), new Temperature(0.8)),
+                new Fertility(0.7),
+                new MineralRichness(0.3),
+                new EcologicalPressure(0.2)
+            )
+        );
+        BiomeResolver biomeResolver = position -> {
+            resolvedPosition = position;
+            return forestContext;
+        };
+        return listener(repository, biomeResolver, policyProvider, notifier);
+    }
+
+    private PaperOreBreakListener listener(
+        OreOriginRepository repository,
+        BiomeResolver biomeResolver,
+        OreDropPolicyProvider policyProvider,
+        OreDropActionBarNotifier notifier
+    ) {
+        OreOriginTrackingService originTracking = new OreOriginTrackingService(repository);
+        OreDropService dropService = new OreDropService(
+            originTracking,
+            biomeResolver,
+            policyProvider,
             () -> new SeasonId("minecraft:summer"),
             new OreDropMultiplierCalculator(() -> 0.5),
             new OreDropQuantityCalculator(() -> 0.5)
         );
-        return new PaperOreBreakListener(dropService, originTracking);
+        return new PaperOreBreakListener(dropService, originTracking, notifier);
     }
 
     private static BlockBreakEvent eventFor(Material material, World world) {
@@ -216,6 +399,27 @@ class PaperOreBreakListenerTest {
         }
     }
 
+    private static final class RecordingActionBarNotifier
+        implements OreDropActionBarNotifier {
+        private final List<ActionBarNotification> notifications = new ArrayList<>();
+
+        @Override
+        public void send(
+            Player player,
+            String message,
+            TextColor color,
+            OreDropDeltaTone tone
+        ) {
+            notifications.add(new ActionBarNotification(message, color, tone));
+        }
+    }
+
+    private record ActionBarNotification(
+        String message,
+        TextColor color,
+        OreDropDeltaTone tone
+    ) {}
+
     private static final class FakeItemStack extends ItemStack {
         private final Material type;
         private int amount = 1;
@@ -223,6 +427,11 @@ class PaperOreBreakListenerTest {
         FakeItemStack(Material type) {
             super();
             this.type = type;
+        }
+
+        FakeItemStack(Material type, int amount) {
+            this(type);
+            this.amount = amount;
         }
 
         @Override
