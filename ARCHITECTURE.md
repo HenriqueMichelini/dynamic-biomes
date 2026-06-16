@@ -296,6 +296,7 @@ io.github.henriquemichelini.dynamicbiomes/
 │       │   ├── WheatGrowthChanceVariationSource.java
 │       │   └── WheatGrowthDecision.java
 │       └── infrastructure/
+│           ├── PaperWheatGrowthListener.java
 │           └── YamlWheatGrowthChancePolicyProvider.java
 │
 └── pluginruntime/
@@ -482,6 +483,7 @@ The following capabilities exist but are not wired at runtime:
 
 - **Wheat growth chance policy**: `crops/growth/domain` models an already-selected configured natural wheat growth allow chance, a deterministic-testable unit variation source, and an allow/cancel decision. It does not model other crop kinds, resolve biomes or seasons, read configuration, listen for Bukkit events, or mutate world state.
 - **Biome-aware wheat growth service**: `crops/growth/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads the configured wheat growth policy through `WheatGrowthChancePolicyProvider`, and delegates allow/cancel decisions to domain policy. It preserves vanilla growth for explicit unsupported biome or unsupported wheat policy cases and is not wired into plugin runtime.
+- **Paper wheat growth listener**: `crops/growth/infrastructure` translates Bukkit `BlockGrowEvent` wheat growth attempts into `BlockPosition`, delegates to `WheatGrowthService`, and cancels only when the service returns a cancel decision. It is not wired into plugin runtime.
 - **YAML-backed wheat growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `WheatGrowthChancePolicyProvider` port for configured biome-specific wheat growth chances. It is not wired into plugin runtime and does not listen for Bukkit crop events or mutate world state.
 
 ### 18.3 Implemented Safety Behavior
@@ -497,7 +499,7 @@ The following capabilities exist but are not wired at runtime:
 The following are intentionally not implemented or not wired at runtime:
 
 - Season effects on crops/trees/animals (season profile data is loaded but not consumed by those feature domains).
-- Runtime crop growth behavior, including Bukkit crop listeners, biome resolution from block locations, and season-specific crop adjustment.
+- Runtime crop growth registration, biome resolution from block locations in live events, and season-specific crop adjustment.
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
 - Database persistence.
