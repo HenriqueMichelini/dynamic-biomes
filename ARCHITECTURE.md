@@ -283,6 +283,14 @@ io.github.henriquemichelini.dynamicbiomes/
 │       └── presentation/
 │           └── OreInspectCommandExecutor.java
 │
+├── crops/
+│   └── growth/
+│       └── domain/
+│           ├── WheatGrowthChance.java
+│           ├── WheatGrowthChancePolicy.java
+│           ├── WheatGrowthChanceVariationSource.java
+│           └── WheatGrowthDecision.java
+│
 └── pluginruntime/
     └── lifecycle/
         └── infrastructure/
@@ -461,7 +469,13 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 - **Read-only observability commands**: `/dynamicbiomes season` reads the cached `CurrentSeasonQuery` and reports the current `SeasonId`; `/dynamicbiomes biome` resolves the player's current `BiomeContext` through `BiomeResolver` and reports whether the biome has a supported DynamicBiomes profile; `/dynamicbiomes inspect` reads the player's target block, resolves biome/profile support, checks the ore drop policy/rule through `OreDropPolicyProvider`, reads tracked ore origin through `OreOriginTrackingService`, and reports multiplier eligibility without mutating state.
 - **Ore origin persistence**: `YamlOreOriginRepository` lazily loads origin state into memory and writes updates back to disk.
 
-### 18.2 Implemented Safety Behavior
+### 18.2 Implemented Domain-Only Behavior
+
+The following domain capabilities exist but are not wired at runtime:
+
+- **Wheat growth chance policy**: `crops/growth/domain` models an already-selected configured natural wheat growth allow chance, a deterministic-testable unit variation source, and an allow/cancel decision. It does not model other crop kinds, resolve biomes or seasons, read configuration, listen for Bukkit events, or mutate world state.
+
+### 18.3 Implemented Safety Behavior
 
 - **Silk Touch bypass**: `PaperOreBreakListener` detects when the broken ore would drop itself (Silk Touch) and skips `OreDropService`, preserving vanilla drops.
 - **Unsupported configuration fallback**: `OreDropService` catches `UnsupportedBiomeException` and `UnsupportedOreDropConfigurationException` and returns the vanilla quantity, so unsupported biomes, missing policies, and missing ore rules do not suppress vanilla drops.
@@ -469,11 +483,12 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 - **Persisted season validation**: `SeasonInitializationService` throws `IllegalStateException` if a persisted `SeasonId` is absent from the configured `SeasonCalendar`.
 - **Origin cache safety**: `YamlOreOriginRepository` loads once and serves subsequent reads from memory; save/remove still persist.
 
-### 18.3 Still-Deferred Work
+### 18.4 Still-Deferred Work
 
 The following are intentionally not implemented or not wired at runtime:
 
 - Season effects on crops/trees/animals (season profile data is loaded but not consumed by those feature domains).
+- Runtime crop growth behavior, including Bukkit crop listeners, crop configuration resources, biome-specific crop policy lookup, and season-specific crop adjustment.
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
 - Database persistence.
