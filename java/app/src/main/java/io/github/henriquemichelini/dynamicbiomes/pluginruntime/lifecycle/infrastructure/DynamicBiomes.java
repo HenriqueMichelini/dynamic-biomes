@@ -11,6 +11,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyP
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropQuantityCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure.PaperOreBreakListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure.YamlOreDropPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.presentation.OreInspectCommandExecutor;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOreMovementListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOrePlaceListener;
@@ -83,8 +84,11 @@ public final class DynamicBiomes extends JavaPlugin {
             );
         }
 
+        YamlOreOriginRepository oreOriginRepository = new YamlOreOriginRepository(
+            dataPath.resolve("ore-origins.yml")
+        );
         OreOriginTrackingService originTracking = new OreOriginTrackingService(
-            new YamlOreOriginRepository(dataPath.resolve("ore-origins.yml"))
+            oreOriginRepository
         );
 
         BiomeProfileProvider biomeProfileProvider = new YamlBiomeProfileProvider(
@@ -96,18 +100,23 @@ public final class DynamicBiomes extends JavaPlugin {
             biomeProfileProvider
         );
 
+        OreDropPolicyProvider oreDropPolicyProvider = new YamlOreDropPolicyProvider(
+            dataPath.resolve("ore-drops.yml")
+        );
+
         Objects.requireNonNull(
             getCommand("dynamicbiomes"),
             "Missing dynamicbiomes command metadata"
         ).setExecutor(
             new DynamicBiomesCommandExecutor(
                 new SeasonCommandExecutor(currentSeasonQuery),
-                new BiomeCommandExecutor(biomeResolver)
+                new BiomeCommandExecutor(biomeResolver),
+                new OreInspectCommandExecutor(
+                    biomeResolver,
+                    oreDropPolicyProvider,
+                    originTracking
+                )
             )
-        );
-
-        OreDropPolicyProvider oreDropPolicyProvider = new YamlOreDropPolicyProvider(
-            dataPath.resolve("ore-drops.yml")
         );
 
         OreDropService oreDropService = new OreDropService(

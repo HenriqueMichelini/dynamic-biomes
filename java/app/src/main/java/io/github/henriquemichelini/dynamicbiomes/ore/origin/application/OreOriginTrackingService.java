@@ -4,6 +4,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginRepository;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
+import java.util.Optional;
 
 public final class OreOriginTrackingService {
     private final OreOriginRepository repository;
@@ -20,6 +21,10 @@ public final class OreOriginTrackingService {
         return repository.findByPosition(position)
             .map(OreOrigin::isEligibleForBiomeBasedMultiplier)
             .orElse(true);
+    }
+
+    public Optional<OreOrigin> originAt(BlockPosition position) {
+        return repository.findByPosition(position);
     }
 
     public void clearTrackedOrigin(BlockPosition position) {

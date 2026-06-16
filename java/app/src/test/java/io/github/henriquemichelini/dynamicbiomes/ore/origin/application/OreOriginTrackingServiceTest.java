@@ -63,6 +63,20 @@ class OreOriginTrackingServiceTest {
     }
 
     @Test
+    void originAtReadsTrackedOriginWithoutChangingRepository() {
+        InMemoryOreOriginRepository repository =
+            new InMemoryOreOriginRepository();
+        OreOrigin origin = new OreOrigin(POSITION, OreOriginType.PLAYER_PLACED);
+        repository.save(origin);
+        OreOriginTrackingService service = new OreOriginTrackingService(
+            repository
+        );
+
+        assertEquals(Optional.of(origin), service.originAt(POSITION));
+        assertEquals(Optional.of(origin), repository.findByPosition(POSITION));
+    }
+
+    @Test
     void unknownOreIsEligibleForBiomeMultiplierByDefault() {
         OreOriginTrackingService service = new OreOriginTrackingService(
             new InMemoryOreOriginRepository()

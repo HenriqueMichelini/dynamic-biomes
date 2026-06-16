@@ -17,9 +17,11 @@ class DynamicBiomesCommandExecutorTest {
         RecordingSender sender = new RecordingSender();
         RecordingCommandExecutor seasonExecutor = new RecordingCommandExecutor();
         RecordingCommandExecutor biomeExecutor = new RecordingCommandExecutor();
+        RecordingCommandExecutor inspectExecutor = new RecordingCommandExecutor();
         DynamicBiomesCommandExecutor command = new DynamicBiomesCommandExecutor(
             seasonExecutor,
-            biomeExecutor
+            biomeExecutor,
+            inspectExecutor
         );
 
         boolean handled = command.onCommand(
@@ -32,6 +34,7 @@ class DynamicBiomesCommandExecutorTest {
         assertTrue(handled);
         assertEquals(1, seasonExecutor.callCount);
         assertEquals(0, biomeExecutor.callCount);
+        assertEquals(0, inspectExecutor.callCount);
         assertEquals(List.of("season"), List.of(seasonExecutor.args));
     }
 
@@ -40,9 +43,11 @@ class DynamicBiomesCommandExecutorTest {
         RecordingSender sender = new RecordingSender();
         RecordingCommandExecutor seasonExecutor = new RecordingCommandExecutor();
         RecordingCommandExecutor biomeExecutor = new RecordingCommandExecutor();
+        RecordingCommandExecutor inspectExecutor = new RecordingCommandExecutor();
         DynamicBiomesCommandExecutor command = new DynamicBiomesCommandExecutor(
             seasonExecutor,
-            biomeExecutor
+            biomeExecutor,
+            inspectExecutor
         );
 
         boolean handled = command.onCommand(
@@ -55,7 +60,34 @@ class DynamicBiomesCommandExecutorTest {
         assertTrue(handled);
         assertEquals(0, seasonExecutor.callCount);
         assertEquals(1, biomeExecutor.callCount);
+        assertEquals(0, inspectExecutor.callCount);
         assertEquals(List.of("biome"), List.of(biomeExecutor.args));
+    }
+
+    @Test
+    void routesInspectSubcommandToInspectExecutor() {
+        RecordingSender sender = new RecordingSender();
+        RecordingCommandExecutor seasonExecutor = new RecordingCommandExecutor();
+        RecordingCommandExecutor biomeExecutor = new RecordingCommandExecutor();
+        RecordingCommandExecutor inspectExecutor = new RecordingCommandExecutor();
+        DynamicBiomesCommandExecutor command = new DynamicBiomesCommandExecutor(
+            seasonExecutor,
+            biomeExecutor,
+            inspectExecutor
+        );
+
+        boolean handled = command.onCommand(
+            sender.commandSender(),
+            null,
+            "dynamicbiomes",
+            new String[] { "inspect" }
+        );
+
+        assertTrue(handled);
+        assertEquals(0, seasonExecutor.callCount);
+        assertEquals(0, biomeExecutor.callCount);
+        assertEquals(1, inspectExecutor.callCount);
+        assertEquals(List.of("inspect"), List.of(inspectExecutor.args));
     }
 
     @Test
@@ -63,9 +95,11 @@ class DynamicBiomesCommandExecutorTest {
         RecordingSender sender = new RecordingSender();
         RecordingCommandExecutor seasonExecutor = new RecordingCommandExecutor();
         RecordingCommandExecutor biomeExecutor = new RecordingCommandExecutor();
+        RecordingCommandExecutor inspectExecutor = new RecordingCommandExecutor();
         DynamicBiomesCommandExecutor command = new DynamicBiomesCommandExecutor(
             seasonExecutor,
-            biomeExecutor
+            biomeExecutor,
+            inspectExecutor
         );
 
         boolean handled = command.onCommand(
@@ -76,9 +110,13 @@ class DynamicBiomesCommandExecutorTest {
         );
 
         assertTrue(handled);
-        assertEquals(List.of("Usage: /dynamicbiomes <season|biome>"), sender.messages);
+        assertEquals(
+            List.of("Usage: /dynamicbiomes <season|biome|inspect>"),
+            sender.messages
+        );
         assertEquals(0, seasonExecutor.callCount);
         assertEquals(0, biomeExecutor.callCount);
+        assertEquals(0, inspectExecutor.callCount);
     }
 
     private static final class RecordingCommandExecutor implements CommandExecutor {
