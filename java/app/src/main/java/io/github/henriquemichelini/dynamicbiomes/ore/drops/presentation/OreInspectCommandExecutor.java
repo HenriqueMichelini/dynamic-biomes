@@ -8,12 +8,12 @@ import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
+import io.github.henriquemichelini.dynamicbiomes.ore.identity.infrastructure.PaperOreMaterialMapper;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import org.bukkit.Material;
@@ -29,48 +29,6 @@ public final class OreInspectCommandExecutor implements CommandExecutor {
         "This command can only be used by a player.";
     private static final String USAGE = "Usage: /dynamicbiomes inspect";
     private static final int TARGET_BLOCK_MAX_DISTANCE = 5;
-    private static final Map<Material, OreKind> INSPECTED_ORES = Map.ofEntries(
-        Map.entry(Material.COAL_ORE, new OreKind("minecraft:coal_ore")),
-        Map.entry(
-            Material.DEEPSLATE_COAL_ORE,
-            new OreKind("minecraft:deepslate_coal_ore")
-        ),
-        Map.entry(Material.COPPER_ORE, new OreKind("minecraft:copper_ore")),
-        Map.entry(
-            Material.DEEPSLATE_COPPER_ORE,
-            new OreKind("minecraft:deepslate_copper_ore")
-        ),
-        Map.entry(Material.IRON_ORE, new OreKind("minecraft:iron_ore")),
-        Map.entry(
-            Material.DEEPSLATE_IRON_ORE,
-            new OreKind("minecraft:deepslate_iron_ore")
-        ),
-        Map.entry(Material.GOLD_ORE, new OreKind("minecraft:gold_ore")),
-        Map.entry(
-            Material.DEEPSLATE_GOLD_ORE,
-            new OreKind("minecraft:deepslate_gold_ore")
-        ),
-        Map.entry(Material.REDSTONE_ORE, new OreKind("minecraft:redstone_ore")),
-        Map.entry(
-            Material.DEEPSLATE_REDSTONE_ORE,
-            new OreKind("minecraft:deepslate_redstone_ore")
-        ),
-        Map.entry(Material.LAPIS_ORE, new OreKind("minecraft:lapis_ore")),
-        Map.entry(
-            Material.DEEPSLATE_LAPIS_ORE,
-            new OreKind("minecraft:deepslate_lapis_ore")
-        ),
-        Map.entry(Material.DIAMOND_ORE, new OreKind("minecraft:diamond_ore")),
-        Map.entry(
-            Material.DEEPSLATE_DIAMOND_ORE,
-            new OreKind("minecraft:deepslate_diamond_ore")
-        ),
-        Map.entry(Material.EMERALD_ORE, new OreKind("minecraft:emerald_ore")),
-        Map.entry(
-            Material.DEEPSLATE_EMERALD_ORE,
-            new OreKind("minecraft:deepslate_emerald_ore")
-        )
-    );
 
     private final BiomeResolver biomeResolver;
     private final OreDropPolicyProvider policyProvider;
@@ -112,7 +70,8 @@ public final class OreInspectCommandExecutor implements CommandExecutor {
 
         Material material = targetBlock.getType();
         sender.sendMessage("Target block: " + material.name());
-        OreKind oreKind = INSPECTED_ORES.get(material);
+        OreKind oreKind = PaperOreMaterialMapper.oreKindFor(material)
+            .orElse(null);
         if (oreKind == null) {
             sender.sendMessage("Inspection: not an inspected ore");
             return true;

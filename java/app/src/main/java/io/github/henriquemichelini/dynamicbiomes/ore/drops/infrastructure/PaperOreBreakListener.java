@@ -2,6 +2,7 @@ package io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
+import io.github.henriquemichelini.dynamicbiomes.ore.identity.infrastructure.PaperOreMaterialMapper;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
@@ -20,7 +21,6 @@ import org.bukkit.inventory.ItemStack;
 
 public final class PaperOreBreakListener implements Listener {
 
-    private static final OreKind IRON_ORE = new OreKind("minecraft:iron_ore");
     private static final TextColor POSITIVE_DELTA_COLOR = TextColor.color(
         0x90EE90
     );
@@ -53,7 +53,9 @@ public final class PaperOreBreakListener implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
-        if (block.getType() != Material.IRON_ORE) {
+        OreKind oreKind = PaperOreMaterialMapper.oreKindFor(block.getType())
+            .orElse(null);
+        if (oreKind == null) {
             return;
         }
 
@@ -85,7 +87,7 @@ public final class PaperOreBreakListener implements Listener {
 
             int quantity = dropService.calculateDrops(
                 position,
-                IRON_ORE,
+                oreKind,
                 vanillaFortuneQuantity
             );
             if (quantity != vanillaFortuneQuantity && !vanillaDrops.isEmpty()) {

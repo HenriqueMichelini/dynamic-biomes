@@ -1,9 +1,9 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure;
 
+import io.github.henriquemichelini.dynamicbiomes.ore.identity.infrastructure.PaperOreMaterialMapper;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.event.EventHandler;
@@ -22,7 +22,7 @@ public final class PaperOreMovementListener implements Listener {
     public void onPistonExtend(BlockPistonExtendEvent event) {
         BlockFace direction = event.getDirection();
         for (Block block : event.getBlocks()) {
-            if (block.getType() != Material.IRON_ORE) {
+            if (!PaperOreMaterialMapper.isSupportedOre(block.getType())) {
                 continue;
             }
             BlockPosition source = blockPosition(block);
@@ -40,7 +40,7 @@ public final class PaperOreMovementListener implements Listener {
     public void onPistonRetract(BlockPistonRetractEvent event) {
         BlockFace opposite = event.getDirection().getOppositeFace();
         for (Block block : event.getBlocks()) {
-            if (block.getType() != Material.IRON_ORE) {
+            if (!PaperOreMaterialMapper.isSupportedOre(block.getType())) {
                 continue;
             }
             BlockPosition source = blockPosition(block);

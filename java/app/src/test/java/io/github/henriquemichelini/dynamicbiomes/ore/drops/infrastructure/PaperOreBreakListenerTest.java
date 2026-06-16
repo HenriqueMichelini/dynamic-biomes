@@ -59,6 +59,7 @@ class PaperOreBreakListenerTest {
     );
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
     private static final OreKind IRON_ORE = new OreKind("minecraft:iron_ore");
+    private static final OreKind DIAMOND_ORE = new OreKind("minecraft:diamond_ore");
     private BlockPosition resolvedPosition;
 
     @Test
@@ -70,6 +71,34 @@ class PaperOreBreakListenerTest {
 
         assertEquals(POSITION, resolvedPosition);
         assertEquals(POSITION, repository.removedPosition);
+    }
+
+    @Test
+    void invokesBiomeAwareDropsForConfiguredNonIronOre() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
+        PaperOreBreakListener listener = listener(repository, 2.0, notifier);
+
+        listener.onBlockBreak(
+            eventFor(
+                Material.DIAMOND_ORE,
+                world(),
+                List.of(new FakeItemStack(Material.DIAMOND))
+            )
+        );
+
+        assertEquals(POSITION, resolvedPosition);
+        assertEquals(POSITION, repository.removedPosition);
+        assertEquals(
+            List.of(
+                new ActionBarNotification(
+                    "+1 diamond ore extra!",
+                    TextColor.color(0x90EE90),
+                    OreDropDeltaTone.POSITIVE
+                )
+            ),
+            notifier.notifications
+        );
     }
 
     @Test
@@ -218,6 +247,26 @@ class PaperOreBreakListenerTest {
     }
 
     @Test
+    void checksPlayerPlacedOriginForConfiguredNonIronOreBeforeClearingIt() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        repository.save(new OreOrigin(POSITION, OreOriginType.PLAYER_PLACED));
+        RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
+        PaperOreBreakListener listener = listener(repository, 2.0, notifier);
+
+        listener.onBlockBreak(
+            eventFor(
+                Material.DIAMOND_ORE,
+                world(),
+                List.of(new FakeItemStack(Material.DIAMOND))
+            )
+        );
+
+        assertNull(resolvedPosition);
+        assertEquals(POSITION, repository.removedPosition);
+        assertEquals(List.of(), notifier.notifications);
+    }
+
+    @Test
     void silkTouchBypassesMultiplierAndPreservesVanillaDrops() {
         RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
         repository.save(new OreOrigin(POSITION, OreOriginType.NATURAL));
@@ -226,6 +275,22 @@ class PaperOreBreakListenerTest {
 
         List<ItemStack> silkTouchDrops = List.of(new FakeItemStack(Material.IRON_ORE));
         BlockBreakEvent event = eventFor(Material.IRON_ORE, world(), silkTouchDrops);
+        listener.onBlockBreak(event);
+
+        assertNull(resolvedPosition);
+        assertEquals(POSITION, repository.removedPosition);
+        assertEquals(List.of(), notifier.notifications);
+    }
+
+    @Test
+    void silkTouchBypassesConfiguredNonIronOreMultiplier() {
+        RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
+        repository.save(new OreOrigin(POSITION, OreOriginType.NATURAL));
+        RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
+        PaperOreBreakListener listener = listener(repository, 2.0, notifier);
+
+        List<ItemStack> silkTouchDrops = List.of(new FakeItemStack(Material.DIAMOND_ORE));
+        BlockBreakEvent event = eventFor(Material.DIAMOND_ORE, world(), silkTouchDrops);
         listener.onBlockBreak(event);
 
         assertNull(resolvedPosition);
@@ -286,6 +351,11 @@ class PaperOreBreakListenerTest {
                 biomeId,
                 Map.of(
                     IRON_ORE,
+                    new OreDropOreRule(
+                        new OreDropMultiplierRange(multiplier, multiplier),
+                        Map.of()
+                    ),
+                    DIAMOND_ORE,
                     new OreDropOreRule(
                         new OreDropMultiplierRange(multiplier, multiplier),
                         Map.of()

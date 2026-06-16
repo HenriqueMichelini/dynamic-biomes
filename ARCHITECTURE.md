@@ -248,8 +248,10 @@ io.github.henriquemichelini.dynamicbiomes/
 │
 ├── ore/
 │   ├── identity/
-│   │   └── domain/
-│   │       └── OreKind.java
+│   │   ├── domain/
+│   │   │   └── OreKind.java
+│   │   └── infrastructure/
+│   │       └── PaperOreMaterialMapper.java
 │   ├── origin/
 │   │   ├── domain/
 │   │   │   ├── OreOrigin.java
@@ -452,7 +454,7 @@ Add `presentation/` only when needed. Do not create empty layer packages preempt
 The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/DynamicBiomes` and active at runtime:
 
 - **Ore origin tracking**: `PaperOrePlaceListener` records player-placed ore; `PaperOreBreakListener` clears origin on break; `PaperOreMovementListener` transfers tracked origin across piston movement.
-- **Ore drop behavior**: `PaperOreBreakListener` delegates to `OreDropService`, which resolves the biome, looks up the ore drop policy, applies the base multiplier, and applies an optional ore-owned seasonal multiplier factor from `ore-drops.yml` based on the cached current season. When the final quantity differs from the vanilla quantity, the listener sends the mining player a sign-colored delta action-bar message and sign-specific feedback sound.
+- **Ore drop behavior**: `PaperOreBreakListener` delegates to `OreDropService` for supported configured Overworld ore materials resolved through `PaperOreMaterialMapper`, which maps Bukkit `Material` values to domain `OreKind` values. The service resolves the biome, looks up the ore drop policy, applies the base multiplier, and applies an optional ore-owned seasonal multiplier factor from `ore-drops.yml` based on the cached current season. When the final quantity differs from the vanilla quantity, the listener sends the mining player a sign-colored delta action-bar message and sign-specific feedback sound.
 - **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlSeasonProfileProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup.
 - **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar`, initializes the first season if none exists, and `CachedCurrentSeasonQuery` keeps the runtime season in memory for hot-path reads.
 - **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.

@@ -46,6 +46,19 @@ class PaperOrePlaceListenerTest {
     }
 
     @Test
+    void recordsConfiguredNonIronOrePlacementAsPlayerPlaced() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        PaperOrePlaceListener listener = listener(repository);
+
+        listener.onBlockPlace(eventFor(Material.DIAMOND_ORE));
+
+        assertEquals(
+            new OreOrigin(POSITION, OreOriginType.PLAYER_PLACED),
+            repository.findByPosition(POSITION).orElseThrow()
+        );
+    }
+
+    @Test
     void ignoresNonOrePlacement() {
         InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
         PaperOrePlaceListener listener = listener(repository);

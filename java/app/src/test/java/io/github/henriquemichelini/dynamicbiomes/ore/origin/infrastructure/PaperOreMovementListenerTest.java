@@ -65,6 +65,33 @@ class PaperOreMovementListenerTest {
     }
 
     @Test
+    void pistonExtendMovesTrackedConfiguredNonIronOre() {
+        InMemoryOreOriginRepository repository =
+            new InMemoryOreOriginRepository();
+        repository.save(new OreOrigin(SOURCE, OreOriginType.PLAYER_PLACED));
+        PaperOreMovementListener listener = listener(repository);
+
+        BlockPosition destination = new BlockPosition(
+            SOURCE.world(),
+            SOURCE.x(),
+            SOURCE.y(),
+            SOURCE.z() - 1
+        );
+        BlockPistonExtendEvent event = new BlockPistonExtendEvent(
+            pistonBlock(),
+            List.of(movedBlock(Material.DIAMOND_ORE, SOURCE)),
+            BlockFace.NORTH
+        );
+        listener.onPistonExtend(event);
+
+        assertTrue(repository.findByPosition(SOURCE).isEmpty());
+        assertEquals(
+            new OreOrigin(destination, OreOriginType.PLAYER_PLACED),
+            repository.findByPosition(destination).orElseThrow()
+        );
+    }
+
+    @Test
     void pistonExtendIgnoresUntrackedOre() {
         InMemoryOreOriginRepository repository =
             new InMemoryOreOriginRepository();
