@@ -47,6 +47,7 @@ public final class BukkitBiomeResolver implements BiomeResolver {
 
         if (profile == null) {
             throw new UnsupportedBiomeException(
+                biomeId,
                 "Missing static biome profile for resolved biome: " + biomeId.value()
             );
         }

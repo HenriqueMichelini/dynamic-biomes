@@ -5,4 +5,4 @@ api-version: '1.21'
 commands:
   dynamicbiomes:
     description: Shows DynamicBiomes information
-    usage: /dynamicbiomes season
+    usage: /dynamicbiomes <season|biome>

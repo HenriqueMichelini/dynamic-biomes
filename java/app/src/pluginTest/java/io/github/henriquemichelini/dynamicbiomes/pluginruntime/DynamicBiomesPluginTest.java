@@ -132,6 +132,22 @@ class DynamicBiomesPluginTest {
     }
 
     @Test
+    void registersTheBiomeCommandAsPlayerOnly() {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+
+        assertNotNull(server.getPluginCommand("dynamicbiomes"));
+
+        CommandResult result = server.executeConsole("dynamicbiomes", "biome");
+
+        assertTrue(result.hasSucceeded());
+        assertEquals(
+            "This command can only be used by a player.",
+            result.getSender().nextMessage()
+        );
+    }
+
+    @Test
     void withDefaultSeasonCyclePluginSchedulesNoSeasonAdvancementTask() {
         Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
         server.getPluginManager().enablePlugin(plugin);

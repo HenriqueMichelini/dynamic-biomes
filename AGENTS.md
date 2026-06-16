@@ -4,7 +4,7 @@ This file gives coding agents project-specific instructions for working on Dynam
 
 ## Skill Ecosystem
 
-Use only `.codex/skills/` for this repository. Do not use `.kimi-code/skills/`.
+Use only `/home/henriquemichelini/.codex/skills/` for this repository. Do not use `/home/henriquemichelini/.kimi-code/skills/`.
 
 Canonical skills:
 
@@ -43,6 +43,7 @@ java/app/src/test/java                  # Tests, including architecture tests
    - confirm it fails for the expected reason when practical;
    - implement the smallest production change;
    - run the relevant tests.
+   - do not delete a test just because the code tested failed. 
 5. Do not create unused scaffolding, empty packages, placeholder contracts, or speculative layers.
 6. Preserve runtime behavior unless the current task explicitly requires changing it.
 7. After implementation, run verification commands and report exact results.

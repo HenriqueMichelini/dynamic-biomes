@@ -4,6 +4,7 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfi
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.infrastructure.YamlBiomeProfileProvider;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.infrastructure.BukkitBiomeResolver;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.presentation.BiomeCommandExecutor;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
@@ -63,11 +64,6 @@ public final class DynamicBiomes extends JavaPlugin {
             initialSeason
         );
 
-        Objects.requireNonNull(
-            getCommand("dynamicbiomes"),
-            "Missing dynamicbiomes command metadata"
-        ).setExecutor(new SeasonCommandExecutor(currentSeasonQuery));
-
         SeasonCycleSettings cycleSettings = new YamlSeasonCycleSettingsProvider(
             dataPath.resolve("season-cycle.yml")
         ).settings();
@@ -98,6 +94,16 @@ public final class DynamicBiomes extends JavaPlugin {
         BiomeResolver biomeResolver = new BukkitBiomeResolver(
             getServer(),
             biomeProfileProvider
+        );
+
+        Objects.requireNonNull(
+            getCommand("dynamicbiomes"),
+            "Missing dynamicbiomes command metadata"
+        ).setExecutor(
+            new DynamicBiomesCommandExecutor(
+                new SeasonCommandExecutor(currentSeasonQuery),
+                new BiomeCommandExecutor(biomeResolver)
+            )
         );
 
         OreDropPolicyProvider oreDropPolicyProvider = new YamlOreDropPolicyProvider(
