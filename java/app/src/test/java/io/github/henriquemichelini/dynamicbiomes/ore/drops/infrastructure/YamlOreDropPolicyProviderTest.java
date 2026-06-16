@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,8 +12,11 @@ import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOre
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -24,6 +28,41 @@ class YamlOreDropPolicyProviderTest {
 
     @TempDir
     Path temporaryDirectory;
+
+    @Test
+    void defaultForestPolicyConfiguresCommonOverworldOres()
+        throws URISyntaxException {
+        URL resource = getClass().getClassLoader().getResource("ore-drops.yml");
+        assertNotNull(resource, "Missing packaged ore-drops.yml");
+
+        OreDropPolicy policy = new YamlOreDropPolicyProvider(
+            Path.of(resource.toURI())
+        ).policyFor(FOREST);
+
+        List.of(
+            "minecraft:coal_ore",
+            "minecraft:deepslate_coal_ore",
+            "minecraft:copper_ore",
+            "minecraft:deepslate_copper_ore",
+            "minecraft:iron_ore",
+            "minecraft:deepslate_iron_ore",
+            "minecraft:gold_ore",
+            "minecraft:deepslate_gold_ore",
+            "minecraft:redstone_ore",
+            "minecraft:deepslate_redstone_ore",
+            "minecraft:lapis_ore",
+            "minecraft:deepslate_lapis_ore",
+            "minecraft:diamond_ore",
+            "minecraft:deepslate_diamond_ore",
+            "minecraft:emerald_ore",
+            "minecraft:deepslate_emerald_ore"
+        ).forEach(oreKey ->
+            assertTrue(
+                policy.multiplierRangeFor(new OreKind(oreKey)).maximum() <= 1.2,
+                () -> "Missing conservative forest ore rule for " + oreKey
+            )
+        );
+    }
 
     @Test
     void loadsConfiguredMultiplierRangeAsTypedPolicy() throws IOException {

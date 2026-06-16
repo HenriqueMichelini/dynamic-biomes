@@ -1,5 +1,50 @@
 minecraft:forest:
   ores:
+    minecraft:coal_ore:
+      min: 1.0
+      max: 1.1
+    minecraft:deepslate_coal_ore:
+      min: 1.0
+      max: 1.1
+    minecraft:copper_ore:
+      min: 1.0
+      max: 1.15
+    minecraft:deepslate_copper_ore:
+      min: 1.0
+      max: 1.15
     minecraft:iron_ore:
       min: 1.0
       max: 1.2
+    minecraft:deepslate_iron_ore:
+      min: 1.0
+      max: 1.2
+    minecraft:gold_ore:
+      min: 1.0
+      max: 1.15
+    minecraft:deepslate_gold_ore:
+      min: 1.0
+      max: 1.15
+    minecraft:redstone_ore:
+      min: 1.0
+      max: 1.1
+    minecraft:deepslate_redstone_ore:
+      min: 1.0
+      max: 1.1
+    minecraft:lapis_ore:
+      min: 1.0
+      max: 1.1
+    minecraft:deepslate_lapis_ore:
+      min: 1.0
+      max: 1.1
+    minecraft:diamond_ore:
+      min: 1.0
+      max: 1.05
+    minecraft:deepslate_diamond_ore:
+      min: 1.0
+      max: 1.05
+    minecraft:emerald_ore:
+      min: 1.0
+      max: 1.05
+    minecraft:deepslate_emerald_ore:
+      min: 1.0
+      max: 1.05

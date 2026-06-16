@@ -51,6 +51,9 @@ class OreInspectCommandExecutorTest {
     );
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
     private static final OreKind IRON_ORE = new OreKind("minecraft:iron_ore");
+    private static final OreKind DEEPSLATE_DIAMOND_ORE = new OreKind(
+        "minecraft:deepslate_diamond_ore"
+    );
 
     @Test
     void reportsSupportedNaturalOreDiagnostics() {
@@ -74,6 +77,42 @@ class OreInspectCommandExecutorTest {
         assertEquals(
             List.of(
                 "Target block: IRON_ORE",
+                "Current biome: minecraft:forest",
+                "DynamicBiomes profile: supported",
+                "Ore drop policy: supported",
+                "Ore origin: natural/untracked",
+                "Eligible for multiplier: yes"
+            ),
+            sender.messages
+        );
+        assertTrue(originRepository.savedOrigins.isEmpty());
+        assertTrue(originRepository.removedPositions.isEmpty());
+    }
+
+    @Test
+    void reportsPolicySupportForConfiguredNonIronOreDiagnostics() {
+        RecordingSender sender = RecordingSender.playerLookingAt(
+            Material.DEEPSLATE_DIAMOND_ORE
+        );
+        InMemoryOreOriginRepository originRepository =
+            new InMemoryOreOriginRepository();
+        OreInspectCommandExecutor command = command(
+            position -> new BiomeContext(FOREST, profileFor(FOREST)),
+            biomeId -> policyFor(biomeId, DEEPSLATE_DIAMOND_ORE),
+            originRepository
+        );
+
+        boolean handled = command.onCommand(
+            sender.commandSender(),
+            null,
+            "dynamicbiomes",
+            new String[] { "inspect" }
+        );
+
+        assertTrue(handled);
+        assertEquals(
+            List.of(
+                "Target block: DEEPSLATE_DIAMOND_ORE",
                 "Current biome: minecraft:forest",
                 "DynamicBiomes profile: supported",
                 "Ore drop policy: supported",
