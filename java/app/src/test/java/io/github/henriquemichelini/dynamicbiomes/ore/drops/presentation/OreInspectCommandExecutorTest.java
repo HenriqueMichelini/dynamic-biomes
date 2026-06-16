@@ -18,6 +18,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultipl
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropOreRule;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
@@ -155,6 +156,82 @@ class OreInspectCommandExecutorTest {
                 "DynamicBiomes profile: supported",
                 "Ore drop policy: supported",
                 "Ore origin: player-placed",
+                "Eligible for multiplier: no"
+            ),
+            sender.messages
+        );
+        assertTrue(originRepository.savedOrigins.isEmpty());
+        assertTrue(originRepository.removedPositions.isEmpty());
+    }
+
+    @Test
+    void reportsUnsupportedPolicyAsIneligibleWithoutMutatingOriginState() {
+        RecordingSender sender = RecordingSender.playerLookingAt(Material.IRON_ORE);
+        InMemoryOreOriginRepository originRepository =
+            new InMemoryOreOriginRepository();
+        originRepository.save(
+            new OreOrigin(TARGET_POSITION, OreOriginType.PLAYER_PLACED)
+        );
+        originRepository.clearMutations();
+        OreInspectCommandExecutor command = command(
+            position -> new BiomeContext(FOREST, profileFor(FOREST)),
+            biomeId -> {
+                throw new UnsupportedOreDropConfigurationException(
+                    "Missing ore drop policy for biome: " + biomeId.value()
+                );
+            },
+            originRepository
+        );
+
+        boolean handled = command.onCommand(
+            sender.commandSender(),
+            null,
+            "dynamicbiomes",
+            new String[] { "inspect" }
+        );
+
+        assertTrue(handled);
+        assertEquals(
+            List.of(
+                "Target block: IRON_ORE",
+                "Current biome: minecraft:forest",
+                "DynamicBiomes profile: supported",
+                "Ore drop policy: unsupported",
+                "Ore origin: player-placed",
+                "Eligible for multiplier: no"
+            ),
+            sender.messages
+        );
+        assertTrue(originRepository.savedOrigins.isEmpty());
+        assertTrue(originRepository.removedPositions.isEmpty());
+    }
+
+    @Test
+    void reportsUnsupportedOreRuleAsIneligibleWithoutMutatingOriginState() {
+        RecordingSender sender = RecordingSender.playerLookingAt(Material.IRON_ORE);
+        InMemoryOreOriginRepository originRepository =
+            new InMemoryOreOriginRepository();
+        OreInspectCommandExecutor command = command(
+            position -> new BiomeContext(FOREST, profileFor(FOREST)),
+            biomeId -> policyFor(biomeId, DEEPSLATE_DIAMOND_ORE),
+            originRepository
+        );
+
+        boolean handled = command.onCommand(
+            sender.commandSender(),
+            null,
+            "dynamicbiomes",
+            new String[] { "inspect" }
+        );
+
+        assertTrue(handled);
+        assertEquals(
+            List.of(
+                "Target block: IRON_ORE",
+                "Current biome: minecraft:forest",
+                "DynamicBiomes profile: supported",
+                "Ore drop policy: unsupported",
+                "Ore origin: natural/untracked",
                 "Eligible for multiplier: no"
             ),
             sender.messages
