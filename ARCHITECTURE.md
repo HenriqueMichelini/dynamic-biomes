@@ -179,6 +179,7 @@ Configuration files must be split by ownership:
 - `biome-profiles.yml` belongs to `biome/profile`
 - `season-profiles.yml` belongs to `seasons/profile`
 - `ore-drops.yml` belongs to `ore/drops`
+- `crop-growth.yml` belongs to `crops/growth`
 
 Raw YAML must not leak into domain. Bukkit types must not leak into domain.
 
@@ -285,11 +286,15 @@ io.github.henriquemichelini.dynamicbiomes/
 │
 ├── crops/
 │   └── growth/
-│       └── domain/
-│           ├── WheatGrowthChance.java
-│           ├── WheatGrowthChancePolicy.java
-│           ├── WheatGrowthChanceVariationSource.java
-│           └── WheatGrowthDecision.java
+│       ├── domain/
+│       │   ├── UnsupportedWheatGrowthPolicyException.java
+│       │   ├── WheatGrowthChance.java
+│       │   ├── WheatGrowthChancePolicy.java
+│       │   ├── WheatGrowthChancePolicyProvider.java
+│       │   ├── WheatGrowthChanceVariationSource.java
+│       │   └── WheatGrowthDecision.java
+│       └── infrastructure/
+│           └── YamlWheatGrowthChancePolicyProvider.java
 │
 └── pluginruntime/
     └── lifecycle/
@@ -474,6 +479,7 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 The following domain capabilities exist but are not wired at runtime:
 
 - **Wheat growth chance policy**: `crops/growth/domain` models an already-selected configured natural wheat growth allow chance, a deterministic-testable unit variation source, and an allow/cancel decision. It does not model other crop kinds, resolve biomes or seasons, read configuration, listen for Bukkit events, or mutate world state.
+- **YAML-backed wheat growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `WheatGrowthChancePolicyProvider` port for configured biome-specific wheat growth chances. It is not wired into plugin runtime and does not listen for Bukkit crop events or mutate world state.
 
 ### 18.3 Implemented Safety Behavior
 
@@ -488,7 +494,7 @@ The following domain capabilities exist but are not wired at runtime:
 The following are intentionally not implemented or not wired at runtime:
 
 - Season effects on crops/trees/animals (season profile data is loaded but not consumed by those feature domains).
-- Runtime crop growth behavior, including Bukkit crop listeners, crop configuration resources, biome-specific crop policy lookup, and season-specific crop adjustment.
+- Runtime crop growth behavior, including Bukkit crop listeners, biome resolution from block locations, and season-specific crop adjustment.
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
 - Database persistence.

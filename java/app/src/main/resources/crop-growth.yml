@@ -1,0 +1,4 @@
+biomes:
+  minecraft:forest:
+    wheat:
+      growth-chance: 0.75
