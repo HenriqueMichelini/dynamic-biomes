@@ -20,8 +20,12 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowth
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChanceVariationSource;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthDecision;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +49,9 @@ class WheatGrowthServiceTest {
             new EcologicalPressure(0.2)
         )
     );
+    private static final SeasonId SPRING = new SeasonId("minecraft:spring");
+    private static final SeasonId SUMMER = new SeasonId("minecraft:summer");
+    private static final SeasonId WINTER = new SeasonId("minecraft:winter");
 
     @Test
     void allowsGrowthForFullConfiguredChance() {
@@ -54,15 +61,19 @@ class WheatGrowthServiceTest {
                 throw new AssertionError("Variation is unnecessary at full chance");
             })
         );
+        RecordingCurrentSeasonQuery currentSeasonQuery =
+            new RecordingCurrentSeasonQuery(SPRING);
 
         WheatGrowthDecision decision = new WheatGrowthService(
             biomeResolver,
-            policyProvider
+            policyProvider,
+            currentSeasonQuery
         ).decideNaturalWheatGrowth(POSITION);
 
         assertEquals(WheatGrowthDecision.ALLOW_GROWTH, decision);
         assertEquals(POSITION, biomeResolver.requestedPosition);
         assertEquals(FOREST, policyProvider.requestedBiomeId);
+        assertEquals(1, currentSeasonQuery.queryCount);
     }
 
     @Test
@@ -110,16 +121,31 @@ class WheatGrowthServiceTest {
     }
 
     @Test
-    void allowsGrowthForUnsupportedBiomeToPreserveVanillaBehavior() {
-        WheatGrowthService service = new WheatGrowthService(
-            position -> {
-                throw new UnsupportedBiomeException(
-                    "Missing static biome profile for resolved biome: minecraft:ocean"
-                );
-            },
-            biomeId -> {
-                throw new AssertionError("Policy lookup should not run for unsupported biome");
-            }
+    void cancelsGrowthWithZeroSeasonalFactor() {
+        WheatGrowthService service = serviceWith(
+            policy(
+                0.5,
+                Map.of(SPRING, new WheatGrowthSeasonalFactor(0.0)),
+                () -> 0.01
+            ),
+            SPRING
+        );
+
+        assertEquals(
+            WheatGrowthDecision.CANCEL_GROWTH,
+            service.decideNaturalWheatGrowth(POSITION)
+        );
+    }
+
+    @Test
+    void allowsGrowthWithCappedSeasonalFactor() {
+        WheatGrowthService service = serviceWith(
+            policy(
+                0.5,
+                Map.of(SUMMER, new WheatGrowthSeasonalFactor(2.0)),
+                () -> 1.0
+            ),
+            SUMMER
         );
 
         assertEquals(
@@ -129,20 +155,64 @@ class WheatGrowthServiceTest {
     }
 
     @Test
-    void allowsGrowthForMissingWheatPolicyToPreserveVanillaBehavior() {
+    void usesBaseChanceWhenCurrentSeasonHasNoFactor() {
+        WheatGrowthService service = serviceWith(
+            policy(
+                0.5,
+                Map.of(SUMMER, new WheatGrowthSeasonalFactor(2.0)),
+                () -> 0.5
+            ),
+            WINTER
+        );
+
+        assertEquals(
+            WheatGrowthDecision.CANCEL_GROWTH,
+            service.decideNaturalWheatGrowth(POSITION)
+        );
+    }
+
+    @Test
+    void allowsGrowthForUnsupportedBiomeToPreserveVanillaBehavior() {
+        RecordingCurrentSeasonQuery currentSeasonQuery =
+            new RecordingCurrentSeasonQuery(SPRING);
         WheatGrowthService service = new WheatGrowthService(
-            position -> FOREST_CONTEXT,
-            biomeId -> {
-                throw new UnsupportedWheatGrowthPolicyException(
-                    "Missing wheat growth policy for biome: " + biomeId.value()
+            position -> {
+                throw new UnsupportedBiomeException(
+                    "Missing static biome profile for resolved biome: minecraft:ocean"
                 );
-            }
+            },
+            biomeId -> {
+                throw new AssertionError("Policy lookup should not run for unsupported biome");
+            },
+            currentSeasonQuery
         );
 
         assertEquals(
             WheatGrowthDecision.ALLOW_GROWTH,
             service.decideNaturalWheatGrowth(POSITION)
         );
+        assertEquals(0, currentSeasonQuery.queryCount);
+    }
+
+    @Test
+    void allowsGrowthForMissingWheatPolicyToPreserveVanillaBehavior() {
+        RecordingCurrentSeasonQuery currentSeasonQuery =
+            new RecordingCurrentSeasonQuery(SPRING);
+        WheatGrowthService service = new WheatGrowthService(
+            position -> FOREST_CONTEXT,
+            biomeId -> {
+                throw new UnsupportedWheatGrowthPolicyException(
+                    "Missing wheat growth policy for biome: " + biomeId.value()
+                );
+            },
+            currentSeasonQuery
+        );
+
+        assertEquals(
+            WheatGrowthDecision.ALLOW_GROWTH,
+            service.decideNaturalWheatGrowth(POSITION)
+        );
+        assertEquals(0, currentSeasonQuery.queryCount);
     }
 
     @Test
@@ -153,7 +223,8 @@ class WheatGrowthServiceTest {
             },
             biomeId -> {
                 throw new AssertionError("Policy lookup should not run when resolver fails");
-            }
+            },
+            new RecordingCurrentSeasonQuery(SPRING)
         );
 
         IllegalStateException exception = assertThrows(
@@ -170,7 +241,8 @@ class WheatGrowthServiceTest {
             position -> FOREST_CONTEXT,
             biomeId -> {
                 throw new IllegalStateException("Provider failure");
-            }
+            },
+            new RecordingCurrentSeasonQuery(SPRING)
         );
 
         IllegalStateException exception = assertThrows(
@@ -191,10 +263,36 @@ class WheatGrowthServiceTest {
         );
     }
 
+    @Test
+    void propagatesCurrentSeasonQueryFailure() {
+        WheatGrowthService service = new WheatGrowthService(
+            position -> FOREST_CONTEXT,
+            biomeId -> policy(0.5, () -> 0.0),
+            () -> {
+                throw new IllegalStateException("Season query failure");
+            }
+        );
+
+        IllegalStateException exception = assertThrows(
+            IllegalStateException.class,
+            () -> service.decideNaturalWheatGrowth(POSITION)
+        );
+
+        assertEquals("Season query failure", exception.getMessage());
+    }
+
     private static WheatGrowthService serviceWith(WheatGrowthChancePolicy policy) {
+        return serviceWith(policy, SPRING);
+    }
+
+    private static WheatGrowthService serviceWith(
+        WheatGrowthChancePolicy policy,
+        SeasonId currentSeason
+    ) {
         return new WheatGrowthService(
             position -> FOREST_CONTEXT,
-            biomeId -> policy
+            biomeId -> policy,
+            new RecordingCurrentSeasonQuery(currentSeason)
         );
     }
 
@@ -204,6 +302,18 @@ class WheatGrowthServiceTest {
     ) {
         return new WheatGrowthChancePolicy(
             new WheatGrowthChance(chance),
+            variationSource
+        );
+    }
+
+    private static WheatGrowthChancePolicy policy(
+        double chance,
+        Map<SeasonId, WheatGrowthSeasonalFactor> seasonalFactors,
+        WheatGrowthChanceVariationSource variationSource
+    ) {
+        return new WheatGrowthChancePolicy(
+            new WheatGrowthChance(chance),
+            seasonalFactors,
             variationSource
         );
     }
@@ -237,6 +347,23 @@ class WheatGrowthServiceTest {
         public WheatGrowthChancePolicy policyFor(BiomeId biomeId) {
             requestedBiomeId = biomeId;
             return policy;
+        }
+    }
+
+    private static final class RecordingCurrentSeasonQuery
+        implements CurrentSeasonQuery {
+
+        private final SeasonId currentSeason;
+        private int queryCount;
+
+        private RecordingCurrentSeasonQuery(SeasonId currentSeason) {
+            this.currentSeason = currentSeason;
+        }
+
+        @Override
+        public SeasonId currentSeason() {
+            queryCount++;
+            return currentSeason;
         }
     }
 }

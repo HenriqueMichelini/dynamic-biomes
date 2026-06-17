@@ -477,7 +477,7 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 - **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlSeasonProfileProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup.
 - **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar`, initializes the first season if none exists, and `CachedCurrentSeasonQuery` keeps the runtime season in memory for hot-path reads.
 - **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.
-- **Wheat growth behavior**: `PaperWheatGrowthListener` delegates natural wheat `BlockGrowEvent` attempts to `WheatGrowthService`; the service resolves biome through `BiomeResolver`, reads configured biome-specific wheat policy through `YamlWheatGrowthChancePolicyProvider` from `crop-growth.yml`, and cancels growth only when the policy returns a cancel decision.
+- **Wheat growth behavior**: `PaperWheatGrowthListener` delegates natural wheat `BlockGrowEvent` attempts to `WheatGrowthService`; the service resolves biome through `BiomeResolver`, reads configured biome-specific wheat policy through `YamlWheatGrowthChancePolicyProvider` from `crop-growth.yml`, applies any crop-owned seasonal factor for the cached current season, and cancels growth only when the policy returns a cancel decision.
 - **Read-only observability commands**: `/dynamicbiomes season` reads the cached `CurrentSeasonQuery` and reports the current `SeasonId`; `/dynamicbiomes biome` resolves the player's current `BiomeContext` through `BiomeResolver` and reports whether the biome has a supported DynamicBiomes profile; `/dynamicbiomes inspect` reads the player's target block, delegates to crop and ore diagnostics, reports wheat growth policy support/configured chance/fallback status for wheat, checks ore drop policy/rules through `OreDropPolicyProvider`, reads tracked ore origin through `OreOriginTrackingService`, and reports multiplier eligibility without mutating state.
 - **Ore origin persistence**: `YamlOreOriginRepository` lazily loads origin state into memory and writes updates back to disk.
 
@@ -486,7 +486,7 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 The following capabilities support runtime behavior while keeping ownership boundaries explicit:
 
 - **Wheat growth chance policy**: `crops/growth/domain` models an already-selected configured natural wheat growth allow chance, optional crop-owned seasonal factors keyed by published `SeasonId`, a deterministic-testable unit variation source, and an allow/cancel decision. It does not model other crop kinds, resolve biomes or current season state, read configuration, listen for Bukkit events, or mutate world state.
-- **Biome-aware wheat growth service**: `crops/growth/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads the configured wheat growth policy through `WheatGrowthChancePolicyProvider`, and delegates allow/cancel decisions to domain policy. It preserves vanilla growth for explicit unsupported biome or unsupported wheat policy cases.
+- **Biome-aware wheat growth service**: `crops/growth/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads the configured wheat growth policy through `WheatGrowthChancePolicyProvider`, reads current season through the published `CurrentSeasonQuery`, and delegates season-aware allow/cancel decisions to domain policy. It preserves vanilla growth for explicit unsupported biome or unsupported wheat policy cases.
 - **Paper wheat growth listener**: `crops/growth/infrastructure` translates Bukkit `BlockGrowEvent` wheat growth attempts into `BlockPosition`, delegates to `WheatGrowthService`, and cancels only when the service returns a cancel decision.
 - **YAML-backed wheat growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `WheatGrowthChancePolicyProvider` port for configured biome-specific wheat growth chances and optional crop-owned seasonal factors. It does not listen for Bukkit crop events, query current season state, or mutate world state.
 - **Wheat growth inspect diagnostic**: `crops/growth/presentation` translates a targeted wheat block into read-only diagnostics by resolving biome support and querying `WheatGrowthChancePolicyProvider` for the configured chance without rolling a growth decision.
@@ -503,8 +503,7 @@ The following capabilities support runtime behavior while keeping ownership boun
 
 The following are intentionally not implemented or not wired at runtime:
 
-- Season effects on crops/trees/animals (season profile data is loaded but not consumed by those feature domains).
-- Runtime season-specific crop adjustment.
+- Broader season effects on crops/trees/animals beyond wheat growth factors (season profile data is loaded but not consumed by those feature domains).
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
 - Database persistence.

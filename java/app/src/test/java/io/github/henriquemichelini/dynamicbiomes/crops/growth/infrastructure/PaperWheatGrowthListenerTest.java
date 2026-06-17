@@ -19,6 +19,7 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.WheatG
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
@@ -42,6 +43,7 @@ class PaperWheatGrowthListenerTest {
         -20
     );
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
+    private static final SeasonId SPRING = new SeasonId("minecraft:spring");
     private static final BiomeContext FOREST_CONTEXT = new BiomeContext(
         FOREST,
         new BiomeProfile(
@@ -148,7 +150,7 @@ class PaperWheatGrowthListenerTest {
         WheatGrowthChancePolicyProvider policyProvider
     ) {
         return new PaperWheatGrowthListener(
-            new WheatGrowthService(biomeResolver, policyProvider)
+            new WheatGrowthService(biomeResolver, policyProvider, () -> SPRING)
         );
     }
 

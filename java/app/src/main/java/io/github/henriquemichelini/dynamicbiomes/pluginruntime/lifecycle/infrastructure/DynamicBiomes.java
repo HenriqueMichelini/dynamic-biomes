@@ -150,7 +150,8 @@ public final class DynamicBiomes extends JavaPlugin {
 
         WheatGrowthService wheatGrowthService = new WheatGrowthService(
             biomeResolver,
-            wheatGrowthPolicyProvider
+            wheatGrowthPolicyProvider,
+            currentSeasonQuery
         );
 
         getServer().getPluginManager().registerEvents(
