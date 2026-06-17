@@ -3,6 +3,7 @@ package io.github.henriquemichelini.dynamicbiomes.crops.growth.domain;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.util.Map;
@@ -87,6 +88,29 @@ class WheatGrowthChancePolicyTest {
         WheatGrowthChance chance = policy.effectiveChanceFor(WINTER);
 
         assertEquals(0.5, chance.value());
+    }
+
+    @Test
+    void returnsConfiguredSeasonalFactorForSeason() {
+        WheatGrowthSeasonalFactor factor = new WheatGrowthSeasonalFactor(1.5);
+        WheatGrowthChancePolicy policy = new WheatGrowthChancePolicy(
+            new WheatGrowthChance(0.5),
+            Map.of(SUMMER, factor),
+            () -> 0.0
+        );
+
+        assertEquals(factor, policy.seasonalFactorFor(SUMMER).orElseThrow());
+    }
+
+    @Test
+    void returnsEmptySeasonalFactorWhenSeasonIsNotConfigured() {
+        WheatGrowthChancePolicy policy = new WheatGrowthChancePolicy(
+            new WheatGrowthChance(0.5),
+            Map.of(SUMMER, new WheatGrowthSeasonalFactor(1.5)),
+            () -> 0.0
+        );
+
+        assertTrue(policy.seasonalFactorFor(WINTER).isEmpty());
     }
 
     @Test

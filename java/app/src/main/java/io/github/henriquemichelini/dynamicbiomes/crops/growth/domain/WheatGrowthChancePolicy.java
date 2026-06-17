@@ -2,6 +2,7 @@ package io.github.henriquemichelini.dynamicbiomes.crops.growth.domain;
 
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.util.Map;
+import java.util.Optional;
 import lombok.NonNull;
 
 public final class WheatGrowthChancePolicy {
@@ -55,6 +56,12 @@ public final class WheatGrowthChancePolicy {
         double factor = seasonalFactor == null ? 1.0 : seasonalFactor.factor();
         double effectiveChance = Math.min(1.0, configuredChance().value() * factor);
         return new WheatGrowthChance(effectiveChance);
+    }
+
+    public Optional<WheatGrowthSeasonalFactor> seasonalFactorFor(
+        @NonNull SeasonId seasonId
+    ) {
+        return Optional.ofNullable(seasonalFactors.get(seasonId));
     }
 
     public WheatGrowthDecision decide(@NonNull SeasonId seasonId) {

@@ -127,7 +127,8 @@ public final class DynamicBiomes extends JavaPlugin {
                     List.of(
                         new WheatGrowthInspectDiagnostic(
                             biomeResolver,
-                            wheatGrowthPolicyProvider
+                            wheatGrowthPolicyProvider,
+                            currentSeasonQuery
                         )::inspect,
                         new OreInspectCommandExecutor(
                             biomeResolver,

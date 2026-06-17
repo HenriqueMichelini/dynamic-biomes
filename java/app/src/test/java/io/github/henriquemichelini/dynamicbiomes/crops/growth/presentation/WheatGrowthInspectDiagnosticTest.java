@@ -2,6 +2,7 @@ package io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
@@ -19,11 +20,15 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.Unsupported
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -42,13 +47,53 @@ class WheatGrowthInspectDiagnosticTest {
         9
     );
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
+    private static final SeasonId SPRING = new SeasonId("minecraft:spring");
+    private static final SeasonId SUMMER = new SeasonId("minecraft:summer");
+    private static final SeasonId WINTER = new SeasonId("minecraft:winter");
 
     @Test
-    void reportsSupportedWheatPolicyBelowFullChanceWithoutRolling() {
+    void reportsSupportedWheatPolicyWithCurrentSeasonFactorWithoutRolling() {
         RecordingSender sender = new RecordingSender();
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
-            biomeId -> policyFor(0.75)
+            biomeId -> policyFor(
+                0.5,
+                Map.of(WINTER, new WheatGrowthSeasonalFactor(0.5))
+            ),
+            new RecordingCurrentSeasonQuery(WINTER)
+        );
+
+        boolean handled = diagnostic.inspect(
+            sender.commandSender(),
+            block(Material.WHEAT)
+        );
+
+        assertTrue(handled);
+        assertEquals(
+            List.of(
+                "Current biome: minecraft:forest",
+                "DynamicBiomes profile: supported",
+                "Wheat growth policy: supported",
+                "Configured wheat growth chance: 0.5",
+                "Current season: minecraft:winter",
+                "Seasonal wheat growth factor: 0.5",
+                "Effective wheat growth chance: 0.25",
+                "May cancel natural growth: yes"
+            ),
+            sender.messages
+        );
+    }
+
+    @Test
+    void reportsCappedSeasonalChanceAsNotCancellingNaturalGrowth() {
+        RecordingSender sender = new RecordingSender();
+        WheatGrowthInspectDiagnostic diagnostic = diagnostic(
+            position -> new BiomeContext(FOREST, profileFor(FOREST)),
+            biomeId -> policyFor(
+                0.75,
+                Map.of(SPRING, new WheatGrowthSeasonalFactor(2.0))
+            ),
+            new RecordingCurrentSeasonQuery(SPRING)
         );
 
         boolean handled = diagnostic.inspect(
@@ -63,18 +108,25 @@ class WheatGrowthInspectDiagnosticTest {
                 "DynamicBiomes profile: supported",
                 "Wheat growth policy: supported",
                 "Configured wheat growth chance: 0.75",
-                "May cancel natural growth: yes"
+                "Current season: minecraft:spring",
+                "Seasonal wheat growth factor: 2.0",
+                "Effective wheat growth chance: 1.0",
+                "May cancel natural growth: no"
             ),
             sender.messages
         );
     }
 
     @Test
-    void reportsFullChanceAsNotCancellingNaturalGrowth() {
+    void reportsDefaultSeasonalFactorWhenCurrentSeasonHasNoFactor() {
         RecordingSender sender = new RecordingSender();
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
-            biomeId -> policyFor(1.0)
+            biomeId -> policyFor(
+                0.75,
+                Map.of(SUMMER, new WheatGrowthSeasonalFactor(0.5))
+            ),
+            new RecordingCurrentSeasonQuery(WINTER)
         );
 
         boolean handled = diagnostic.inspect(
@@ -88,8 +140,11 @@ class WheatGrowthInspectDiagnosticTest {
                 "Current biome: minecraft:forest",
                 "DynamicBiomes profile: supported",
                 "Wheat growth policy: supported",
-                "Configured wheat growth chance: 1.0",
-                "May cancel natural growth: no"
+                "Configured wheat growth chance: 0.75",
+                "Current season: minecraft:winter",
+                "Seasonal wheat growth factor: 1.0 (default)",
+                "Effective wheat growth chance: 0.75",
+                "May cancel natural growth: yes"
             ),
             sender.messages
         );
@@ -100,6 +155,8 @@ class WheatGrowthInspectDiagnosticTest {
         RecordingSender sender = new RecordingSender();
         CountingWheatGrowthChancePolicyProvider policyProvider =
             new CountingWheatGrowthChancePolicyProvider();
+        RecordingCurrentSeasonQuery currentSeasonQuery =
+            new RecordingCurrentSeasonQuery(WINTER);
         BiomeId biomeId = new BiomeId("minecraft:dripstone_caves");
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> {
@@ -108,7 +165,8 @@ class WheatGrowthInspectDiagnosticTest {
                     "Missing static biome profile for resolved biome: " + biomeId.value()
                 );
             },
-            policyProvider
+            policyProvider,
+            currentSeasonQuery
         );
 
         boolean handled = diagnostic.inspect(
@@ -127,18 +185,22 @@ class WheatGrowthInspectDiagnosticTest {
             sender.messages
         );
         assertEquals(0, policyProvider.readCount);
+        assertEquals(0, currentSeasonQuery.queryCount);
     }
 
     @Test
     void reportsUnsupportedPolicyAsVanillaFallback() {
         RecordingSender sender = new RecordingSender();
+        RecordingCurrentSeasonQuery currentSeasonQuery =
+            new RecordingCurrentSeasonQuery(WINTER);
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             biomeId -> {
                 throw new UnsupportedWheatGrowthPolicyException(
                     "Missing wheat growth policy for biome: " + biomeId.value()
                 );
-            }
+            },
+            currentSeasonQuery
         );
 
         boolean handled = diagnostic.inspect(
@@ -156,6 +218,28 @@ class WheatGrowthInspectDiagnosticTest {
             ),
             sender.messages
         );
+        assertEquals(0, currentSeasonQuery.queryCount);
+    }
+
+    @Test
+    void propagatesCurrentSeasonQueryFailure() {
+        WheatGrowthInspectDiagnostic diagnostic = diagnostic(
+            position -> new BiomeContext(FOREST, profileFor(FOREST)),
+            biomeId -> policyFor(0.75),
+            () -> {
+                throw new IllegalStateException("Season query failure");
+            }
+        );
+
+        IllegalStateException exception = assertThrows(
+            IllegalStateException.class,
+            () -> diagnostic.inspect(
+                new RecordingSender().commandSender(),
+                block(Material.WHEAT)
+            )
+        );
+
+        assertEquals("Season query failure", exception.getMessage());
     }
 
     @Test
@@ -166,7 +250,8 @@ class WheatGrowthInspectDiagnosticTest {
             new CountingWheatGrowthChancePolicyProvider();
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             biomeResolver,
-            policyProvider
+            policyProvider,
+            new RecordingCurrentSeasonQuery(WINTER)
         );
 
         boolean handled = diagnostic.inspect(
@@ -184,12 +269,36 @@ class WheatGrowthInspectDiagnosticTest {
         BiomeResolver biomeResolver,
         WheatGrowthChancePolicyProvider policyProvider
     ) {
-        return new WheatGrowthInspectDiagnostic(biomeResolver, policyProvider);
+        return diagnostic(
+            biomeResolver,
+            policyProvider,
+            new RecordingCurrentSeasonQuery(WINTER)
+        );
+    }
+
+    private static WheatGrowthInspectDiagnostic diagnostic(
+        BiomeResolver biomeResolver,
+        WheatGrowthChancePolicyProvider policyProvider,
+        CurrentSeasonQuery currentSeasonQuery
+    ) {
+        return new WheatGrowthInspectDiagnostic(
+            biomeResolver,
+            policyProvider,
+            currentSeasonQuery
+        );
     }
 
     private static WheatGrowthChancePolicy policyFor(double chance) {
+        return policyFor(chance, Map.of());
+    }
+
+    private static WheatGrowthChancePolicy policyFor(
+        double chance,
+        Map<SeasonId, WheatGrowthSeasonalFactor> seasonalFactors
+    ) {
         return new WheatGrowthChancePolicy(
             new WheatGrowthChance(chance),
+            seasonalFactors,
             () -> {
                 throw new AssertionError("Diagnostics must not roll growth chance");
             }
@@ -293,6 +402,23 @@ class WheatGrowthInspectDiagnosticTest {
                     messages.addAll(List.of(messageArray));
                 }
             }
+        }
+    }
+
+    private static final class RecordingCurrentSeasonQuery
+        implements CurrentSeasonQuery {
+
+        private final SeasonId currentSeason;
+        private int queryCount;
+
+        private RecordingCurrentSeasonQuery(SeasonId currentSeason) {
+            this.currentSeason = currentSeason;
+        }
+
+        @Override
+        public SeasonId currentSeason() {
+            queryCount++;
+            return currentSeason;
         }
     }
 }

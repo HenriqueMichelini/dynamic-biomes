@@ -8,9 +8,13 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.Unsupported
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.util.Objects;
+import java.util.Optional;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -19,13 +23,16 @@ import org.bukkit.command.CommandSender;
 public final class WheatGrowthInspectDiagnostic {
     private final BiomeResolver biomeResolver;
     private final WheatGrowthChancePolicyProvider policyProvider;
+    private final CurrentSeasonQuery currentSeasonQuery;
 
     public WheatGrowthInspectDiagnostic(
         BiomeResolver biomeResolver,
-        WheatGrowthChancePolicyProvider policyProvider
+        WheatGrowthChancePolicyProvider policyProvider,
+        CurrentSeasonQuery currentSeasonQuery
     ) {
         this.biomeResolver = Objects.requireNonNull(biomeResolver);
         this.policyProvider = Objects.requireNonNull(policyProvider);
+        this.currentSeasonQuery = Objects.requireNonNull(currentSeasonQuery);
     }
 
     public boolean inspect(CommandSender sender, Block targetBlock) {
@@ -55,14 +62,29 @@ public final class WheatGrowthInspectDiagnostic {
             WheatGrowthChancePolicy policy = policyProvider.policyFor(
                 biomeContext.biomeId()
             );
-            WheatGrowthChance chance = policy.configuredChance();
+            WheatGrowthChance configuredChance = policy.configuredChance();
+            SeasonId currentSeason = currentSeasonQuery.currentSeason();
+            Optional<WheatGrowthSeasonalFactor> seasonalFactor =
+                policy.seasonalFactorFor(currentSeason);
+            WheatGrowthChance effectiveChance = policy.effectiveChanceFor(
+                currentSeason
+            );
             sender.sendMessage("Wheat growth policy: supported");
             sender.sendMessage(
-                "Configured wheat growth chance: " + chance.value()
+                "Configured wheat growth chance: " + configuredChance.value()
+            );
+            sender.sendMessage("Current season: " + currentSeason.value());
+            sender.sendMessage(
+                "Seasonal wheat growth factor: " +
+                    seasonalFactor.map(WheatGrowthSeasonalFactor::factor).orElse(1.0) +
+                    (seasonalFactor.isPresent() ? "" : " (default)")
+            );
+            sender.sendMessage(
+                "Effective wheat growth chance: " + effectiveChance.value()
             );
             sender.sendMessage(
                 "May cancel natural growth: " +
-                    (chance.value() < 1.0 ? "yes" : "no")
+                    (effectiveChance.value() < 1.0 ? "yes" : "no")
             );
         } catch (UnsupportedWheatGrowthPolicyException exception) {
             sender.sendMessage("Wheat growth policy: unsupported");
