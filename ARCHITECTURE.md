@@ -293,6 +293,7 @@ io.github.henriquemichelini.dynamicbiomes/
 │       │   ├── WheatGrowthChance.java
 │       │   ├── WheatGrowthChancePolicy.java
 │       │   ├── WheatGrowthChancePolicyProvider.java
+│       │   ├── WheatGrowthSeasonalFactor.java
 │       │   ├── WheatGrowthChanceVariationSource.java
 │       │   └── WheatGrowthDecision.java
 │       ├── infrastructure/
@@ -484,7 +485,7 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 
 The following capabilities support runtime behavior while keeping ownership boundaries explicit:
 
-- **Wheat growth chance policy**: `crops/growth/domain` models an already-selected configured natural wheat growth allow chance, a deterministic-testable unit variation source, and an allow/cancel decision. It does not model other crop kinds, resolve biomes or seasons, read configuration, listen for Bukkit events, or mutate world state.
+- **Wheat growth chance policy**: `crops/growth/domain` models an already-selected configured natural wheat growth allow chance, optional crop-owned seasonal factors keyed by published `SeasonId`, a deterministic-testable unit variation source, and an allow/cancel decision. It does not model other crop kinds, resolve biomes or current season state, read configuration, listen for Bukkit events, or mutate world state.
 - **Biome-aware wheat growth service**: `crops/growth/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads the configured wheat growth policy through `WheatGrowthChancePolicyProvider`, and delegates allow/cancel decisions to domain policy. It preserves vanilla growth for explicit unsupported biome or unsupported wheat policy cases.
 - **Paper wheat growth listener**: `crops/growth/infrastructure` translates Bukkit `BlockGrowEvent` wheat growth attempts into `BlockPosition`, delegates to `WheatGrowthService`, and cancels only when the service returns a cancel decision.
 - **YAML-backed wheat growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `WheatGrowthChancePolicyProvider` port for configured biome-specific wheat growth chances. It does not listen for Bukkit crop events or mutate world state.
@@ -503,7 +504,7 @@ The following capabilities support runtime behavior while keeping ownership boun
 The following are intentionally not implemented or not wired at runtime:
 
 - Season effects on crops/trees/animals (season profile data is loaded but not consumed by those feature domains).
-- Season-specific crop adjustment.
+- Runtime season-specific crop adjustment.
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
 - Database persistence.
