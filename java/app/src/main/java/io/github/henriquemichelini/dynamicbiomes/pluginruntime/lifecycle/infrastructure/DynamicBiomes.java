@@ -5,6 +5,10 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.infrastructure.Ya
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.infrastructure.BukkitBiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.presentation.BiomeCommandExecutor;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.WheatGrowthService;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperWheatGrowthListener;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.YamlWheatGrowthChancePolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
@@ -36,6 +40,7 @@ public final class DynamicBiomes extends JavaPlugin {
     @Override
     public void onEnable() {
         saveResource("ore-drops.yml", false);
+        saveResource("crop-growth.yml", false);
         saveResource("biome-profiles.yml", false);
         saveResource("season-profiles.yml", false);
         saveResource("season-cycle.yml", false);
@@ -104,6 +109,12 @@ public final class DynamicBiomes extends JavaPlugin {
             dataPath.resolve("ore-drops.yml")
         );
 
+        WheatGrowthChancePolicyProvider wheatGrowthPolicyProvider =
+            new YamlWheatGrowthChancePolicyProvider(
+                dataPath.resolve("crop-growth.yml"),
+                Math::random
+            );
+
         Objects.requireNonNull(
             getCommand("dynamicbiomes"),
             "Missing dynamicbiomes command metadata"
@@ -128,6 +139,11 @@ public final class DynamicBiomes extends JavaPlugin {
             new OreDropQuantityCalculator(Math::random)
         );
 
+        WheatGrowthService wheatGrowthService = new WheatGrowthService(
+            biomeResolver,
+            wheatGrowthPolicyProvider
+        );
+
         getServer().getPluginManager().registerEvents(
             new PaperOrePlaceListener(originTracking),
             this
@@ -140,6 +156,11 @@ public final class DynamicBiomes extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(
             new PaperOreMovementListener(originTracking),
+            this
+        );
+
+        getServer().getPluginManager().registerEvents(
+            new PaperWheatGrowthListener(wheatGrowthService),
             this
         );
 

@@ -82,6 +82,7 @@ class DynamicBiomesPluginTest {
         try (JarFile pluginJar = new JarFile(System.getProperty("dynamicBiomes.pluginJar"))) {
             assertNotNull(pluginJar.getEntry("plugin.yml"));
             assertNotNull(pluginJar.getEntry("ore-drops.yml"));
+            assertNotNull(pluginJar.getEntry("crop-growth.yml"));
             assertNotNull(pluginJar.getEntry("biome-profiles.yml"));
             assertNotNull(pluginJar.getEntry("season-profiles.yml"));
             assertNotNull(pluginJar.getEntry("season-cycle.yml"));
@@ -95,7 +96,21 @@ class DynamicBiomesPluginTest {
     }
 
     @Test
-    void registersOreOriginPlaceAndBreakListenersOnEnable() {
+    void savesDefaultRuntimeConfigurationResourcesOnEnable() {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+
+        Path dataFolder = plugin.getDataFolder().toPath();
+
+        assertTrue(Files.exists(dataFolder.resolve("ore-drops.yml")));
+        assertTrue(Files.exists(dataFolder.resolve("crop-growth.yml")));
+        assertTrue(Files.exists(dataFolder.resolve("biome-profiles.yml")));
+        assertTrue(Files.exists(dataFolder.resolve("season-profiles.yml")));
+        assertTrue(Files.exists(dataFolder.resolve("season-cycle.yml")));
+    }
+
+    @Test
+    void registersRuntimeListenersOnEnable() {
         Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
         server.getPluginManager().enablePlugin(plugin);
 
@@ -112,6 +127,9 @@ class DynamicBiomesPluginTest {
         ));
         assertTrue(listenerClassNames.contains(
             "io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOreMovementListener"
+        ));
+        assertTrue(listenerClassNames.contains(
+            "io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperWheatGrowthListener"
         ));
     }
 
