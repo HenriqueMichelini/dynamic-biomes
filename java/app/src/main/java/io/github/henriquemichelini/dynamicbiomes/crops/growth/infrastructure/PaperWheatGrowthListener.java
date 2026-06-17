@@ -1,7 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
 
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.WheatGrowthService;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthDecision;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import org.bukkit.Material;
@@ -11,10 +11,10 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockGrowEvent;
 
 public final class PaperWheatGrowthListener implements Listener {
-    private final WheatGrowthService wheatGrowthService;
+    private final CropGrowthService cropGrowthService;
 
-    public PaperWheatGrowthListener(WheatGrowthService wheatGrowthService) {
-        this.wheatGrowthService = wheatGrowthService;
+    public PaperWheatGrowthListener(CropGrowthService cropGrowthService) {
+        this.cropGrowthService = cropGrowthService;
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -28,7 +28,7 @@ public final class PaperWheatGrowthListener implements Listener {
             return;
         }
 
-        WheatGrowthDecision decision = wheatGrowthService.decideNaturalWheatGrowth(
+        CropGrowthDecision decision = cropGrowthService.decideNaturalWheatGrowth(
             new BlockPosition(
                 new WorldReference(block.getWorld().getUID()),
                 block.getX(),
@@ -36,7 +36,7 @@ public final class PaperWheatGrowthListener implements Listener {
                 block.getZ()
             )
         );
-        if (decision == WheatGrowthDecision.CANCEL_GROWTH) {
+        if (decision == CropGrowthDecision.CANCEL_GROWTH) {
             event.setCancelled(true);
         }
     }

@@ -5,10 +5,10 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.infrastructure.Ya
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.infrastructure.BukkitBiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.presentation.BiomeCommandExecutor;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.WheatGrowthService;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperWheatGrowthListener;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.YamlWheatGrowthChancePolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.YamlCropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation.WheatGrowthInspectDiagnostic;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
@@ -110,8 +110,8 @@ public final class DynamicBiomes extends JavaPlugin {
             dataPath.resolve("ore-drops.yml")
         );
 
-        WheatGrowthChancePolicyProvider wheatGrowthPolicyProvider =
-            new YamlWheatGrowthChancePolicyProvider(
+        CropGrowthPolicyProvider cropGrowthPolicyProvider =
+            new YamlCropGrowthPolicyProvider(
                 dataPath.resolve("crop-growth.yml"),
                 Math::random
             );
@@ -127,7 +127,7 @@ public final class DynamicBiomes extends JavaPlugin {
                     List.of(
                         new WheatGrowthInspectDiagnostic(
                             biomeResolver,
-                            wheatGrowthPolicyProvider,
+                            cropGrowthPolicyProvider,
                             currentSeasonQuery
                         )::inspect,
                         new OreInspectCommandExecutor(
@@ -149,9 +149,9 @@ public final class DynamicBiomes extends JavaPlugin {
             new OreDropQuantityCalculator(Math::random)
         );
 
-        WheatGrowthService wheatGrowthService = new WheatGrowthService(
+        CropGrowthService cropGrowthService = new CropGrowthService(
             biomeResolver,
-            wheatGrowthPolicyProvider,
+            cropGrowthPolicyProvider,
             currentSeasonQuery
         );
 
@@ -171,7 +171,7 @@ public final class DynamicBiomes extends JavaPlugin {
         );
 
         getServer().getPluginManager().registerEvents(
-            new PaperWheatGrowthListener(wheatGrowthService),
+            new PaperWheatGrowthListener(cropGrowthService),
             this
         );
 

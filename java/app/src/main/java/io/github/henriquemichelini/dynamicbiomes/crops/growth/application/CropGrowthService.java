@@ -3,21 +3,21 @@ package io.github.henriquemichelini.dynamicbiomes.crops.growth.application;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedWheatGrowthPolicyException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthDecision;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 
-public final class WheatGrowthService {
+public final class CropGrowthService {
     private final BiomeResolver biomeResolver;
-    private final WheatGrowthChancePolicyProvider policyProvider;
+    private final CropGrowthPolicyProvider policyProvider;
     private final CurrentSeasonQuery currentSeasonQuery;
 
-    public WheatGrowthService(
+    public CropGrowthService(
         BiomeResolver biomeResolver,
-        WheatGrowthChancePolicyProvider policyProvider,
+        CropGrowthPolicyProvider policyProvider,
         CurrentSeasonQuery currentSeasonQuery
     ) {
         this.biomeResolver = biomeResolver;
@@ -25,18 +25,18 @@ public final class WheatGrowthService {
         this.currentSeasonQuery = currentSeasonQuery;
     }
 
-    public WheatGrowthDecision decideNaturalWheatGrowth(BlockPosition position) {
+    public CropGrowthDecision decideNaturalWheatGrowth(BlockPosition position) {
         try {
             BiomeContext biomeContext = biomeResolver.resolve(position);
-            WheatGrowthChancePolicy policy = policyProvider.policyFor(
+            CropGrowthPolicy policy = policyProvider.policyFor(
                 biomeContext.biomeId()
             );
             return policy.decide(currentSeasonQuery.currentSeason());
         } catch (
             UnsupportedBiomeException
-            | UnsupportedWheatGrowthPolicyException e
+            | UnsupportedCropGrowthPolicyException e
         ) {
-            return WheatGrowthDecision.ALLOW_GROWTH;
+            return CropGrowthDecision.ALLOW_GROWTH;
         }
     }
 }

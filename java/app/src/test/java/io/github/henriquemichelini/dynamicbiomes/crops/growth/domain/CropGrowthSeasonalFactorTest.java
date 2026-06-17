@@ -6,13 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
-class WheatGrowthSeasonalFactorTest {
+class CropGrowthSeasonalFactorTest {
     @Test
     void acceptsNonNegativeFiniteFactors() {
         assertAll(
-            () -> assertEquals(0.0, new WheatGrowthSeasonalFactor(0.0).factor()),
-            () -> assertEquals(1.0, new WheatGrowthSeasonalFactor(1.0).factor()),
-            () -> assertEquals(1.5, new WheatGrowthSeasonalFactor(1.5).factor())
+            () -> assertEquals(0.0, new CropGrowthSeasonalFactor(0.0).factor()),
+            () -> assertEquals(1.0, new CropGrowthSeasonalFactor(1.0).factor()),
+            () -> assertEquals(1.5, new CropGrowthSeasonalFactor(1.5).factor())
         );
     }
 
@@ -21,19 +21,19 @@ class WheatGrowthSeasonalFactorTest {
         assertAll(
             () -> assertThrows(
                 IllegalArgumentException.class,
-                () -> new WheatGrowthSeasonalFactor(-0.1)
+                () -> new CropGrowthSeasonalFactor(-0.1)
             ),
             () -> assertThrows(
                 IllegalArgumentException.class,
-                () -> new WheatGrowthSeasonalFactor(Double.NaN)
+                () -> new CropGrowthSeasonalFactor(Double.NaN)
             ),
             () -> assertThrows(
                 IllegalArgumentException.class,
-                () -> new WheatGrowthSeasonalFactor(Double.NEGATIVE_INFINITY)
+                () -> new CropGrowthSeasonalFactor(Double.NEGATIVE_INFINITY)
             ),
             () -> assertThrows(
                 IllegalArgumentException.class,
-                () -> new WheatGrowthSeasonalFactor(Double.POSITIVE_INFINITY)
+                () -> new CropGrowthSeasonalFactor(Double.POSITIVE_INFINITY)
             )
         );
     }

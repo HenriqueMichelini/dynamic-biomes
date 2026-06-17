@@ -14,13 +14,13 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperatur
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedWheatGrowthPolicyException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChance;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChanceVariationSource;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthDecision;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChanceVariationSource;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class WheatGrowthServiceTest {
+class CropGrowthServiceTest {
     private static final BlockPosition POSITION = new BlockPosition(
         new WorldReference(
             UUID.fromString("fdab89dd-8aac-4be0-9c26-8752ae6ce85e")
@@ -64,13 +64,13 @@ class WheatGrowthServiceTest {
         RecordingCurrentSeasonQuery currentSeasonQuery =
             new RecordingCurrentSeasonQuery(SPRING);
 
-        WheatGrowthDecision decision = new WheatGrowthService(
+        CropGrowthDecision decision = new CropGrowthService(
             biomeResolver,
             policyProvider,
             currentSeasonQuery
         ).decideNaturalWheatGrowth(POSITION);
 
-        assertEquals(WheatGrowthDecision.ALLOW_GROWTH, decision);
+        assertEquals(CropGrowthDecision.ALLOW_GROWTH, decision);
         assertEquals(POSITION, biomeResolver.requestedPosition);
         assertEquals(FOREST, policyProvider.requestedBiomeId);
         assertEquals(1, currentSeasonQuery.queryCount);
@@ -78,95 +78,95 @@ class WheatGrowthServiceTest {
 
     @Test
     void cancelsGrowthForZeroConfiguredChance() {
-        WheatGrowthService service = serviceWith(
+        CropGrowthService service = serviceWith(
             policy(0.0, () -> {
                 throw new AssertionError("Variation is unnecessary at zero chance");
             })
         );
 
         assertEquals(
-            WheatGrowthDecision.CANCEL_GROWTH,
+            CropGrowthDecision.CANCEL_GROWTH,
             service.decideNaturalWheatGrowth(POSITION)
         );
     }
 
     @Test
     void allowsGrowthWhenVariationIsLowerThanIntermediateChance() {
-        WheatGrowthService service = serviceWith(policy(0.5, () -> 0.49));
+        CropGrowthService service = serviceWith(policy(0.5, () -> 0.49));
 
         assertEquals(
-            WheatGrowthDecision.ALLOW_GROWTH,
+            CropGrowthDecision.ALLOW_GROWTH,
             service.decideNaturalWheatGrowth(POSITION)
         );
     }
 
     @Test
     void cancelsGrowthWhenVariationIsEqualToIntermediateChance() {
-        WheatGrowthService service = serviceWith(policy(0.5, () -> 0.5));
+        CropGrowthService service = serviceWith(policy(0.5, () -> 0.5));
 
         assertEquals(
-            WheatGrowthDecision.CANCEL_GROWTH,
+            CropGrowthDecision.CANCEL_GROWTH,
             service.decideNaturalWheatGrowth(POSITION)
         );
     }
 
     @Test
     void cancelsGrowthWhenVariationIsGreaterThanIntermediateChance() {
-        WheatGrowthService service = serviceWith(policy(0.5, () -> 0.51));
+        CropGrowthService service = serviceWith(policy(0.5, () -> 0.51));
 
         assertEquals(
-            WheatGrowthDecision.CANCEL_GROWTH,
+            CropGrowthDecision.CANCEL_GROWTH,
             service.decideNaturalWheatGrowth(POSITION)
         );
     }
 
     @Test
     void cancelsGrowthWithZeroSeasonalFactor() {
-        WheatGrowthService service = serviceWith(
+        CropGrowthService service = serviceWith(
             policy(
                 0.5,
-                Map.of(SPRING, new WheatGrowthSeasonalFactor(0.0)),
+                Map.of(SPRING, new CropGrowthSeasonalFactor(0.0)),
                 () -> 0.01
             ),
             SPRING
         );
 
         assertEquals(
-            WheatGrowthDecision.CANCEL_GROWTH,
+            CropGrowthDecision.CANCEL_GROWTH,
             service.decideNaturalWheatGrowth(POSITION)
         );
     }
 
     @Test
     void allowsGrowthWithCappedSeasonalFactor() {
-        WheatGrowthService service = serviceWith(
+        CropGrowthService service = serviceWith(
             policy(
                 0.5,
-                Map.of(SUMMER, new WheatGrowthSeasonalFactor(2.0)),
+                Map.of(SUMMER, new CropGrowthSeasonalFactor(2.0)),
                 () -> 1.0
             ),
             SUMMER
         );
 
         assertEquals(
-            WheatGrowthDecision.ALLOW_GROWTH,
+            CropGrowthDecision.ALLOW_GROWTH,
             service.decideNaturalWheatGrowth(POSITION)
         );
     }
 
     @Test
     void usesBaseChanceWhenCurrentSeasonHasNoFactor() {
-        WheatGrowthService service = serviceWith(
+        CropGrowthService service = serviceWith(
             policy(
                 0.5,
-                Map.of(SUMMER, new WheatGrowthSeasonalFactor(2.0)),
+                Map.of(SUMMER, new CropGrowthSeasonalFactor(2.0)),
                 () -> 0.5
             ),
             WINTER
         );
 
         assertEquals(
-            WheatGrowthDecision.CANCEL_GROWTH,
+            CropGrowthDecision.CANCEL_GROWTH,
             service.decideNaturalWheatGrowth(POSITION)
         );
     }
@@ -175,7 +175,7 @@ class WheatGrowthServiceTest {
     void allowsGrowthForUnsupportedBiomeToPreserveVanillaBehavior() {
         RecordingCurrentSeasonQuery currentSeasonQuery =
             new RecordingCurrentSeasonQuery(SPRING);
-        WheatGrowthService service = new WheatGrowthService(
+        CropGrowthService service = new CropGrowthService(
             position -> {
                 throw new UnsupportedBiomeException(
                     "Missing static biome profile for resolved biome: minecraft:ocean"
@@ -188,7 +188,7 @@ class WheatGrowthServiceTest {
         );
 
         assertEquals(
-            WheatGrowthDecision.ALLOW_GROWTH,
+            CropGrowthDecision.ALLOW_GROWTH,
             service.decideNaturalWheatGrowth(POSITION)
         );
         assertEquals(0, currentSeasonQuery.queryCount);
@@ -198,10 +198,10 @@ class WheatGrowthServiceTest {
     void allowsGrowthForMissingWheatPolicyToPreserveVanillaBehavior() {
         RecordingCurrentSeasonQuery currentSeasonQuery =
             new RecordingCurrentSeasonQuery(SPRING);
-        WheatGrowthService service = new WheatGrowthService(
+        CropGrowthService service = new CropGrowthService(
             position -> FOREST_CONTEXT,
             biomeId -> {
-                throw new UnsupportedWheatGrowthPolicyException(
+                throw new UnsupportedCropGrowthPolicyException(
                     "Missing wheat growth policy for biome: " + biomeId.value()
                 );
             },
@@ -209,7 +209,7 @@ class WheatGrowthServiceTest {
         );
 
         assertEquals(
-            WheatGrowthDecision.ALLOW_GROWTH,
+            CropGrowthDecision.ALLOW_GROWTH,
             service.decideNaturalWheatGrowth(POSITION)
         );
         assertEquals(0, currentSeasonQuery.queryCount);
@@ -217,7 +217,7 @@ class WheatGrowthServiceTest {
 
     @Test
     void propagatesBiomeResolverFailure() {
-        WheatGrowthService service = new WheatGrowthService(
+        CropGrowthService service = new CropGrowthService(
             position -> {
                 throw new IllegalStateException("Resolver failure");
             },
@@ -237,7 +237,7 @@ class WheatGrowthServiceTest {
 
     @Test
     void propagatesPolicyProviderFailure() {
-        WheatGrowthService service = new WheatGrowthService(
+        CropGrowthService service = new CropGrowthService(
             position -> FOREST_CONTEXT,
             biomeId -> {
                 throw new IllegalStateException("Provider failure");
@@ -255,7 +255,7 @@ class WheatGrowthServiceTest {
 
     @Test
     void propagatesPolicyDecisionFailure() {
-        WheatGrowthService service = serviceWith(policy(0.5, () -> Double.NaN));
+        CropGrowthService service = serviceWith(policy(0.5, () -> Double.NaN));
 
         assertThrows(
             IllegalArgumentException.class,
@@ -265,7 +265,7 @@ class WheatGrowthServiceTest {
 
     @Test
     void propagatesCurrentSeasonQueryFailure() {
-        WheatGrowthService service = new WheatGrowthService(
+        CropGrowthService service = new CropGrowthService(
             position -> FOREST_CONTEXT,
             biomeId -> policy(0.5, () -> 0.0),
             () -> {
@@ -281,38 +281,38 @@ class WheatGrowthServiceTest {
         assertEquals("Season query failure", exception.getMessage());
     }
 
-    private static WheatGrowthService serviceWith(WheatGrowthChancePolicy policy) {
+    private static CropGrowthService serviceWith(CropGrowthPolicy policy) {
         return serviceWith(policy, SPRING);
     }
 
-    private static WheatGrowthService serviceWith(
-        WheatGrowthChancePolicy policy,
+    private static CropGrowthService serviceWith(
+        CropGrowthPolicy policy,
         SeasonId currentSeason
     ) {
-        return new WheatGrowthService(
+        return new CropGrowthService(
             position -> FOREST_CONTEXT,
             biomeId -> policy,
             new RecordingCurrentSeasonQuery(currentSeason)
         );
     }
 
-    private static WheatGrowthChancePolicy policy(
+    private static CropGrowthPolicy policy(
         double chance,
-        WheatGrowthChanceVariationSource variationSource
+        CropGrowthChanceVariationSource variationSource
     ) {
-        return new WheatGrowthChancePolicy(
-            new WheatGrowthChance(chance),
+        return new CropGrowthPolicy(
+            new CropGrowthChance(chance),
             variationSource
         );
     }
 
-    private static WheatGrowthChancePolicy policy(
+    private static CropGrowthPolicy policy(
         double chance,
-        Map<SeasonId, WheatGrowthSeasonalFactor> seasonalFactors,
-        WheatGrowthChanceVariationSource variationSource
+        Map<SeasonId, CropGrowthSeasonalFactor> seasonalFactors,
+        CropGrowthChanceVariationSource variationSource
     ) {
-        return new WheatGrowthChancePolicy(
-            new WheatGrowthChance(chance),
+        return new CropGrowthPolicy(
+            new CropGrowthChance(chance),
             seasonalFactors,
             variationSource
         );
@@ -334,17 +334,17 @@ class WheatGrowthServiceTest {
     }
 
     private static final class RecordingPolicyProvider
-        implements WheatGrowthChancePolicyProvider {
+        implements CropGrowthPolicyProvider {
 
-        private final WheatGrowthChancePolicy policy;
+        private final CropGrowthPolicy policy;
         private BiomeId requestedBiomeId;
 
-        private RecordingPolicyProvider(WheatGrowthChancePolicy policy) {
+        private RecordingPolicyProvider(CropGrowthPolicy policy) {
             this.policy = policy;
         }
 
         @Override
-        public WheatGrowthChancePolicy policyFor(BiomeId biomeId) {
+        public CropGrowthPolicy policyFor(BiomeId biomeId) {
             requestedBiomeId = biomeId;
             return policy;
         }

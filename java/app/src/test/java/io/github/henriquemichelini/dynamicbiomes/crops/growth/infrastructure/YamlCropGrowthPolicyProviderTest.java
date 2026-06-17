@@ -7,9 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedWheatGrowthPolicyException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthDecision;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -19,7 +19,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class YamlWheatGrowthChancePolicyProviderTest {
+class YamlCropGrowthPolicyProviderTest {
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
     private static final SeasonId SUMMER = new SeasonId("minecraft:summer");
     private static final SeasonId WINTER = new SeasonId("minecraft:winter");
@@ -33,12 +33,12 @@ class YamlWheatGrowthChancePolicyProviderTest {
         URL resource = getClass().getClassLoader().getResource("crop-growth.yml");
         assertNotNull(resource, "Missing packaged crop-growth.yml");
 
-        WheatGrowthDecision decision = new YamlWheatGrowthChancePolicyProvider(
+        CropGrowthDecision decision = new YamlCropGrowthPolicyProvider(
             Path.of(resource.toURI()),
             () -> 0.5
         ).policyFor(FOREST).decide();
 
-        assertEquals(WheatGrowthDecision.ALLOW_GROWTH, decision);
+        assertEquals(CropGrowthDecision.ALLOW_GROWTH, decision);
     }
 
     @Test
@@ -52,14 +52,14 @@ class YamlWheatGrowthChancePolicyProviderTest {
             """
         );
 
-        WheatGrowthDecision decision = new YamlWheatGrowthChancePolicyProvider(
+        CropGrowthDecision decision = new YamlCropGrowthPolicyProvider(
             policyFile,
             () -> {
                 throw new AssertionError("Variation is unnecessary at full chance");
             }
         ).policyFor(FOREST).decide();
 
-        assertEquals(WheatGrowthDecision.ALLOW_GROWTH, decision);
+        assertEquals(CropGrowthDecision.ALLOW_GROWTH, decision);
     }
 
     @Test
@@ -73,14 +73,14 @@ class YamlWheatGrowthChancePolicyProviderTest {
             """
         );
 
-        WheatGrowthDecision decision = new YamlWheatGrowthChancePolicyProvider(
+        CropGrowthDecision decision = new YamlCropGrowthPolicyProvider(
             policyFile,
             () -> {
                 throw new AssertionError("Variation is unnecessary at zero chance");
             }
         ).policyFor(FOREST).decide();
 
-        assertEquals(WheatGrowthDecision.CANCEL_GROWTH, decision);
+        assertEquals(CropGrowthDecision.CANCEL_GROWTH, decision);
     }
 
     @Test
@@ -95,14 +95,14 @@ class YamlWheatGrowthChancePolicyProviderTest {
         );
 
         assertEquals(
-            WheatGrowthDecision.ALLOW_GROWTH,
-            new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.49)
+            CropGrowthDecision.ALLOW_GROWTH,
+            new YamlCropGrowthPolicyProvider(policyFile, () -> 0.49)
                 .policyFor(FOREST)
                 .decide()
         );
         assertEquals(
-            WheatGrowthDecision.CANCEL_GROWTH,
-            new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.5)
+            CropGrowthDecision.CANCEL_GROWTH,
+            new YamlCropGrowthPolicyProvider(policyFile, () -> 0.5)
                 .policyFor(FOREST)
                 .decide()
         );
@@ -120,12 +120,12 @@ class YamlWheatGrowthChancePolicyProviderTest {
             """
         );
 
-        WheatGrowthChancePolicy policy = new YamlWheatGrowthChancePolicyProvider(
+        CropGrowthPolicy policy = new YamlCropGrowthPolicyProvider(
             policyFile,
             () -> 0.49
         ).policyFor(FOREST);
 
-        assertEquals(WheatGrowthDecision.ALLOW_GROWTH, policy.decide());
+        assertEquals(CropGrowthDecision.ALLOW_GROWTH, policy.decide());
         assertEquals(0.5, policy.effectiveChanceFor(SUMMER).value());
     }
 
@@ -142,7 +142,7 @@ class YamlWheatGrowthChancePolicyProviderTest {
             """
         );
 
-        WheatGrowthChancePolicy policy = new YamlWheatGrowthChancePolicyProvider(
+        CropGrowthPolicy policy = new YamlCropGrowthPolicyProvider(
             policyFile,
             () -> 0.0
         ).policyFor(FOREST);
@@ -162,9 +162,9 @@ class YamlWheatGrowthChancePolicyProviderTest {
             """
         );
 
-        UnsupportedWheatGrowthPolicyException exception = assertThrows(
-            UnsupportedWheatGrowthPolicyException.class,
-            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+        UnsupportedCropGrowthPolicyException exception = assertThrows(
+            UnsupportedCropGrowthPolicyException.class,
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
                 .policyFor(new BiomeId("minecraft:desert"))
         );
 
@@ -194,12 +194,12 @@ class YamlWheatGrowthChancePolicyProviderTest {
         assertAll(
             () -> assertThrows(
                 IllegalArgumentException.class,
-                () -> new YamlWheatGrowthChancePolicyProvider(aboveMaximumPolicyFile, () -> 0.0)
+                () -> new YamlCropGrowthPolicyProvider(aboveMaximumPolicyFile, () -> 0.0)
                     .policyFor(FOREST)
             ),
             () -> assertThrows(
                 IllegalArgumentException.class,
-                () -> new YamlWheatGrowthChancePolicyProvider(belowMinimumPolicyFile, () -> 0.0)
+                () -> new YamlCropGrowthPolicyProvider(belowMinimumPolicyFile, () -> 0.0)
                     .policyFor(FOREST)
             )
         );
@@ -221,7 +221,7 @@ class YamlWheatGrowthChancePolicyProviderTest {
 
         assertThrows(
             IllegalArgumentException.class,
-            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
                 .policyFor(FOREST)
         );
     }
@@ -242,7 +242,7 @@ class YamlWheatGrowthChancePolicyProviderTest {
 
         assertThrows(
             IllegalArgumentException.class,
-            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
                 .policyFor(FOREST)
         );
     }
@@ -259,7 +259,7 @@ class YamlWheatGrowthChancePolicyProviderTest {
 
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
-            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
                 .policyFor(FOREST)
         );
 
@@ -275,9 +275,9 @@ class YamlWheatGrowthChancePolicyProviderTest {
             """
         );
 
-        UnsupportedWheatGrowthPolicyException exception = assertThrows(
-            UnsupportedWheatGrowthPolicyException.class,
-            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+        UnsupportedCropGrowthPolicyException exception = assertThrows(
+            UnsupportedCropGrowthPolicyException.class,
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
                 .policyFor(FOREST)
         );
 
@@ -296,7 +296,7 @@ class YamlWheatGrowthChancePolicyProviderTest {
 
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
-            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
                 .policyFor(FOREST)
         );
 
@@ -316,7 +316,7 @@ class YamlWheatGrowthChancePolicyProviderTest {
 
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
-            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
                 .policyFor(FOREST)
         );
 
@@ -336,7 +336,7 @@ class YamlWheatGrowthChancePolicyProviderTest {
 
         assertThrows(
             IllegalArgumentException.class,
-            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
                 .policyFor(FOREST)
         );
     }
@@ -357,7 +357,7 @@ class YamlWheatGrowthChancePolicyProviderTest {
 
         assertThrows(
             IllegalArgumentException.class,
-            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
                 .policyFor(FOREST)
         );
     }
@@ -377,7 +377,7 @@ class YamlWheatGrowthChancePolicyProviderTest {
 
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
-            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
                 .policyFor(FOREST)
         );
 

@@ -16,11 +16,11 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperatur
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedWheatGrowthPolicyException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChance;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
@@ -58,7 +58,7 @@ class WheatGrowthInspectDiagnosticTest {
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             biomeId -> policyFor(
                 0.5,
-                Map.of(WINTER, new WheatGrowthSeasonalFactor(0.5))
+                Map.of(WINTER, new CropGrowthSeasonalFactor(0.5))
             ),
             new RecordingCurrentSeasonQuery(WINTER)
         );
@@ -91,7 +91,7 @@ class WheatGrowthInspectDiagnosticTest {
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             biomeId -> policyFor(
                 0.75,
-                Map.of(SPRING, new WheatGrowthSeasonalFactor(2.0))
+                Map.of(SPRING, new CropGrowthSeasonalFactor(2.0))
             ),
             new RecordingCurrentSeasonQuery(SPRING)
         );
@@ -124,7 +124,7 @@ class WheatGrowthInspectDiagnosticTest {
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             biomeId -> policyFor(
                 0.75,
-                Map.of(SUMMER, new WheatGrowthSeasonalFactor(0.5))
+                Map.of(SUMMER, new CropGrowthSeasonalFactor(0.5))
             ),
             new RecordingCurrentSeasonQuery(WINTER)
         );
@@ -153,8 +153,8 @@ class WheatGrowthInspectDiagnosticTest {
     @Test
     void reportsUnsupportedBiomeAsVanillaFallbackWithoutReadingPolicy() {
         RecordingSender sender = new RecordingSender();
-        CountingWheatGrowthChancePolicyProvider policyProvider =
-            new CountingWheatGrowthChancePolicyProvider();
+        CountingCropGrowthPolicyProvider policyProvider =
+            new CountingCropGrowthPolicyProvider();
         RecordingCurrentSeasonQuery currentSeasonQuery =
             new RecordingCurrentSeasonQuery(WINTER);
         BiomeId biomeId = new BiomeId("minecraft:dripstone_caves");
@@ -196,7 +196,7 @@ class WheatGrowthInspectDiagnosticTest {
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             biomeId -> {
-                throw new UnsupportedWheatGrowthPolicyException(
+                throw new UnsupportedCropGrowthPolicyException(
                     "Missing wheat growth policy for biome: " + biomeId.value()
                 );
             },
@@ -246,8 +246,8 @@ class WheatGrowthInspectDiagnosticTest {
     void ignoresNonWheatTargetsWithoutResolvingBiome() {
         RecordingSender sender = new RecordingSender();
         CountingBiomeResolver biomeResolver = new CountingBiomeResolver();
-        CountingWheatGrowthChancePolicyProvider policyProvider =
-            new CountingWheatGrowthChancePolicyProvider();
+        CountingCropGrowthPolicyProvider policyProvider =
+            new CountingCropGrowthPolicyProvider();
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             biomeResolver,
             policyProvider,
@@ -267,7 +267,7 @@ class WheatGrowthInspectDiagnosticTest {
 
     private static WheatGrowthInspectDiagnostic diagnostic(
         BiomeResolver biomeResolver,
-        WheatGrowthChancePolicyProvider policyProvider
+        CropGrowthPolicyProvider policyProvider
     ) {
         return diagnostic(
             biomeResolver,
@@ -278,7 +278,7 @@ class WheatGrowthInspectDiagnosticTest {
 
     private static WheatGrowthInspectDiagnostic diagnostic(
         BiomeResolver biomeResolver,
-        WheatGrowthChancePolicyProvider policyProvider,
+        CropGrowthPolicyProvider policyProvider,
         CurrentSeasonQuery currentSeasonQuery
     ) {
         return new WheatGrowthInspectDiagnostic(
@@ -288,16 +288,16 @@ class WheatGrowthInspectDiagnosticTest {
         );
     }
 
-    private static WheatGrowthChancePolicy policyFor(double chance) {
+    private static CropGrowthPolicy policyFor(double chance) {
         return policyFor(chance, Map.of());
     }
 
-    private static WheatGrowthChancePolicy policyFor(
+    private static CropGrowthPolicy policyFor(
         double chance,
-        Map<SeasonId, WheatGrowthSeasonalFactor> seasonalFactors
+        Map<SeasonId, CropGrowthSeasonalFactor> seasonalFactors
     ) {
-        return new WheatGrowthChancePolicy(
-            new WheatGrowthChance(chance),
+        return new CropGrowthPolicy(
+            new CropGrowthChance(chance),
             seasonalFactors,
             () -> {
                 throw new AssertionError("Diagnostics must not roll growth chance");
@@ -363,13 +363,13 @@ class WheatGrowthInspectDiagnosticTest {
         }
     }
 
-    private static final class CountingWheatGrowthChancePolicyProvider
-        implements WheatGrowthChancePolicyProvider
+    private static final class CountingCropGrowthPolicyProvider
+        implements CropGrowthPolicyProvider
     {
         private int readCount;
 
         @Override
-        public WheatGrowthChancePolicy policyFor(BiomeId biomeId) {
+        public CropGrowthPolicy policyFor(BiomeId biomeId) {
             readCount++;
             throw new UnsupportedOperationException();
         }

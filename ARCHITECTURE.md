@@ -287,18 +287,18 @@ io.github.henriquemichelini.dynamicbiomes/
 ├── crops/
 │   └── growth/
 │       ├── application/
-│       │   └── WheatGrowthService.java
+│       │   └── CropGrowthService.java
 │       ├── domain/
-│       │   ├── UnsupportedWheatGrowthPolicyException.java
-│       │   ├── WheatGrowthChance.java
-│       │   ├── WheatGrowthChancePolicy.java
-│       │   ├── WheatGrowthChancePolicyProvider.java
-│       │   ├── WheatGrowthSeasonalFactor.java
-│       │   ├── WheatGrowthChanceVariationSource.java
-│       │   └── WheatGrowthDecision.java
+│       │   ├── UnsupportedCropGrowthPolicyException.java
+│       │   ├── CropGrowthChance.java
+│       │   ├── CropGrowthPolicy.java
+│       │   ├── CropGrowthPolicyProvider.java
+│       │   ├── CropGrowthSeasonalFactor.java
+│       │   ├── CropGrowthChanceVariationSource.java
+│       │   └── CropGrowthDecision.java
 │       ├── infrastructure/
 │       │   ├── PaperWheatGrowthListener.java
-│       │   └── YamlWheatGrowthChancePolicyProvider.java
+│       │   └── YamlCropGrowthPolicyProvider.java
 │       └── presentation/
 │           └── WheatGrowthInspectDiagnostic.java
 │
@@ -477,19 +477,19 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 - **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlSeasonProfileProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup.
 - **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar`, initializes the first season if none exists, and `CachedCurrentSeasonQuery` keeps the runtime season in memory for hot-path reads.
 - **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.
-- **Wheat growth behavior**: `PaperWheatGrowthListener` delegates natural wheat `BlockGrowEvent` attempts to `WheatGrowthService`; the service resolves biome through `BiomeResolver`, reads configured biome-specific wheat policy through `YamlWheatGrowthChancePolicyProvider` from `crop-growth.yml`, applies any crop-owned seasonal factor for the cached current season, and cancels growth only when the policy returns a cancel decision.
-- **Read-only observability commands**: `/dynamicbiomes season` reads the cached `CurrentSeasonQuery` and reports the current `SeasonId`; `/dynamicbiomes biome` resolves the player's current `BiomeContext` through `BiomeResolver` and reports whether the biome has a supported DynamicBiomes profile; `/dynamicbiomes inspect` reads the player's target block, delegates to crop and ore diagnostics, reports wheat growth policy support/configured chance/fallback status for wheat, checks ore drop policy/rules through `OreDropPolicyProvider`, reads tracked ore origin through `OreOriginTrackingService`, and reports multiplier eligibility without mutating state.
+- **Wheat growth behavior**: `PaperWheatGrowthListener` delegates natural wheat `BlockGrowEvent` attempts to `CropGrowthService`; the service resolves biome through `BiomeResolver`, reads configured biome-specific crop growth policy through `YamlCropGrowthPolicyProvider` from `crop-growth.yml`, applies any crop-owned seasonal factor for the cached current season, and cancels growth only when the policy returns a cancel decision.
+- **Read-only observability commands**: `/dynamicbiomes season` reads the cached `CurrentSeasonQuery` and reports the current `SeasonId`; `/dynamicbiomes biome` resolves the player's current `BiomeContext` through `BiomeResolver` and reports whether the biome has a supported DynamicBiomes profile; `/dynamicbiomes inspect` reads the player's target block, delegates to crop and ore diagnostics, reports wheat growth policy support/configured chance/current season/seasonal factor/effective chance/fallback status for wheat, checks ore drop policy/rules through `OreDropPolicyProvider`, reads tracked ore origin through `OreOriginTrackingService`, and reports multiplier eligibility without mutating state.
 - **Ore origin persistence**: `YamlOreOriginRepository` lazily loads origin state into memory and writes updates back to disk.
 
 ### 18.2 Implemented Supporting Behavior
 
 The following capabilities support runtime behavior while keeping ownership boundaries explicit:
 
-- **Wheat growth chance policy**: `crops/growth/domain` models an already-selected configured natural wheat growth allow chance, optional crop-owned seasonal factors keyed by published `SeasonId`, a deterministic-testable unit variation source, and an allow/cancel decision. It does not model other crop kinds, resolve biomes or current season state, read configuration, listen for Bukkit events, or mutate world state.
-- **Biome-aware wheat growth service**: `crops/growth/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads the configured wheat growth policy through `WheatGrowthChancePolicyProvider`, reads current season through the published `CurrentSeasonQuery`, and delegates season-aware allow/cancel decisions to domain policy. It preserves vanilla growth for explicit unsupported biome or unsupported wheat policy cases.
-- **Paper wheat growth listener**: `crops/growth/infrastructure` translates Bukkit `BlockGrowEvent` wheat growth attempts into `BlockPosition`, delegates to `WheatGrowthService`, and cancels only when the service returns a cancel decision.
-- **YAML-backed wheat growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `WheatGrowthChancePolicyProvider` port for configured biome-specific wheat growth chances and optional crop-owned seasonal factors. It does not listen for Bukkit crop events, query current season state, or mutate world state.
-- **Wheat growth inspect diagnostic**: `crops/growth/presentation` translates a targeted wheat block into read-only diagnostics by resolving biome support, querying `WheatGrowthChancePolicyProvider` for the configured chance, and reading `CurrentSeasonQuery` to report the current season, seasonal factor/default, effective chance, and vanilla fallback status without rolling a growth decision.
+- **Crop growth policy**: `crops/growth/domain` models an already-selected configured natural crop growth allow chance, optional crop-owned seasonal factors keyed by published `SeasonId`, a deterministic-testable unit variation source, and an allow/cancel decision. It currently supports wheat as the only configured runtime crop and does not resolve biomes or current season state, read configuration, listen for Bukkit events, or mutate world state.
+- **Biome-aware crop growth service**: `crops/growth/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads the configured crop growth policy through `CropGrowthPolicyProvider`, reads current season through the published `CurrentSeasonQuery`, and delegates season-aware allow/cancel decisions to domain policy. It preserves vanilla growth for explicit unsupported biome or unsupported crop growth policy cases.
+- **Paper wheat growth listener**: `crops/growth/infrastructure` translates Bukkit `BlockGrowEvent` wheat growth attempts into `BlockPosition`, delegates to `CropGrowthService`, and cancels only when the service returns a cancel decision. It remains wheat-specific and no second crop is wired at runtime.
+- **YAML-backed crop growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `CropGrowthPolicyProvider` port for configured biome-specific wheat growth chances and optional crop-owned seasonal factors while preserving the existing `wheat:` YAML shape. It does not listen for Bukkit crop events, query current season state, or mutate world state.
+- **Wheat growth inspect diagnostic**: `crops/growth/presentation` translates a targeted wheat block into read-only diagnostics by resolving biome support, querying `CropGrowthPolicyProvider` for the configured chance, and reading `CurrentSeasonQuery` to report the current season, seasonal factor/default, effective chance, and vanilla fallback status without rolling a growth decision.
 
 ### 18.3 Implemented Safety Behavior
 

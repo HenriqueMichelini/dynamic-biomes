@@ -1,6 +1,6 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.domain;
 
 @FunctionalInterface
-public interface WheatGrowthChanceVariationSource {
+public interface CropGrowthChanceVariationSource {
     double nextUnitValue();
 }

@@ -1,12 +1,12 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedWheatGrowthPolicyException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChance;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChanceVariationSource;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChanceVariationSource;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.io.Reader;
@@ -19,8 +19,8 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.yaml.snakeyaml.error.YAMLException;
 
-public final class YamlWheatGrowthChancePolicyProvider
-    implements WheatGrowthChancePolicyProvider {
+public final class YamlCropGrowthPolicyProvider
+    implements CropGrowthPolicyProvider {
 
     private static final String BIOMES_KEY = "biomes";
     private static final String WHEAT_KEY = "wheat";
@@ -28,27 +28,27 @@ public final class YamlWheatGrowthChancePolicyProvider
     private static final String SEASONAL_FACTORS_KEY = "seasonal-factors";
 
     private final Path policyFile;
-    private final WheatGrowthChanceVariationSource variationSource;
+    private final CropGrowthChanceVariationSource variationSource;
 
-    public YamlWheatGrowthChancePolicyProvider(
+    public YamlCropGrowthPolicyProvider(
         Path policyFile,
-        WheatGrowthChanceVariationSource variationSource
+        CropGrowthChanceVariationSource variationSource
     ) {
         this.policyFile = policyFile;
         this.variationSource = variationSource;
     }
 
     @Override
-    public WheatGrowthChancePolicy policyFor(BiomeId biomeId) {
+    public CropGrowthPolicy policyFor(BiomeId biomeId) {
         Map<?, ?> root = loadRoot();
         Map<?, ?> biomes = requiredMap(root, BIOMES_KEY, "crop growth policy root.biomes");
-        Map<BiomeId, WheatGrowthChancePolicy> policies = new LinkedHashMap<>();
+        Map<BiomeId, CropGrowthPolicy> policies = new LinkedHashMap<>();
 
         for (Map.Entry<?, ?> biomeEntry : biomes.entrySet()) {
             BiomeId configuredBiomeId = new BiomeId(
                 requiredKey(biomeEntry.getKey(), "biome policy key")
             );
-            WheatGrowthChancePolicy previous = policies.put(
+            CropGrowthPolicy previous = policies.put(
                 configuredBiomeId,
                 parsePolicy(configuredBiomeId, biomeEntry.getValue())
             );
@@ -60,16 +60,16 @@ public final class YamlWheatGrowthChancePolicyProvider
             }
         }
 
-        WheatGrowthChancePolicy policy = policies.get(biomeId);
+        CropGrowthPolicy policy = policies.get(biomeId);
         if (policy == null) {
-            throw new UnsupportedWheatGrowthPolicyException(
+            throw new UnsupportedCropGrowthPolicyException(
                 "Missing wheat growth policy for biome: " + biomeId.value()
             );
         }
         return policy;
     }
 
-    private WheatGrowthChancePolicy parsePolicy(
+    private CropGrowthPolicy parsePolicy(
         BiomeId biomeId,
         Object policyValue
     ) {
@@ -77,7 +77,7 @@ public final class YamlWheatGrowthChancePolicyProvider
         Map<?, ?> policy = requiredMapValue(policyValue, policyPath);
         rejectUnsupportedCropKeys(policy, policyPath);
         if (!policy.containsKey(WHEAT_KEY)) {
-            throw new UnsupportedWheatGrowthPolicyException(
+            throw new UnsupportedCropGrowthPolicyException(
                 "Missing wheat growth policy for biome: " + biomeId.value()
             );
         }
@@ -87,16 +87,16 @@ public final class YamlWheatGrowthChancePolicyProvider
             GROWTH_CHANCE_KEY,
             policyPath + ".wheat.growth-chance"
         );
-        Map<SeasonId, WheatGrowthSeasonalFactor> seasonalFactors =
+        Map<SeasonId, CropGrowthSeasonalFactor> seasonalFactors =
             parseSeasonalFactors(wheat, policyPath + ".wheat");
-        return new WheatGrowthChancePolicy(
-            new WheatGrowthChance(chance),
+        return new CropGrowthPolicy(
+            new CropGrowthChance(chance),
             seasonalFactors,
             variationSource
         );
     }
 
-    private static Map<SeasonId, WheatGrowthSeasonalFactor> parseSeasonalFactors(
+    private static Map<SeasonId, CropGrowthSeasonalFactor> parseSeasonalFactors(
         Map<?, ?> wheat,
         String wheatPath
     ) {
@@ -109,7 +109,7 @@ public final class YamlWheatGrowthChancePolicyProvider
             SEASONAL_FACTORS_KEY,
             wheatPath + ".seasonal-factors"
         );
-        Map<SeasonId, WheatGrowthSeasonalFactor> result = new LinkedHashMap<>();
+        Map<SeasonId, CropGrowthSeasonalFactor> result = new LinkedHashMap<>();
         for (Map.Entry<?, ?> entry : seasonalFactors.entrySet()) {
             SeasonId seasonId = new SeasonId(
                 requiredKey(entry.getKey(), wheatPath + ".seasonal-factors key")
@@ -118,9 +118,9 @@ public final class YamlWheatGrowthChancePolicyProvider
                 entry.getValue(),
                 wheatPath + ".seasonal-factors." + seasonId.value()
             );
-            WheatGrowthSeasonalFactor previous = result.put(
+            CropGrowthSeasonalFactor previous = result.put(
                 seasonId,
-                new WheatGrowthSeasonalFactor(factor)
+                new CropGrowthSeasonalFactor(factor)
             );
             if (previous != null) {
                 throw new IllegalArgumentException(

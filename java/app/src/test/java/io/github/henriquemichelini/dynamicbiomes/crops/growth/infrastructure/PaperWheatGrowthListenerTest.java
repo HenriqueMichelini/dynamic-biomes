@@ -15,10 +15,10 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRic
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.WheatGrowthService;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChance;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
@@ -126,7 +126,7 @@ class PaperWheatGrowthListenerTest {
         assertEquals("Service failure", exception.getMessage());
     }
 
-    private PaperWheatGrowthListener listenerWithPolicy(WheatGrowthChancePolicy policy) {
+    private PaperWheatGrowthListener listenerWithPolicy(CropGrowthPolicy policy) {
         return listenerWithResolver(
             position -> {
                 resolvedPosition = position;
@@ -147,19 +147,19 @@ class PaperWheatGrowthListenerTest {
 
     private static PaperWheatGrowthListener listenerWithResolver(
         BiomeResolver biomeResolver,
-        WheatGrowthChancePolicyProvider policyProvider
+        CropGrowthPolicyProvider policyProvider
     ) {
         return new PaperWheatGrowthListener(
-            new WheatGrowthService(biomeResolver, policyProvider, () -> SPRING)
+            new CropGrowthService(biomeResolver, policyProvider, () -> SPRING)
         );
     }
 
-    private static WheatGrowthChancePolicy policy(
+    private static CropGrowthPolicy policy(
         double chance,
         WheatGrowthVariation variation
     ) {
-        return new WheatGrowthChancePolicy(
-            new WheatGrowthChance(chance),
+        return new CropGrowthPolicy(
+            new CropGrowthChance(chance),
             variation::nextUnitValue
         );
     }

@@ -4,11 +4,11 @@ import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedWheatGrowthPolicyException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChance;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
@@ -22,12 +22,12 @@ import org.bukkit.command.CommandSender;
 
 public final class WheatGrowthInspectDiagnostic {
     private final BiomeResolver biomeResolver;
-    private final WheatGrowthChancePolicyProvider policyProvider;
+    private final CropGrowthPolicyProvider policyProvider;
     private final CurrentSeasonQuery currentSeasonQuery;
 
     public WheatGrowthInspectDiagnostic(
         BiomeResolver biomeResolver,
-        WheatGrowthChancePolicyProvider policyProvider,
+        CropGrowthPolicyProvider policyProvider,
         CurrentSeasonQuery currentSeasonQuery
     ) {
         this.biomeResolver = Objects.requireNonNull(biomeResolver);
@@ -59,14 +59,14 @@ public final class WheatGrowthInspectDiagnostic {
         sender.sendMessage("DynamicBiomes profile: supported");
 
         try {
-            WheatGrowthChancePolicy policy = policyProvider.policyFor(
+            CropGrowthPolicy policy = policyProvider.policyFor(
                 biomeContext.biomeId()
             );
-            WheatGrowthChance configuredChance = policy.configuredChance();
+            CropGrowthChance configuredChance = policy.configuredChance();
             SeasonId currentSeason = currentSeasonQuery.currentSeason();
-            Optional<WheatGrowthSeasonalFactor> seasonalFactor =
+            Optional<CropGrowthSeasonalFactor> seasonalFactor =
                 policy.seasonalFactorFor(currentSeason);
-            WheatGrowthChance effectiveChance = policy.effectiveChanceFor(
+            CropGrowthChance effectiveChance = policy.effectiveChanceFor(
                 currentSeason
             );
             sender.sendMessage("Wheat growth policy: supported");
@@ -76,7 +76,7 @@ public final class WheatGrowthInspectDiagnostic {
             sender.sendMessage("Current season: " + currentSeason.value());
             sender.sendMessage(
                 "Seasonal wheat growth factor: " +
-                    seasonalFactor.map(WheatGrowthSeasonalFactor::factor).orElse(1.0) +
+                    seasonalFactor.map(CropGrowthSeasonalFactor::factor).orElse(1.0) +
                     (seasonalFactor.isPresent() ? "" : " (default)")
             );
             sender.sendMessage(
@@ -86,7 +86,7 @@ public final class WheatGrowthInspectDiagnostic {
                 "May cancel natural growth: " +
                     (effectiveChance.value() < 1.0 ? "yes" : "no")
             );
-        } catch (UnsupportedWheatGrowthPolicyException exception) {
+        } catch (UnsupportedCropGrowthPolicyException exception) {
             sender.sendMessage("Wheat growth policy: unsupported");
             sender.sendMessage("May cancel natural growth: no (vanilla fallback)");
         }
