@@ -2,3 +2,8 @@ biomes:
   minecraft:forest:
     wheat:
       growth-chance: 0.75
+      seasonal-factors:
+        minecraft:spring: 1.20
+        minecraft:summer: 1.00
+        minecraft:autumn: 0.80
+        minecraft:winter: 0.50

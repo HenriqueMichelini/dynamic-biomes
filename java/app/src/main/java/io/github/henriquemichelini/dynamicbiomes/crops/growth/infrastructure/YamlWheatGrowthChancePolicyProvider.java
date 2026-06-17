@@ -6,6 +6,8 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowth
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChanceVariationSource;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
@@ -23,6 +25,7 @@ public final class YamlWheatGrowthChancePolicyProvider
     private static final String BIOMES_KEY = "biomes";
     private static final String WHEAT_KEY = "wheat";
     private static final String GROWTH_CHANCE_KEY = "growth-chance";
+    private static final String SEASONAL_FACTORS_KEY = "seasonal-factors";
 
     private final Path policyFile;
     private final WheatGrowthChanceVariationSource variationSource;
@@ -84,10 +87,49 @@ public final class YamlWheatGrowthChancePolicyProvider
             GROWTH_CHANCE_KEY,
             policyPath + ".wheat.growth-chance"
         );
+        Map<SeasonId, WheatGrowthSeasonalFactor> seasonalFactors =
+            parseSeasonalFactors(wheat, policyPath + ".wheat");
         return new WheatGrowthChancePolicy(
             new WheatGrowthChance(chance),
+            seasonalFactors,
             variationSource
         );
+    }
+
+    private static Map<SeasonId, WheatGrowthSeasonalFactor> parseSeasonalFactors(
+        Map<?, ?> wheat,
+        String wheatPath
+    ) {
+        if (!wheat.containsKey(SEASONAL_FACTORS_KEY)) {
+            return Map.of();
+        }
+
+        Map<?, ?> seasonalFactors = requiredMap(
+            wheat,
+            SEASONAL_FACTORS_KEY,
+            wheatPath + ".seasonal-factors"
+        );
+        Map<SeasonId, WheatGrowthSeasonalFactor> result = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : seasonalFactors.entrySet()) {
+            SeasonId seasonId = new SeasonId(
+                requiredKey(entry.getKey(), wheatPath + ".seasonal-factors key")
+            );
+            double factor = requiredNumberValue(
+                entry.getValue(),
+                wheatPath + ".seasonal-factors." + seasonId.value()
+            );
+            WheatGrowthSeasonalFactor previous = result.put(
+                seasonId,
+                new WheatGrowthSeasonalFactor(factor)
+            );
+            if (previous != null) {
+                throw new IllegalArgumentException(
+                    "Duplicate wheat growth seasonal factor for season: " +
+                        seasonId.value()
+                );
+            }
+        }
+        return result;
     }
 
     private static void rejectUnsupportedCropKeys(
@@ -162,7 +204,13 @@ public final class YamlWheatGrowthChancePolicyProvider
         String key,
         String description
     ) {
-        Object value = parent.get(key);
+        return requiredNumberValue(parent.get(key), description);
+    }
+
+    private static double requiredNumberValue(
+        Object value,
+        String description
+    ) {
         if (!(value instanceof Number number)) {
             throw new IllegalArgumentException(
                 "Missing required " + description

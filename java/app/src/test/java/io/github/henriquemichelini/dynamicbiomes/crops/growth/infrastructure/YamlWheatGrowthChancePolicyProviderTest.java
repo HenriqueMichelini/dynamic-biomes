@@ -8,7 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedWheatGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthDecision;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -19,6 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 class YamlWheatGrowthChancePolicyProviderTest {
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
+    private static final SeasonId SUMMER = new SeasonId("minecraft:summer");
+    private static final SeasonId WINTER = new SeasonId("minecraft:winter");
 
     @TempDir
     Path temporaryDirectory;
@@ -105,6 +109,49 @@ class YamlWheatGrowthChancePolicyProviderTest {
     }
 
     @Test
+    void noSeasonalFactorsKeepsNoSeasonBehaviorAndBaseEffectiveChance()
+        throws IOException {
+        Path policyFile = writePolicy(
+            """
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 0.5
+            """
+        );
+
+        WheatGrowthChancePolicy policy = new YamlWheatGrowthChancePolicyProvider(
+            policyFile,
+            () -> 0.49
+        ).policyFor(FOREST);
+
+        assertEquals(WheatGrowthDecision.ALLOW_GROWTH, policy.decide());
+        assertEquals(0.5, policy.effectiveChanceFor(SUMMER).value());
+    }
+
+    @Test
+    void loadsSeasonalFactorsForWheatPolicy() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 0.5
+                  seasonal-factors:
+                    minecraft:summer: 1.5
+            """
+        );
+
+        WheatGrowthChancePolicy policy = new YamlWheatGrowthChancePolicyProvider(
+            policyFile,
+            () -> 0.0
+        ).policyFor(FOREST);
+
+        assertEquals(0.75, policy.effectiveChanceFor(SUMMER).value());
+        assertEquals(0.5, policy.effectiveChanceFor(WINTER).value());
+    }
+
+    @Test
     void reportsUnsupportedBiomePolicyExplicitly() throws IOException {
         Path policyFile = writePolicy(
             """
@@ -155,6 +202,48 @@ class YamlWheatGrowthChancePolicyProviderTest {
                 () -> new YamlWheatGrowthChancePolicyProvider(belowMinimumPolicyFile, () -> 0.0)
                     .policyFor(FOREST)
             )
+        );
+    }
+
+    @Test
+    void rejectsNegativeSeasonalFactorThroughDomainValidation()
+        throws IOException {
+        Path policyFile = writePolicy(
+            """
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 0.5
+                  seasonal-factors:
+                    minecraft:winter: -0.1
+            """
+        );
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+                .policyFor(FOREST)
+        );
+    }
+
+    @Test
+    void rejectsDuplicateSeasonalFactorKeys() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 0.5
+                  seasonal-factors:
+                    minecraft:winter: 0.5
+                    minecraft:winter: 0.75
+            """
+        );
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlWheatGrowthChancePolicyProvider(policyFile, () -> 0.0)
+                .policyFor(FOREST)
         );
     }
 
