@@ -70,11 +70,18 @@ public final class OreInspectCommandExecutor implements CommandExecutor {
 
         Material material = targetBlock.getType();
         sender.sendMessage("Target block: " + material.name());
+        if (!inspect(sender, targetBlock)) {
+            sender.sendMessage("Inspection: not an inspected ore");
+        }
+        return true;
+    }
+
+    public boolean inspect(CommandSender sender, Block targetBlock) {
+        Material material = targetBlock.getType();
         OreKind oreKind = PaperOreMaterialMapper.oreKindFor(material)
             .orElse(null);
         if (oreKind == null) {
-            sender.sendMessage("Inspection: not an inspected ore");
-            return true;
+            return false;
         }
 
         BlockPosition position = positionOf(targetBlock);

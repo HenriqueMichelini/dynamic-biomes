@@ -9,6 +9,7 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.WheatG
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperWheatGrowthListener;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.YamlWheatGrowthChancePolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation.WheatGrowthInspectDiagnostic;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
@@ -122,10 +123,18 @@ public final class DynamicBiomes extends JavaPlugin {
             new DynamicBiomesCommandExecutor(
                 new SeasonCommandExecutor(currentSeasonQuery),
                 new BiomeCommandExecutor(biomeResolver),
-                new OreInspectCommandExecutor(
-                    biomeResolver,
-                    oreDropPolicyProvider,
-                    originTracking
+                new DynamicBiomesInspectCommandExecutor(
+                    List.of(
+                        new WheatGrowthInspectDiagnostic(
+                            biomeResolver,
+                            wheatGrowthPolicyProvider
+                        )::inspect,
+                        new OreInspectCommandExecutor(
+                            biomeResolver,
+                            oreDropPolicyProvider,
+                            originTracking
+                        )::inspect
+                    )
                 )
             )
         );

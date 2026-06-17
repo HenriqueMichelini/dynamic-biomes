@@ -27,6 +27,15 @@ public final class WheatGrowthChancePolicy {
         return decide(configuredChance);
     }
 
+    public WheatGrowthChance configuredChance() {
+        if (configuredChance == null) {
+            throw new IllegalStateException(
+                "Wheat growth chance policy has no configured chance"
+            );
+        }
+        return configuredChance;
+    }
+
     public WheatGrowthDecision decide(@NonNull WheatGrowthChance chance) {
         if (chance.value() == 1.0) {
             return WheatGrowthDecision.ALLOW_GROWTH;

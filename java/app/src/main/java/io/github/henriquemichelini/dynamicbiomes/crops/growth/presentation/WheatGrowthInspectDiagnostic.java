@@ -1,0 +1,83 @@
+package io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation;
+
+import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
+import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedWheatGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChance;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicy;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.WheatGrowthChancePolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
+import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
+import java.util.Objects;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.command.CommandSender;
+
+public final class WheatGrowthInspectDiagnostic {
+    private final BiomeResolver biomeResolver;
+    private final WheatGrowthChancePolicyProvider policyProvider;
+
+    public WheatGrowthInspectDiagnostic(
+        BiomeResolver biomeResolver,
+        WheatGrowthChancePolicyProvider policyProvider
+    ) {
+        this.biomeResolver = Objects.requireNonNull(biomeResolver);
+        this.policyProvider = Objects.requireNonNull(policyProvider);
+    }
+
+    public boolean inspect(CommandSender sender, Block targetBlock) {
+        if (targetBlock.getType() != Material.WHEAT) {
+            return false;
+        }
+
+        BlockPosition position = positionOf(targetBlock);
+        BiomeContext biomeContext;
+        try {
+            biomeContext = biomeResolver.resolve(position);
+        } catch (UnsupportedBiomeException exception) {
+            String biomeId = exception.biomeId()
+                .map(BiomeId::value)
+                .orElse("unknown");
+            sender.sendMessage("Current biome: " + biomeId);
+            sender.sendMessage("DynamicBiomes profile: unsupported");
+            sender.sendMessage("Wheat growth policy: unsupported");
+            sender.sendMessage("May cancel natural growth: no (vanilla fallback)");
+            return true;
+        }
+
+        sender.sendMessage("Current biome: " + biomeContext.biomeId().value());
+        sender.sendMessage("DynamicBiomes profile: supported");
+
+        try {
+            WheatGrowthChancePolicy policy = policyProvider.policyFor(
+                biomeContext.biomeId()
+            );
+            WheatGrowthChance chance = policy.configuredChance();
+            sender.sendMessage("Wheat growth policy: supported");
+            sender.sendMessage(
+                "Configured wheat growth chance: " + chance.value()
+            );
+            sender.sendMessage(
+                "May cancel natural growth: " +
+                    (chance.value() < 1.0 ? "yes" : "no")
+            );
+        } catch (UnsupportedWheatGrowthPolicyException exception) {
+            sender.sendMessage("Wheat growth policy: unsupported");
+            sender.sendMessage("May cancel natural growth: no (vanilla fallback)");
+        }
+        return true;
+    }
+
+    private static BlockPosition positionOf(Block block) {
+        World world = block.getWorld();
+        return new BlockPosition(
+            new WorldReference(world.getUID()),
+            block.getX(),
+            block.getY(),
+            block.getZ()
+        );
+    }
+}
