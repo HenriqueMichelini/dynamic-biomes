@@ -1,6 +1,6 @@
-package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
+package io.github.henriquemichelini.dynamicbiomes.crops.identity.infrastructure;
 
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
+import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
 import java.util.Map;
 import java.util.Optional;
 import org.bukkit.Material;

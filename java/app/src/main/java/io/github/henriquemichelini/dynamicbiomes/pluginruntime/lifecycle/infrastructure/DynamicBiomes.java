@@ -10,6 +10,12 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthP
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropGrowthListener;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.YamlCropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation.CropGrowthInspectDiagnostic;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.application.CropYieldService;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldQuantityCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.infrastructure.PaperCropHarvestListener;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.infrastructure.YamlCropYieldPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
@@ -42,6 +48,7 @@ public final class DynamicBiomes extends JavaPlugin {
     public void onEnable() {
         saveResource("ore-drops.yml", false);
         saveResource("crop-growth.yml", false);
+        saveResource("crop-yields.yml", false);
         saveResource("biome-profiles.yml", false);
         saveResource("season-profiles.yml", false);
         saveResource("season-cycle.yml", false);
@@ -116,6 +123,11 @@ public final class DynamicBiomes extends JavaPlugin {
                 Math::random
             );
 
+        CropYieldPolicyProvider cropYieldPolicyProvider =
+            new YamlCropYieldPolicyProvider(
+                dataPath.resolve("crop-yields.yml")
+            );
+
         Objects.requireNonNull(
             getCommand("dynamicbiomes"),
             "Missing dynamicbiomes command metadata"
@@ -155,6 +167,14 @@ public final class DynamicBiomes extends JavaPlugin {
             currentSeasonQuery
         );
 
+        CropYieldService cropYieldService = new CropYieldService(
+            biomeResolver,
+            cropYieldPolicyProvider,
+            currentSeasonQuery,
+            new CropYieldMultiplierCalculator(Math::random),
+            new CropYieldQuantityCalculator(Math::random)
+        );
+
         getServer().getPluginManager().registerEvents(
             new PaperOrePlaceListener(originTracking),
             this
@@ -172,6 +192,11 @@ public final class DynamicBiomes extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(
             new PaperCropGrowthListener(cropGrowthService),
+            this
+        );
+
+        getServer().getPluginManager().registerEvents(
+            new PaperCropHarvestListener(cropYieldService),
             this
         );
 

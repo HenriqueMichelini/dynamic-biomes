@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
+import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;

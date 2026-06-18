@@ -1,10 +1,10 @@
-package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
+package io.github.henriquemichelini.dynamicbiomes.crops.identity.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
+import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
 import java.util.Map;
 import org.bukkit.Material;
 import org.junit.jupiter.api.Test;

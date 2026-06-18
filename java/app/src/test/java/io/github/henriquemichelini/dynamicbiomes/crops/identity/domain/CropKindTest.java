@@ -1,4 +1,4 @@
-package io.github.henriquemichelini.dynamicbiomes.crops.growth.domain;
+package io.github.henriquemichelini.dynamicbiomes.crops.identity.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertAll;

@@ -180,6 +180,7 @@ Configuration files must be split by ownership:
 - `season-profiles.yml` belongs to `seasons/profile`
 - `ore-drops.yml` belongs to `ore/drops`
 - `crop-growth.yml` belongs to `crops/growth`
+- `crop-yields.yml` belongs to `crops/yield`
 
 Raw YAML must not leak into domain. Bukkit types must not leak into domain.
 
@@ -285,23 +286,44 @@ io.github.henriquemichelini.dynamicbiomes/
 │           └── OreInspectCommandExecutor.java
 │
 ├── crops/
-│   └── growth/
+│   ├── identity/
+│   │   ├── domain/
+│   │   │   └── CropKind.java
+│   │   └── infrastructure/
+│   │       └── PaperCropMaterialMapper.java
+│   ├── growth/
+│   │   ├── application/
+│   │   │   └── CropGrowthService.java
+│   │   ├── domain/
+│   │   │   ├── UnsupportedCropGrowthPolicyException.java
+│   │   │   ├── CropGrowthChance.java
+│   │   │   ├── CropGrowthPolicy.java
+│   │   │   ├── CropGrowthPolicyProvider.java
+│   │   │   ├── CropGrowthSeasonalFactor.java
+│   │   │   ├── CropGrowthChanceVariationSource.java
+│   │   │   └── CropGrowthDecision.java
+│   │   ├── infrastructure/
+│   │   │   ├── PaperCropGrowthListener.java
+│   │   │   └── YamlCropGrowthPolicyProvider.java
+│   │   └── presentation/
+│   │       └── CropGrowthInspectDiagnostic.java
+│   └── yield/
 │       ├── application/
-│       │   └── CropGrowthService.java
+│       │   └── CropYieldService.java
 │       ├── domain/
-│       │   ├── UnsupportedCropGrowthPolicyException.java
-│       │   ├── CropGrowthChance.java
-│       │   ├── CropGrowthPolicy.java
-│       │   ├── CropGrowthPolicyProvider.java
-│       │   ├── CropGrowthSeasonalFactor.java
-│       │   ├── CropGrowthChanceVariationSource.java
-│       │   └── CropGrowthDecision.java
-│       ├── infrastructure/
-│       │   ├── PaperCropMaterialMapper.java
-│       │   ├── PaperCropGrowthListener.java
-│       │   └── YamlCropGrowthPolicyProvider.java
-│       └── presentation/
-│           └── CropGrowthInspectDiagnostic.java
+│       │   ├── UnsupportedCropYieldPolicyException.java
+│       │   ├── CropYieldCropRule.java
+│       │   ├── CropYieldMultiplierCalculator.java
+│       │   ├── CropYieldMultiplierRange.java
+│       │   ├── CropYieldMultiplierVariationSource.java
+│       │   ├── CropYieldPolicy.java
+│       │   ├── CropYieldPolicyProvider.java
+│       │   ├── CropYieldQuantityCalculator.java
+│       │   ├── CropYieldQuantityVariationSource.java
+│       │   └── CropYieldSeasonalFactor.java
+│       └── infrastructure/
+│           ├── PaperCropHarvestListener.java
+│           └── YamlCropYieldPolicyProvider.java
 │
 ├── trees/
 │   └── growth/
@@ -488,6 +510,7 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 - **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar`, initializes the first season if none exists, and `CachedCurrentSeasonQuery` keeps the runtime season in memory for hot-path reads.
 - **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.
 - **Crop growth behavior**: `PaperCropMaterialMapper` maps Bukkit crop materials to supported runtime crop kinds, currently wheat, carrots, potatoes, and beetroot. `PaperCropGrowthListener` delegates supported natural crop `BlockGrowEvent` attempts to `CropGrowthService` with the mapped crop kind; the service resolves biome through `BiomeResolver`, reads configured biome-specific crop growth policy through `YamlCropGrowthPolicyProvider` from `crop-growth.yml`, applies any crop-owned seasonal factor for the cached current season, and cancels growth only when the policy returns a cancel decision.
+- **Crop harvest yield behavior**: `PaperCropHarvestListener` delegates supported mature player `BlockBreakEvent` crop harvests to `CropYieldService` with the mapped crop kind and the server-computed vanilla produce quantity. The service resolves biome through `BiomeResolver`, reads configured biome-specific crop yield policy through `YamlCropYieldPolicyProvider` from `crop-yields.yml`, applies the base multiplier and any yield-owned seasonal factor for the cached current season, and returns the adjusted produce quantity. The listener replaces only produce drops when the quantity differs, preserves non-produce drops such as seeds unchanged, and does not handle replanting or non-player crop destruction paths.
 - **Read-only observability commands**: `/dynamicbiomes season` reads the cached `CurrentSeasonQuery` and reports the current `SeasonId`; `/dynamicbiomes biome` resolves the player's current `BiomeContext` through `BiomeResolver` and reports whether the biome has a supported DynamicBiomes profile; `/dynamicbiomes inspect` reads the player's target block, delegates to crop and ore diagnostics, reports crop growth policy support/configured chance/current season/seasonal factor/effective chance/fallback status for supported crop targets, checks ore drop policy/rules through `OreDropPolicyProvider`, reads tracked ore origin through `OreOriginTrackingService`, and reports multiplier eligibility without mutating state.
 - **Ore origin persistence**: `YamlOreOriginRepository` lazily loads origin state into memory and writes updates back to disk.
 
@@ -499,6 +522,9 @@ The following capabilities support runtime behavior while keeping ownership boun
 - **Biome-aware crop growth service**: `crops/growth/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads the configured crop growth policy for a supplied `CropKind` through `CropGrowthPolicyProvider`, reads current season through the published `CurrentSeasonQuery`, and delegates season-aware allow/cancel decisions to domain policy. It preserves vanilla growth for explicit unsupported biome or unsupported crop growth policy cases.
 - **Paper crop growth listener**: `crops/growth/infrastructure` maps Bukkit crop materials through `PaperCropMaterialMapper`, translates supported `BlockGrowEvent` crop growth attempts into `BlockPosition`, delegates to `CropGrowthService`, and cancels only when the service returns a cancel decision.
 - **YAML-backed crop growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `CropGrowthPolicyProvider` port for configured biome-specific wheat, carrot, potato, and beetroot growth chances and optional crop-owned seasonal factors while preserving the existing per-crop YAML shape. It rejects unsupported crop keys and does not listen for Bukkit crop events, query current season state, or mutate world state.
+- **Crop yield policy**: `crops/yield/domain` models configured mature crop produce multipliers, optional yield-owned seasonal factors keyed by published `SeasonId`, deterministic-testable multiplier and quantity variation sources, and probabilistic rounding of the final produce quantity. It supports zero final produce quantity when configured multipliers allow it and does not model Bukkit item stacks, seeds, replanting, or block events.
+- **Biome-aware crop yield service**: `crops/yield/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads configured crop yield policy through `CropYieldPolicyProvider`, reads current season through the published `CurrentSeasonQuery`, and delegates multiplier and quantity calculation to the domain. It preserves vanilla produce quantity only for explicit unsupported biome or unsupported crop yield policy cases.
+- **YAML-backed crop yield policy provider**: `crops/yield/infrastructure` loads `crop-yields.yml` into the typed `CropYieldPolicyProvider` port for configured biome-specific wheat, carrot, potato, and beetroot yield multipliers and optional yield-owned seasonal factors. It rejects unsupported crop keys and keeps yield factors independent from crop growth factors.
 - **Crop growth inspect diagnostic**: `crops/growth/presentation` maps the targeted block through `PaperCropMaterialMapper` and translates supported crop targets into read-only diagnostics by resolving biome support, querying `CropGrowthPolicyProvider` for the configured chance, and reading `CurrentSeasonQuery` to report the current season, seasonal factor/default, effective chance, and vanilla fallback status without rolling a growth decision.
 - **Tree growth policy**: `trees/growth/domain` models an already-selected configured natural tree growth allow chance, optional tree-owned seasonal factors keyed by published `SeasonId`, a deterministic-testable unit variation source, and an allow/cancel decision. It does not resolve biomes or current season state, read configuration, listen for Bukkit events, or mutate world state.
 
@@ -506,6 +532,7 @@ The following capabilities support runtime behavior while keeping ownership boun
 
 - **Silk Touch bypass**: `PaperOreBreakListener` detects when the broken ore would drop itself (Silk Touch) and skips `OreDropService`, preserving vanilla drops.
 - **Unsupported configuration fallback**: `OreDropService` catches `UnsupportedBiomeException` and `UnsupportedOreDropConfigurationException` and returns the vanilla quantity, so unsupported biomes, missing policies, and missing ore rules do not suppress vanilla drops.
+- **Crop yield unsupported fallback**: `CropYieldService` catches `UnsupportedBiomeException` and `UnsupportedCropYieldPolicyException` and returns the vanilla produce quantity, so unsupported biomes, missing yield policies, and missing crop rules preserve vanilla harvest drops.
 - **Real failures still propagate**: malformed YAML, I/O failures, invalid numeric values, invalid namespaced IDs, duplicate keys, and programming errors are not swallowed by the fallback.
 - **Persisted season validation**: `SeasonInitializationService` throws `IllegalStateException` if a persisted `SeasonId` is absent from the configured `SeasonCalendar`.
 - **Origin cache safety**: `YamlOreOriginRepository` loads once and serves subsequent reads from memory; save/remove still persist.

@@ -24,7 +24,7 @@ class PluginResourcesTest {
             '"' + System.getProperty("dynamicBiomes.pluginVersion") + '"',
             valueFor(pluginMetadata, "version")
         );
-        assertTrue(pluginMetadata.contains("api-version: '1.21'"));
+        assertEquals("\"1.21\"", valueFor(pluginMetadata, "api-version"));
     }
 
     @Test
@@ -35,6 +35,17 @@ class PluginResourcesTest {
         assertTrue(oreDropPolicy.contains("ores:"));
         assertTrue(oreDropPolicy.contains("minecraft:iron_ore:"));
         assertNull(CLASS_LOADER.getResource("biomes.yml"));
+    }
+
+    @Test
+    void cropYieldPolicyUsesItsCapabilityOwnedResourceName() throws IOException {
+        String cropYieldPolicy = readResource("crop-yields.yml");
+
+        assertTrue(cropYieldPolicy.contains("biomes:"));
+        assertTrue(cropYieldPolicy.contains("minecraft:forest:"));
+        assertTrue(cropYieldPolicy.contains("wheat:"));
+        assertTrue(cropYieldPolicy.contains("multiplier:"));
+        assertTrue(cropYieldPolicy.contains("seasonal-factors:"));
     }
 
     @Test

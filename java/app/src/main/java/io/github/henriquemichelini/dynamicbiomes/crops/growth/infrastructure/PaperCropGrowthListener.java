@@ -2,7 +2,8 @@ package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
+import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
+import io.github.henriquemichelini.dynamicbiomes.crops.identity.infrastructure.PaperCropMaterialMapper;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import lombok.NonNull;
