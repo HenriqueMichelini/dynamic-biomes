@@ -23,14 +23,12 @@ public final class CropGrowthPolicy {
 
     public CropGrowthPolicy(
         CropGrowthChance configuredChance,
-        Map<SeasonId, CropGrowthSeasonalFactor> seasonalFactors,
+        @NonNull Map<SeasonId, CropGrowthSeasonalFactor> seasonalFactors,
         @NonNull CropGrowthChanceVariationSource variationSource
     ) {
         this.variationSource = variationSource;
         this.configuredChance = configuredChance;
-        this.seasonalFactors = seasonalFactors == null
-            ? Map.of()
-            : Map.copyOf(seasonalFactors);
+        this.seasonalFactors = Map.copyOf(seasonalFactors);
     }
 
     public CropGrowthDecision decide() {
@@ -77,9 +75,9 @@ public final class CropGrowthPolicy {
         }
 
         double variation = variationSource.nextUnitValue();
-        if (!Double.isFinite(variation) || variation < 0.0 || variation > 1.0) {
+        if (!Double.isFinite(variation) || variation < 0.0 || variation >= 1.0) {
             throw new IllegalArgumentException(
-                "Crop growth chance variation must be within [0.0, 1.0]"
+                "Crop growth chance variation must be within [0.0, 1.0)"
             );
         }
 

@@ -77,11 +77,23 @@ class CropGrowthPolicyTest {
             ),
             () -> assertThrows(
                 IllegalArgumentException.class,
+                () -> new CropGrowthPolicy(() -> 1.0).decide(chance)
+            ),
+            () -> assertThrows(
+                IllegalArgumentException.class,
                 () -> new CropGrowthPolicy(() -> 1.1).decide(chance)
             ),
             () -> assertThrows(
                 IllegalArgumentException.class,
                 () -> new CropGrowthPolicy(() -> Double.NaN).decide(chance)
+            ),
+            () -> assertThrows(
+                IllegalArgumentException.class,
+                () -> new CropGrowthPolicy(() -> Double.NEGATIVE_INFINITY).decide(chance)
+            ),
+            () -> assertThrows(
+                IllegalArgumentException.class,
+                () -> new CropGrowthPolicy(() -> Double.POSITIVE_INFINITY).decide(chance)
             )
         );
     }
@@ -89,14 +101,14 @@ class CropGrowthPolicyTest {
     @Test
     void returnsBaseChanceWhenSeasonHasNoConfiguredFactor() {
         CropGrowthPolicy policy = new CropGrowthPolicy(
-            new CropGrowthChance(0.5),
+            new CropGrowthChance(0.8),
             Map.of(SUMMER, new CropGrowthSeasonalFactor(1.5)),
             () -> 0.0
         );
 
         CropGrowthChance chance = policy.effectiveChanceFor(WINTER);
 
-        assertEquals(0.5, chance.value());
+        assertEquals(0.8, chance.value());
     }
 
     @Test
@@ -138,14 +150,14 @@ class CropGrowthPolicyTest {
     @Test
     void appliesConfiguredSeasonalFactor() {
         CropGrowthPolicy policy = new CropGrowthPolicy(
-            new CropGrowthChance(0.5),
-            Map.of(SUMMER, new CropGrowthSeasonalFactor(1.5)),
+            new CropGrowthChance(0.8),
+            Map.of(SUMMER, new CropGrowthSeasonalFactor(0.5)),
             () -> 0.0
         );
 
         CropGrowthChance chance = policy.effectiveChanceFor(SUMMER);
 
-        assertEquals(0.75, chance.value());
+        assertEquals(0.4, chance.value());
     }
 
     @Test
@@ -196,5 +208,64 @@ class CropGrowthPolicyTest {
         CropGrowthDecision decision = policy.decide();
 
         assertEquals(CropGrowthDecision.CANCEL_GROWTH, decision);
+    }
+
+    @Test
+    void rejectsNullRequiredInputsClearly() {
+        CropGrowthPolicy policy = new CropGrowthPolicy(
+            new CropGrowthChance(0.5),
+            Map.of(),
+            () -> 0.0
+        );
+
+        assertAll(
+            () -> assertThrows(
+                NullPointerException.class,
+                () -> new CropGrowthPolicy((CropGrowthChanceVariationSource) null)
+            ),
+            () -> assertThrows(
+                NullPointerException.class,
+                () -> new CropGrowthPolicy(new CropGrowthChance(0.5), null)
+            ),
+            () -> assertThrows(
+                NullPointerException.class,
+                () -> new CropGrowthPolicy(new CropGrowthChance(0.5), null, () -> 0.0)
+            ),
+            () -> assertThrows(
+                NullPointerException.class,
+                () -> new CropGrowthPolicy(new CropGrowthChance(0.5), Map.of(), null)
+            ),
+            () -> assertThrows(
+                NullPointerException.class,
+                () -> policy.decide((CropGrowthChance) null)
+            ),
+            () -> assertThrows(
+                NullPointerException.class,
+                () -> policy.decide((SeasonId) null)
+            ),
+            () -> assertThrows(
+                NullPointerException.class,
+                () -> policy.effectiveChanceFor(null)
+            ),
+            () -> assertThrows(
+                NullPointerException.class,
+                () -> policy.seasonalFactorFor(null)
+            )
+        );
+    }
+
+    @Test
+    void rejectsDecisionsWhenConfiguredChanceIsAbsent() {
+        CropGrowthPolicy policy = new CropGrowthPolicy(() -> 0.0);
+
+        assertAll(
+            () -> assertThrows(IllegalStateException.class, policy::configuredChance),
+            () -> assertThrows(IllegalStateException.class, policy::decide),
+            () -> assertThrows(
+                IllegalStateException.class,
+                () -> policy.effectiveChanceFor(SUMMER)
+            ),
+            () -> assertThrows(IllegalStateException.class, () -> policy.decide(SUMMER))
+        );
     }
 }

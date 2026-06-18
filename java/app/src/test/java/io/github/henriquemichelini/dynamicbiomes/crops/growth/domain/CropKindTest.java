@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -27,9 +28,23 @@ class CropKindTest {
 
     @Test
     void rejectsUnsupportedPolicyKeys() {
-        assertTrue(CropKind.fromPolicyKey(null).isEmpty());
-        assertTrue(CropKind.fromPolicyKey("nether_wart").isEmpty());
-        assertTrue(CropKind.fromPolicyKey(" wheat ").isEmpty());
-        assertTrue(CropKind.fromPolicyKey("").isEmpty());
+        assertAll(
+            () -> assertTrue(CropKind.fromPolicyKey(null).isEmpty()),
+            () -> assertTrue(CropKind.fromPolicyKey("").isEmpty()),
+            () -> assertTrue(CropKind.fromPolicyKey("   ").isEmpty()),
+            () -> assertTrue(CropKind.fromPolicyKey(" wheat ").isEmpty()),
+            () -> assertTrue(CropKind.fromPolicyKey("WHEAT").isEmpty()),
+            () -> assertTrue(CropKind.fromPolicyKey("nether_wart").isEmpty())
+        );
+    }
+
+    @Test
+    void exposesStablePolicyKeys() {
+        assertAll(
+            () -> assertEquals("wheat", CropKind.WHEAT.policyKey()),
+            () -> assertEquals("carrots", CropKind.CARROTS.policyKey()),
+            () -> assertEquals("potatoes", CropKind.POTATOES.policyKey()),
+            () -> assertEquals("beetroot", CropKind.BEETROOT.policyKey())
+        );
     }
 }
