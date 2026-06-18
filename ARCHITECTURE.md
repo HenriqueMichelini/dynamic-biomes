@@ -303,6 +303,15 @@ io.github.henriquemichelini.dynamicbiomes/
 │       └── presentation/
 │           └── CropGrowthInspectDiagnostic.java
 │
+├── trees/
+│   └── growth/
+│       └── domain/
+│           ├── TreeGrowthPolicy.java
+│           ├── TreeGrowthChance.java
+│           ├── TreeGrowthSeasonalFactor.java
+│           ├── TreeGrowthChanceVariationSource.java
+│           └── TreeGrowthDecision.java
+│
 └── pluginruntime/
     └── lifecycle/
         └── infrastructure/
@@ -491,6 +500,7 @@ The following capabilities support runtime behavior while keeping ownership boun
 - **Paper crop growth listener**: `crops/growth/infrastructure` maps Bukkit crop materials through `PaperCropMaterialMapper`, translates supported `BlockGrowEvent` crop growth attempts into `BlockPosition`, delegates to `CropGrowthService`, and cancels only when the service returns a cancel decision.
 - **YAML-backed crop growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `CropGrowthPolicyProvider` port for configured biome-specific wheat, carrot, potato, and beetroot growth chances and optional crop-owned seasonal factors while preserving the existing per-crop YAML shape. It rejects unsupported crop keys and does not listen for Bukkit crop events, query current season state, or mutate world state.
 - **Crop growth inspect diagnostic**: `crops/growth/presentation` maps the targeted block through `PaperCropMaterialMapper` and translates supported crop targets into read-only diagnostics by resolving biome support, querying `CropGrowthPolicyProvider` for the configured chance, and reading `CurrentSeasonQuery` to report the current season, seasonal factor/default, effective chance, and vanilla fallback status without rolling a growth decision.
+- **Tree growth policy**: `trees/growth/domain` models an already-selected configured natural tree growth allow chance, optional tree-owned seasonal factors keyed by published `SeasonId`, a deterministic-testable unit variation source, and an allow/cancel decision. It does not resolve biomes or current season state, read configuration, listen for Bukkit events, or mutate world state.
 
 ### 18.3 Implemented Safety Behavior
 
@@ -504,7 +514,7 @@ The following capabilities support runtime behavior while keeping ownership boun
 
 The following are intentionally not implemented or not wired at runtime:
 
-- Broader season effects on crops/trees/animals beyond wheat growth factors (season profile data is loaded but not consumed by those feature domains).
+- Runtime tree growth behavior and broader season effects on animals beyond the currently modeled feature policies (season profile data is loaded but not consumed by those feature domains).
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
 - Database persistence.
