@@ -16,10 +16,10 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperatur
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
@@ -33,7 +33,7 @@ import org.bukkit.block.BlockState;
 import org.bukkit.event.block.BlockGrowEvent;
 import org.junit.jupiter.api.Test;
 
-class PaperWheatGrowthListenerTest {
+class PaperCropGrowthListenerTest {
     private static final UUID WORLD_ID = UUID.fromString(
         "fdab89dd-8aac-4be0-9c26-8752ae6ce85e"
     );
@@ -60,7 +60,7 @@ class PaperWheatGrowthListenerTest {
 
     @Test
     void leavesWheatGrowthUncancelledWhenServiceAllowsGrowth() {
-        PaperWheatGrowthListener listener = listenerWithPolicy(
+        PaperCropGrowthListener listener = listenerWithPolicy(
             policy(1.0, () -> {
                 throw new AssertionError("Variation is unnecessary at full chance");
             })
@@ -76,7 +76,7 @@ class PaperWheatGrowthListenerTest {
 
     @Test
     void cancelsWheatGrowthWhenServiceCancelsGrowth() {
-        PaperWheatGrowthListener listener = listenerWithPolicy(
+        PaperCropGrowthListener listener = listenerWithPolicy(
             policy(0.0, () -> {
                 throw new AssertionError("Variation is unnecessary at zero chance");
             })
@@ -91,11 +91,27 @@ class PaperWheatGrowthListenerTest {
     }
 
     @Test
-    void ignoresNonWheatGrowthWithoutChangingCancellationState() {
-        PaperWheatGrowthListener listener = listenerWithResolver(position -> {
-            throw new AssertionError("Service must not resolve biome for non-wheat growth");
-        });
+    void delegatesCarrotGrowthWithCarrotCropKind() {
+        PaperCropGrowthListener listener = listenerWithPolicy(
+            policy(1.0, () -> {
+                throw new AssertionError("Variation is unnecessary at full chance");
+            })
+        );
         BlockGrowEvent event = eventFor(Material.CARROTS);
+
+        listener.onBlockGrow(event);
+
+        assertFalse(event.isCancelled());
+        assertEquals(POSITION, resolvedPosition);
+        assertEquals(CropKind.CARROTS, requestedCropKind);
+    }
+
+    @Test
+    void ignoresUnsupportedCropGrowthWithoutCallingService() {
+        PaperCropGrowthListener listener = listenerWithResolver(position -> {
+            throw new AssertionError("Service must not resolve biome for unsupported crop growth");
+        });
+        BlockGrowEvent event = eventFor(Material.POTATOES);
 
         listener.onBlockGrow(event);
 
@@ -104,7 +120,7 @@ class PaperWheatGrowthListenerTest {
 
     @Test
     void ignoresAlreadyCancelledGrowthWithoutCallingService() {
-        PaperWheatGrowthListener listener = listenerWithResolver(position -> {
+        PaperCropGrowthListener listener = listenerWithResolver(position -> {
             throw new AssertionError("Service must not resolve biome for cancelled event");
         });
         BlockGrowEvent event = eventFor(Material.WHEAT);
@@ -117,7 +133,7 @@ class PaperWheatGrowthListenerTest {
 
     @Test
     void propagatesServiceFailures() {
-        PaperWheatGrowthListener listener = listenerWithResolver(position -> {
+        PaperCropGrowthListener listener = listenerWithResolver(position -> {
             throw new IllegalStateException("Service failure");
         });
         BlockGrowEvent event = eventFor(Material.WHEAT);
@@ -130,7 +146,7 @@ class PaperWheatGrowthListenerTest {
         assertEquals("Service failure", exception.getMessage());
     }
 
-    private PaperWheatGrowthListener listenerWithPolicy(CropGrowthPolicy policy) {
+    private PaperCropGrowthListener listenerWithPolicy(CropGrowthPolicy policy) {
         return listenerWithResolver(
             position -> {
                 resolvedPosition = position;
@@ -143,7 +159,7 @@ class PaperWheatGrowthListenerTest {
         );
     }
 
-    private PaperWheatGrowthListener listenerWithResolver(BiomeResolver biomeResolver) {
+    private PaperCropGrowthListener listenerWithResolver(BiomeResolver biomeResolver) {
         return listenerWithResolver(
             biomeResolver,
             (biomeId, cropKind) -> {
@@ -152,18 +168,19 @@ class PaperWheatGrowthListenerTest {
         );
     }
 
-    private static PaperWheatGrowthListener listenerWithResolver(
+    private static PaperCropGrowthListener listenerWithResolver(
         BiomeResolver biomeResolver,
         CropGrowthPolicyProvider policyProvider
     ) {
-        return new PaperWheatGrowthListener(
+        return new PaperCropGrowthListener(
+            new PaperCropMaterialMapper(),
             new CropGrowthService(biomeResolver, policyProvider, () -> SPRING)
         );
     }
 
     private static CropGrowthPolicy policy(
         double chance,
-        WheatGrowthVariation variation
+        CropGrowthVariation variation
     ) {
         return new CropGrowthPolicy(
             new CropGrowthChance(chance),
@@ -172,7 +189,7 @@ class PaperWheatGrowthListenerTest {
     }
 
     @FunctionalInterface
-    private interface WheatGrowthVariation {
+    private interface CropGrowthVariation {
         double nextUnitValue();
     }
 

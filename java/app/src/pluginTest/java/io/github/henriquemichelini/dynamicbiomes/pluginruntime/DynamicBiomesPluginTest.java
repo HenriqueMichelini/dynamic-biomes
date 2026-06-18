@@ -129,7 +129,7 @@ class DynamicBiomesPluginTest {
             "io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOreMovementListener"
         ));
         assertTrue(listenerClassNames.contains(
-            "io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperWheatGrowthListener"
+            "io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropGrowthListener"
         ));
     }
 

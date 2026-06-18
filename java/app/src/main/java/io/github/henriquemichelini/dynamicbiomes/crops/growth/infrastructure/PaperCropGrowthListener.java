@@ -1,20 +1,26 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
-import org.bukkit.Material;
+import lombok.NonNull;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockGrowEvent;
 
-public final class PaperWheatGrowthListener implements Listener {
+public final class PaperCropGrowthListener implements Listener {
+
+    private final PaperCropMaterialMapper cropMaterialMapper;
     private final CropGrowthService cropGrowthService;
 
-    public PaperWheatGrowthListener(CropGrowthService cropGrowthService) {
+    public PaperCropGrowthListener(
+        @NonNull PaperCropMaterialMapper cropMaterialMapper,
+        @NonNull CropGrowthService cropGrowthService
+    ) {
+        this.cropMaterialMapper = cropMaterialMapper;
         this.cropGrowthService = cropGrowthService;
     }
 
@@ -25,7 +31,10 @@ public final class PaperWheatGrowthListener implements Listener {
         }
 
         Block block = event.getBlock();
-        if (block.getType() != Material.WHEAT) {
+        CropKind cropKind = cropMaterialMapper
+            .cropKindFor(block.getType())
+            .orElse(null);
+        if (cropKind == null) {
             return;
         }
 
@@ -36,7 +45,7 @@ public final class PaperWheatGrowthListener implements Listener {
                 block.getY(),
                 block.getZ()
             ),
-            CropKind.WHEAT
+            cropKind
         );
         if (decision == CropGrowthDecision.CANCEL_GROWTH) {
             event.setCancelled(true);

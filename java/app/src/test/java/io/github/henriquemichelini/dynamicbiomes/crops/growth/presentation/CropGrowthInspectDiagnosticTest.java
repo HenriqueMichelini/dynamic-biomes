@@ -22,6 +22,7 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthC
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropMaterialMapper;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
@@ -37,7 +38,7 @@ import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.Test;
 
-class WheatGrowthInspectDiagnosticTest {
+class CropGrowthInspectDiagnosticTest {
     private static final UUID WORLD_ID = UUID.fromString(
         "00000000-0000-0000-0000-000000000003"
     );
@@ -55,7 +56,7 @@ class WheatGrowthInspectDiagnosticTest {
     @Test
     void reportsSupportedWheatPolicyWithCurrentSeasonFactorWithoutRolling() {
         RecordingSender sender = new RecordingSender();
-        WheatGrowthInspectDiagnostic diagnostic = diagnostic(
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             (biomeId, cropKind) -> {
                 assertEquals(CropKind.WHEAT, cropKind);
@@ -89,9 +90,45 @@ class WheatGrowthInspectDiagnosticTest {
     }
 
     @Test
+    void reportsSupportedCarrotPolicyThroughGenericCropPath() {
+        RecordingSender sender = new RecordingSender();
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
+            position -> new BiomeContext(FOREST, profileFor(FOREST)),
+            (biomeId, cropKind) -> {
+                assertEquals(CropKind.CARROTS, cropKind);
+                return policyFor(
+                    0.4,
+                    Map.of(WINTER, new CropGrowthSeasonalFactor(0.5))
+                );
+            },
+            new RecordingCurrentSeasonQuery(WINTER)
+        );
+
+        boolean handled = diagnostic.inspect(
+            sender.commandSender(),
+            block(Material.CARROTS)
+        );
+
+        assertTrue(handled);
+        assertEquals(
+            List.of(
+                "Current biome: minecraft:forest",
+                "DynamicBiomes profile: supported",
+                "Carrot growth policy: supported",
+                "Configured carrot growth chance: 0.4",
+                "Current season: minecraft:winter",
+                "Seasonal carrot growth factor: 0.5",
+                "Effective carrot growth chance: 0.2",
+                "May cancel natural growth: yes"
+            ),
+            sender.messages
+        );
+    }
+
+    @Test
     void reportsCappedSeasonalChanceAsNotCancellingNaturalGrowth() {
         RecordingSender sender = new RecordingSender();
-        WheatGrowthInspectDiagnostic diagnostic = diagnostic(
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             (biomeId, cropKind) -> {
                 assertEquals(CropKind.WHEAT, cropKind);
@@ -127,7 +164,7 @@ class WheatGrowthInspectDiagnosticTest {
     @Test
     void reportsDefaultSeasonalFactorWhenCurrentSeasonHasNoFactor() {
         RecordingSender sender = new RecordingSender();
-        WheatGrowthInspectDiagnostic diagnostic = diagnostic(
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             (biomeId, cropKind) -> {
                 assertEquals(CropKind.WHEAT, cropKind);
@@ -168,7 +205,7 @@ class WheatGrowthInspectDiagnosticTest {
         RecordingCurrentSeasonQuery currentSeasonQuery =
             new RecordingCurrentSeasonQuery(WINTER);
         BiomeId biomeId = new BiomeId("minecraft:dripstone_caves");
-        WheatGrowthInspectDiagnostic diagnostic = diagnostic(
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> {
                 throw new UnsupportedBiomeException(
                     biomeId,
@@ -203,7 +240,7 @@ class WheatGrowthInspectDiagnosticTest {
         RecordingSender sender = new RecordingSender();
         RecordingCurrentSeasonQuery currentSeasonQuery =
             new RecordingCurrentSeasonQuery(WINTER);
-        WheatGrowthInspectDiagnostic diagnostic = diagnostic(
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             (biomeId, cropKind) -> {
                 assertEquals(CropKind.WHEAT, cropKind);
@@ -234,7 +271,7 @@ class WheatGrowthInspectDiagnosticTest {
 
     @Test
     void propagatesCurrentSeasonQueryFailure() {
-        WheatGrowthInspectDiagnostic diagnostic = diagnostic(
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             (biomeId, cropKind) -> {
                 assertEquals(CropKind.WHEAT, cropKind);
@@ -262,7 +299,7 @@ class WheatGrowthInspectDiagnosticTest {
         CountingBiomeResolver biomeResolver = new CountingBiomeResolver();
         CountingCropGrowthPolicyProvider policyProvider =
             new CountingCropGrowthPolicyProvider();
-        WheatGrowthInspectDiagnostic diagnostic = diagnostic(
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
             biomeResolver,
             policyProvider,
             new RecordingCurrentSeasonQuery(WINTER)
@@ -279,7 +316,7 @@ class WheatGrowthInspectDiagnosticTest {
         assertEquals(0, policyProvider.readCount);
     }
 
-    private static WheatGrowthInspectDiagnostic diagnostic(
+    private static CropGrowthInspectDiagnostic diagnostic(
         BiomeResolver biomeResolver,
         CropGrowthPolicyProvider policyProvider
     ) {
@@ -290,12 +327,13 @@ class WheatGrowthInspectDiagnosticTest {
         );
     }
 
-    private static WheatGrowthInspectDiagnostic diagnostic(
+    private static CropGrowthInspectDiagnostic diagnostic(
         BiomeResolver biomeResolver,
         CropGrowthPolicyProvider policyProvider,
         CurrentSeasonQuery currentSeasonQuery
     ) {
-        return new WheatGrowthInspectDiagnostic(
+        return new CropGrowthInspectDiagnostic(
+            new PaperCropMaterialMapper(),
             biomeResolver,
             policyProvider,
             currentSeasonQuery

@@ -297,10 +297,11 @@ io.github.henriquemichelini.dynamicbiomes/
 │       │   ├── CropGrowthChanceVariationSource.java
 │       │   └── CropGrowthDecision.java
 │       ├── infrastructure/
-│       │   ├── PaperWheatGrowthListener.java
+│       │   ├── PaperCropMaterialMapper.java
+│       │   ├── PaperCropGrowthListener.java
 │       │   └── YamlCropGrowthPolicyProvider.java
 │       └── presentation/
-│           └── WheatGrowthInspectDiagnostic.java
+│           └── CropGrowthInspectDiagnostic.java
 │
 └── pluginruntime/
     └── lifecycle/
@@ -477,19 +478,19 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 - **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlSeasonProfileProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup.
 - **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar`, initializes the first season if none exists, and `CachedCurrentSeasonQuery` keeps the runtime season in memory for hot-path reads.
 - **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.
-- **Wheat growth behavior**: `PaperWheatGrowthListener` delegates natural wheat `BlockGrowEvent` attempts to `CropGrowthService` with the explicit wheat crop kind; the service resolves biome through `BiomeResolver`, reads configured biome-specific crop growth policy through `YamlCropGrowthPolicyProvider` from `crop-growth.yml`, applies any crop-owned seasonal factor for the cached current season, and cancels growth only when the policy returns a cancel decision. `crop-growth.yml` also contains a configured carrot policy, but no carrot listener is registered at runtime.
-- **Read-only observability commands**: `/dynamicbiomes season` reads the cached `CurrentSeasonQuery` and reports the current `SeasonId`; `/dynamicbiomes biome` resolves the player's current `BiomeContext` through `BiomeResolver` and reports whether the biome has a supported DynamicBiomes profile; `/dynamicbiomes inspect` reads the player's target block, delegates to crop and ore diagnostics, reports wheat growth policy support/configured chance/current season/seasonal factor/effective chance/fallback status for wheat, checks ore drop policy/rules through `OreDropPolicyProvider`, reads tracked ore origin through `OreOriginTrackingService`, and reports multiplier eligibility without mutating state.
+- **Crop growth behavior**: `PaperCropMaterialMapper` maps Bukkit crop materials to supported runtime crop kinds, currently `Material.WHEAT` to `CropKind.WHEAT` and `Material.CARROTS` to `CropKind.CARROTS`. `PaperCropGrowthListener` delegates supported natural crop `BlockGrowEvent` attempts to `CropGrowthService` with the mapped crop kind; the service resolves biome through `BiomeResolver`, reads configured biome-specific crop growth policy through `YamlCropGrowthPolicyProvider` from `crop-growth.yml`, applies any crop-owned seasonal factor for the cached current season, and cancels growth only when the policy returns a cancel decision.
+- **Read-only observability commands**: `/dynamicbiomes season` reads the cached `CurrentSeasonQuery` and reports the current `SeasonId`; `/dynamicbiomes biome` resolves the player's current `BiomeContext` through `BiomeResolver` and reports whether the biome has a supported DynamicBiomes profile; `/dynamicbiomes inspect` reads the player's target block, delegates to crop and ore diagnostics, reports crop growth policy support/configured chance/current season/seasonal factor/effective chance/fallback status for supported crop targets, checks ore drop policy/rules through `OreDropPolicyProvider`, reads tracked ore origin through `OreOriginTrackingService`, and reports multiplier eligibility without mutating state.
 - **Ore origin persistence**: `YamlOreOriginRepository` lazily loads origin state into memory and writes updates back to disk.
 
 ### 18.2 Implemented Supporting Behavior
 
 The following capabilities support runtime behavior while keeping ownership boundaries explicit:
 
-- **Crop growth policy**: `crops/growth/domain` models explicit supported crop kinds, an already-selected configured natural crop growth allow chance, optional crop-owned seasonal factors keyed by published `SeasonId`, a deterministic-testable unit variation source, and an allow/cancel decision. It currently supports configured wheat and carrot policies, with wheat as the only runtime-wired crop, and does not resolve biomes or current season state, read configuration, listen for Bukkit events, or mutate world state.
+- **Crop growth policy**: `crops/growth/domain` models explicit supported crop kinds, an already-selected configured natural crop growth allow chance, optional crop-owned seasonal factors keyed by published `SeasonId`, a deterministic-testable unit variation source, and an allow/cancel decision. It currently supports configured wheat and carrot policies, and does not resolve biomes or current season state, read configuration, listen for Bukkit events, or mutate world state.
 - **Biome-aware crop growth service**: `crops/growth/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads the configured crop growth policy for a supplied `CropKind` through `CropGrowthPolicyProvider`, reads current season through the published `CurrentSeasonQuery`, and delegates season-aware allow/cancel decisions to domain policy. It preserves vanilla growth for explicit unsupported biome or unsupported crop growth policy cases.
-- **Paper wheat growth listener**: `crops/growth/infrastructure` translates Bukkit `BlockGrowEvent` wheat growth attempts into `BlockPosition`, delegates to `CropGrowthService`, and cancels only when the service returns a cancel decision. It remains wheat-specific and no second crop is wired at runtime.
+- **Paper crop growth listener**: `crops/growth/infrastructure` maps Bukkit crop materials through `PaperCropMaterialMapper`, translates supported `BlockGrowEvent` crop growth attempts into `BlockPosition`, delegates to `CropGrowthService`, and cancels only when the service returns a cancel decision.
 - **YAML-backed crop growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `CropGrowthPolicyProvider` port for configured biome-specific wheat and carrot growth chances and optional crop-owned seasonal factors while preserving the existing per-crop YAML shape. It rejects unsupported crop keys and does not listen for Bukkit crop events, query current season state, or mutate world state.
-- **Wheat growth inspect diagnostic**: `crops/growth/presentation` translates a targeted wheat block into read-only diagnostics by resolving biome support, querying `CropGrowthPolicyProvider` for the configured chance, and reading `CurrentSeasonQuery` to report the current season, seasonal factor/default, effective chance, and vanilla fallback status without rolling a growth decision.
+- **Crop growth inspect diagnostic**: `crops/growth/presentation` maps the targeted block through `PaperCropMaterialMapper` and translates supported crop targets into read-only diagnostics by resolving biome support, querying `CropGrowthPolicyProvider` for the configured chance, and reading `CurrentSeasonQuery` to report the current season, seasonal factor/default, effective chance, and vanilla fallback status without rolling a growth decision.
 
 ### 18.3 Implemented Safety Behavior
 

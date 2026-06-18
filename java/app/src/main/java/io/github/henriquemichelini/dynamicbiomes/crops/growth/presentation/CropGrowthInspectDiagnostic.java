@@ -4,40 +4,45 @@ import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropMaterialMapper;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.util.Objects;
 import java.util.Optional;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 
-public final class WheatGrowthInspectDiagnostic {
+public final class CropGrowthInspectDiagnostic {
+    private final PaperCropMaterialMapper cropMaterialMapper;
     private final BiomeResolver biomeResolver;
     private final CropGrowthPolicyProvider policyProvider;
     private final CurrentSeasonQuery currentSeasonQuery;
 
-    public WheatGrowthInspectDiagnostic(
+    public CropGrowthInspectDiagnostic(
+        PaperCropMaterialMapper cropMaterialMapper,
         BiomeResolver biomeResolver,
         CropGrowthPolicyProvider policyProvider,
         CurrentSeasonQuery currentSeasonQuery
     ) {
+        this.cropMaterialMapper = Objects.requireNonNull(cropMaterialMapper);
         this.biomeResolver = Objects.requireNonNull(biomeResolver);
         this.policyProvider = Objects.requireNonNull(policyProvider);
         this.currentSeasonQuery = Objects.requireNonNull(currentSeasonQuery);
     }
 
     public boolean inspect(CommandSender sender, Block targetBlock) {
-        if (targetBlock.getType() != Material.WHEAT) {
+        CropKind cropKind = cropMaterialMapper.cropKindFor(targetBlock.getType())
+            .orElse(null);
+        if (cropKind == null) {
             return false;
         }
 
@@ -51,7 +56,7 @@ public final class WheatGrowthInspectDiagnostic {
                 .orElse("unknown");
             sender.sendMessage("Current biome: " + biomeId);
             sender.sendMessage("DynamicBiomes profile: unsupported");
-            sender.sendMessage("Wheat growth policy: unsupported");
+            sender.sendMessage(displayName(cropKind) + " growth policy: unsupported");
             sender.sendMessage("May cancel natural growth: no (vanilla fallback)");
             return true;
         }
@@ -62,7 +67,7 @@ public final class WheatGrowthInspectDiagnostic {
         try {
             CropGrowthPolicy policy = policyProvider.policyFor(
                 biomeContext.biomeId(),
-                CropKind.WHEAT
+                cropKind
             );
             CropGrowthChance configuredChance = policy.configuredChance();
             SeasonId currentSeason = currentSeasonQuery.currentSeason();
@@ -71,28 +76,43 @@ public final class WheatGrowthInspectDiagnostic {
             CropGrowthChance effectiveChance = policy.effectiveChanceFor(
                 currentSeason
             );
-            sender.sendMessage("Wheat growth policy: supported");
+            String displayName = displayName(cropKind);
+            String lowerDisplayName = lowerDisplayName(cropKind);
+            sender.sendMessage(displayName + " growth policy: supported");
             sender.sendMessage(
-                "Configured wheat growth chance: " + configuredChance.value()
+                "Configured " + lowerDisplayName + " growth chance: " +
+                    configuredChance.value()
             );
             sender.sendMessage("Current season: " + currentSeason.value());
             sender.sendMessage(
-                "Seasonal wheat growth factor: " +
+                "Seasonal " + lowerDisplayName + " growth factor: " +
                     seasonalFactor.map(CropGrowthSeasonalFactor::factor).orElse(1.0) +
                     (seasonalFactor.isPresent() ? "" : " (default)")
             );
             sender.sendMessage(
-                "Effective wheat growth chance: " + effectiveChance.value()
+                "Effective " + lowerDisplayName + " growth chance: " +
+                    effectiveChance.value()
             );
             sender.sendMessage(
                 "May cancel natural growth: " +
                     (effectiveChance.value() < 1.0 ? "yes" : "no")
             );
         } catch (UnsupportedCropGrowthPolicyException exception) {
-            sender.sendMessage("Wheat growth policy: unsupported");
+            sender.sendMessage(displayName(cropKind) + " growth policy: unsupported");
             sender.sendMessage("May cancel natural growth: no (vanilla fallback)");
         }
         return true;
+    }
+
+    private static String displayName(CropKind cropKind) {
+        return switch (cropKind) {
+            case WHEAT -> "Wheat";
+            case CARROTS -> "Carrot";
+        };
+    }
+
+    private static String lowerDisplayName(CropKind cropKind) {
+        return displayName(cropKind).toLowerCase();
     }
 
     private static BlockPosition positionOf(Block block) {

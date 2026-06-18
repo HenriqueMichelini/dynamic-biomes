@@ -7,9 +7,10 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.infrastructure
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.presentation.BiomeCommandExecutor;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperWheatGrowthListener;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropGrowthListener;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropMaterialMapper;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.YamlCropGrowthPolicyProvider;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation.WheatGrowthInspectDiagnostic;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation.CropGrowthInspectDiagnostic;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
@@ -115,6 +116,7 @@ public final class DynamicBiomes extends JavaPlugin {
                 dataPath.resolve("crop-growth.yml"),
                 Math::random
             );
+        PaperCropMaterialMapper cropMaterialMapper = new PaperCropMaterialMapper();
 
         Objects.requireNonNull(
             getCommand("dynamicbiomes"),
@@ -125,7 +127,8 @@ public final class DynamicBiomes extends JavaPlugin {
                 new BiomeCommandExecutor(biomeResolver),
                 new DynamicBiomesInspectCommandExecutor(
                     List.of(
-                        new WheatGrowthInspectDiagnostic(
+                        new CropGrowthInspectDiagnostic(
+                            cropMaterialMapper,
                             biomeResolver,
                             cropGrowthPolicyProvider,
                             currentSeasonQuery
@@ -171,7 +174,7 @@ public final class DynamicBiomes extends JavaPlugin {
         );
 
         getServer().getPluginManager().registerEvents(
-            new PaperWheatGrowthListener(cropGrowthService),
+            new PaperCropGrowthListener(cropMaterialMapper, cropGrowthService),
             this
         );
 
