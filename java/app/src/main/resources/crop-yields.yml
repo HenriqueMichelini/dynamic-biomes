@@ -1,38 +1,37 @@
-biomes:
-  minecraft:forest:
-    wheat:
-      multiplier:
-        min: 1.0
-        max: 1.2
-      seasonal-factors:
-        minecraft:spring: 1.10
-        minecraft:summer: 1.00
-        minecraft:autumn: 0.90
-        minecraft:winter: 0.75
-    carrots:
-      multiplier:
-        min: 1.0
-        max: 1.15
-      seasonal-factors:
-        minecraft:spring: 1.05
-        minecraft:summer: 1.00
-        minecraft:autumn: 0.90
-        minecraft:winter: 0.80
-    potatoes:
-      multiplier:
-        min: 1.0
-        max: 1.15
-      seasonal-factors:
-        minecraft:spring: 1.05
-        minecraft:summer: 1.00
-        minecraft:autumn: 0.90
-        minecraft:winter: 0.80
-    beetroot:
-      multiplier:
-        min: 1.0
-        max: 1.1
-      seasonal-factors:
-        minecraft:spring: 1.05
-        minecraft:summer: 1.00
-        minecraft:autumn: 0.90
-        minecraft:winter: 0.85
+crops:
+  wheat:
+    base-multiplier:
+      min: 0.90
+      max: 1.10
+    seasonal-factors:
+      minecraft:spring: 1.05
+      minecraft:summer: 1.00
+      minecraft:autumn: 1.00
+      minecraft:winter: 0.90
+  carrots:
+    base-multiplier:
+      min: 0.90
+      max: 1.10
+    seasonal-factors:
+      minecraft:spring: 1.00
+      minecraft:summer: 1.05
+      minecraft:autumn: 1.00
+      minecraft:winter: 0.90
+  potatoes:
+    base-multiplier:
+      min: 0.90
+      max: 1.10
+    seasonal-factors:
+      minecraft:spring: 1.00
+      minecraft:summer: 1.00
+      minecraft:autumn: 1.05
+      minecraft:winter: 0.90
+  beetroot:
+    base-multiplier:
+      min: 0.90
+      max: 1.10
+    seasonal-factors:
+      minecraft:spring: 1.00
+      minecraft:summer: 1.00
+      minecraft:autumn: 1.05
+      minecraft:winter: 0.90

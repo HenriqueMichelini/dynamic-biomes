@@ -16,6 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class YamlCropYieldPolicyProviderTest {
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
+    private static final BiomeId DESERT = new BiomeId("minecraft:desert");
     private static final SeasonId SPRING = new SeasonId("minecraft:spring");
 
     @TempDir
@@ -40,14 +41,13 @@ class YamlCropYieldPolicyProviderTest {
     @Test
     void loadsConfiguredMultiplierAndSeasonalFactor() throws Exception {
         YamlCropYieldPolicyProvider provider = providerFor("""
-            biomes:
-              minecraft:forest:
-                wheat:
-                  multiplier:
-                    min: 0.5
-                    max: 1.25
-                  seasonal-factors:
-                    minecraft:spring: 1.4
+            crops:
+              wheat:
+                base-multiplier:
+                  min: 0.5
+                  max: 1.25
+                seasonal-factors:
+                  minecraft:spring: 1.4
             """);
 
         assertEquals(
@@ -65,31 +65,33 @@ class YamlCropYieldPolicyProviderTest {
     }
 
     @Test
-    void missingBiomePolicyThrowsUnsupportedPolicy() throws Exception {
+    void returnsBaseCropPolicyRegardlessOfBiomeDuringTransitionalSlice() throws Exception {
         YamlCropYieldPolicyProvider provider = providerFor("""
-            biomes:
-              minecraft:forest:
-                wheat:
-                  multiplier:
-                    min: 1.0
-                    max: 1.0
+            crops:
+              wheat:
+                base-multiplier:
+                  min: 0.9
+                  max: 1.1
             """);
 
-        assertThrows(
-            UnsupportedCropYieldPolicyException.class,
-            () -> provider.policyFor(new BiomeId("minecraft:desert"))
+        assertEquals(
+            0.9,
+            provider.policyFor(FOREST).multiplierRangeFor(CropKind.WHEAT).minimum()
+        );
+        assertEquals(
+            0.9,
+            provider.policyFor(DESERT).multiplierRangeFor(CropKind.WHEAT).minimum()
         );
     }
 
     @Test
     void missingCropRuleThrowsUnsupportedPolicy() throws Exception {
         YamlCropYieldPolicyProvider provider = providerFor("""
-            biomes:
-              minecraft:forest:
-                wheat:
-                  multiplier:
-                    min: 1.0
-                    max: 1.0
+            crops:
+              wheat:
+                base-multiplier:
+                  min: 1.0
+                  max: 1.0
             """);
 
         assertThrows(
@@ -107,53 +109,48 @@ class YamlCropYieldPolicyProviderTest {
         assertThrows(
             IllegalArgumentException.class,
             () -> providerFor("""
-                biomes:
-                  minecraft:forest:
-                    wheat:
-                      multiplier:
-                        min: 1.0
-                        max: 1.0
-                    wheat:
-                      multiplier:
-                        min: 1.0
-                        max: 1.0
+                crops:
+                  wheat:
+                    base-multiplier:
+                      min: 1.0
+                      max: 1.0
+                  wheat:
+                    base-multiplier:
+                      min: 1.0
+                      max: 1.0
                 """)
         );
     }
 
     @Test
-    void rejectsInvalidNumbersBiomeIdsAndUnsupportedCropKeys() throws Exception {
+    void rejectsInvalidNumbersAndUnsupportedCropKeys() throws Exception {
         assertThrows(
             IllegalArgumentException.class,
             () -> providerFor("""
-                biomes:
-                  minecraft:forest:
-                    wheat:
-                      multiplier:
-                        min: -0.1
-                        max: 1.0
+                crops:
+                  wheat:
+                    base-multiplier:
+                      min: -0.1
+                      max: 1.0
                 """).policyFor(FOREST)
         );
         assertThrows(
             IllegalArgumentException.class,
             () -> providerFor("""
-                biomes:
-                  invalid biome:
-                    wheat:
-                      multiplier:
-                        min: 1.0
-                        max: 1.0
-                """)
+                crops:
+                  wheat:
+                    seasonal-factors:
+                      minecraft:spring: 1.0
+                """).policyFor(FOREST)
         );
         assertThrows(
             IllegalArgumentException.class,
             () -> providerFor("""
-                biomes:
-                  minecraft:forest:
-                    nether_wart:
-                      multiplier:
-                        min: 1.0
-                        max: 1.0
+                crops:
+                  nether_wart:
+                    base-multiplier:
+                      min: 1.0
+                      max: 1.0
                 """)
         );
     }

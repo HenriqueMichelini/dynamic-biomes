@@ -7,7 +7,6 @@ import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMul
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldSeasonalFactor;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.UnsupportedCropYieldPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.io.Reader;
@@ -23,8 +22,8 @@ import org.yaml.snakeyaml.error.YAMLException;
 public final class YamlCropYieldPolicyProvider
     implements CropYieldPolicyProvider {
 
-    private static final String BIOMES_KEY = "biomes";
-    private static final String MULTIPLIER_KEY = "multiplier";
+    private static final String CROPS_KEY = "crops";
+    private static final String BASE_MULTIPLIER_KEY = "base-multiplier";
     private static final String MIN_KEY = "min";
     private static final String MAX_KEY = "max";
     private static final String SEASONAL_FACTORS_KEY = "seasonal-factors";
@@ -40,55 +39,27 @@ public final class YamlCropYieldPolicyProvider
 
     @Override
     public CropYieldPolicy policyFor(BiomeId biomeId) {
-        Map<?, ?> biomes = requiredMap(root, BIOMES_KEY, "crop yield policy root.biomes");
-
-        for (Map.Entry<?, ?> biomeEntry : biomes.entrySet()) {
-            BiomeId configuredBiomeId = new BiomeId(
-                requiredKey(biomeEntry.getKey(), "biome policy key")
-            );
-            Map<?, ?> policy = requiredMapValue(
-                biomeEntry.getValue(),
-                "policy '" + configuredBiomeId.value() + "'"
-            );
-            rejectUnsupportedCropKeys(
-                policy,
-                "policy '" + configuredBiomeId.value() + "'"
-            );
-            if (configuredBiomeId.equals(biomeId)) {
-                return parsePolicy(configuredBiomeId, policy);
-            }
-        }
-
-        throw new UnsupportedCropYieldPolicyException(
-            "Missing crop yield policy for biome: " + biomeId.value()
+        return parsePolicy(
+            biomeId,
+            requiredMap(root, CROPS_KEY, "crop yield policy root.crops")
         );
     }
 
     private static void validateSupportedCropKeys(Map<?, ?> root) {
-        Map<?, ?> biomes = requiredMap(root, BIOMES_KEY, "crop yield policy root.biomes");
-        for (Map.Entry<?, ?> biomeEntry : biomes.entrySet()) {
-            BiomeId configuredBiomeId = new BiomeId(
-                requiredKey(biomeEntry.getKey(), "biome policy key")
-            );
-            Map<?, ?> policy = requiredMapValue(
-                biomeEntry.getValue(),
-                "policy '" + configuredBiomeId.value() + "'"
-            );
-            rejectUnsupportedCropKeys(
-                policy,
-                "policy '" + configuredBiomeId.value() + "'"
-            );
-        }
+        rejectUnsupportedCropKeys(
+            requiredMap(root, CROPS_KEY, "crop yield policy root.crops"),
+            "crop yield policy root.crops"
+        );
     }
 
     private static CropYieldPolicy parsePolicy(
         BiomeId biomeId,
-        Map<?, ?> policy
+        Map<?, ?> crops
     ) {
-        String policyPath = "policy '" + biomeId.value() + "'";
+        String policyPath = "crop yield policy root.crops";
         Map<CropKind, CropYieldCropRule> rules = new LinkedHashMap<>();
 
-        for (Map.Entry<?, ?> cropEntry : policy.entrySet()) {
+        for (Map.Entry<?, ?> cropEntry : crops.entrySet()) {
             String cropKey = requiredKey(cropEntry.getKey(), policyPath + " crop key");
             CropKind cropKind = CropKind.fromPolicyKey(cropKey)
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -121,13 +92,21 @@ public final class YamlCropYieldPolicyProvider
         CropKind cropKind
     ) {
         String cropPath = policyPath + "." + cropKind.policyKey();
-        Map<?, ?> multiplier = requiredMap(
+        Map<?, ?> baseMultiplier = requiredMap(
             cropPolicy,
-            MULTIPLIER_KEY,
-            cropPath + ".multiplier"
+            BASE_MULTIPLIER_KEY,
+            cropPath + ".base-multiplier"
         );
-        double minimum = requiredNumber(multiplier, MIN_KEY, cropPath + ".multiplier.min");
-        double maximum = requiredNumber(multiplier, MAX_KEY, cropPath + ".multiplier.max");
+        double minimum = requiredNumber(
+            baseMultiplier,
+            MIN_KEY,
+            cropPath + ".base-multiplier.min"
+        );
+        double maximum = requiredNumber(
+            baseMultiplier,
+            MAX_KEY,
+            cropPath + ".base-multiplier.max"
+        );
         return new CropYieldMultiplierRange(minimum, maximum);
     }
 
