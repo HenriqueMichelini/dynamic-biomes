@@ -314,6 +314,8 @@ io.github.henriquemichelini.dynamicbiomes/
 │       ├── domain/
 │       │   ├── UnsupportedCropYieldPolicyException.java
 │       │   ├── CropYieldCropRule.java
+│       │   ├── CropYieldEnvironmentalFactor.java
+│       │   ├── CropYieldEnvironmentalFactorCalculator.java
 │       │   ├── CropYieldMultiplierCalculator.java
 │       │   ├── CropYieldMultiplierRange.java
 │       │   ├── CropYieldMultiplierVariationSource.java
@@ -565,6 +567,9 @@ The following are intentionally not implemented or not wired at runtime:
   climate-adjustment data, initially temperature and humidity unless a better
   existing season profile model is available when that implementation card is
   selected.
+- Crop-yield-owned environmental factor composition is modeled in
+  `crops/yield/domain` for future Option B runtime use, but it is not wired into
+  `CropYieldService`, listeners, YAML, or runtime composition.
 - Current crop yield runtime behavior remains unchanged until a later migration
   card changes `crop-yields.yml` and runtime calculation. The current
   `crop-yields.yml` shape is legacy/current behavior: multiplier ranges are
