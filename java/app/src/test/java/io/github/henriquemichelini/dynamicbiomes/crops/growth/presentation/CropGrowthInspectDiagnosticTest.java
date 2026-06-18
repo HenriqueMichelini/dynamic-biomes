@@ -16,12 +16,12 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperatur
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
@@ -38,6 +38,7 @@ import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.Test;
 
 class CropGrowthInspectDiagnosticTest {
+
     private static final UUID WORLD_ID = UUID.fromString(
         "00000000-0000-0000-0000-000000000003"
     );
@@ -208,7 +209,8 @@ class CropGrowthInspectDiagnosticTest {
             position -> {
                 throw new UnsupportedBiomeException(
                     biomeId,
-                    "Missing static biome profile for resolved biome: " + biomeId.value()
+                    "Missing static biome profile for resolved biome: " +
+                        biomeId.value()
                 );
             },
             policyProvider,
@@ -283,10 +285,11 @@ class CropGrowthInspectDiagnosticTest {
 
         IllegalStateException exception = assertThrows(
             IllegalStateException.class,
-            () -> diagnostic.inspect(
-                new RecordingSender().commandSender(),
-                block(Material.WHEAT)
-            )
+            () ->
+                diagnostic.inspect(
+                    new RecordingSender().commandSender(),
+                    block(Material.WHEAT)
+                )
         );
 
         assertEquals("Season query failure", exception.getMessage());
@@ -317,17 +320,6 @@ class CropGrowthInspectDiagnosticTest {
 
     private static CropGrowthInspectDiagnostic diagnostic(
         BiomeResolver biomeResolver,
-        CropGrowthPolicyProvider policyProvider
-    ) {
-        return diagnostic(
-            biomeResolver,
-            policyProvider,
-            new RecordingCurrentSeasonQuery(WINTER)
-        );
-    }
-
-    private static CropGrowthInspectDiagnostic diagnostic(
-        BiomeResolver biomeResolver,
         CropGrowthPolicyProvider policyProvider,
         CurrentSeasonQuery currentSeasonQuery
     ) {
@@ -350,7 +342,9 @@ class CropGrowthInspectDiagnosticTest {
             new CropGrowthChance(chance),
             seasonalFactors,
             () -> {
-                throw new AssertionError("Diagnostics must not roll growth chance");
+                throw new AssertionError(
+                    "Diagnostics must not roll growth chance"
+                );
             }
         );
     }
@@ -379,14 +373,15 @@ class CropGrowthInspectDiagnosticTest {
         return (Block) Proxy.newProxyInstance(
             Block.class.getClassLoader(),
             new Class<?>[] { Block.class },
-            (proxy, method, arguments) -> switch (method.getName()) {
-                case "getType" -> material;
-                case "getWorld" -> world;
-                case "getX" -> TARGET_POSITION.x();
-                case "getY" -> TARGET_POSITION.y();
-                case "getZ" -> TARGET_POSITION.z();
-                default -> defaultValue(method.getReturnType());
-            }
+            (proxy, method, arguments) ->
+                switch (method.getName()) {
+                    case "getType" -> material;
+                    case "getWorld" -> world;
+                    case "getX" -> TARGET_POSITION.x();
+                    case "getY" -> TARGET_POSITION.y();
+                    case "getZ" -> TARGET_POSITION.z();
+                    default -> defaultValue(method.getReturnType());
+                }
         );
     }
 
@@ -404,6 +399,7 @@ class CropGrowthInspectDiagnosticTest {
     }
 
     private static final class CountingBiomeResolver implements BiomeResolver {
+
         private int resolveCount;
 
         @Override
@@ -416,6 +412,7 @@ class CropGrowthInspectDiagnosticTest {
     private static final class CountingCropGrowthPolicyProvider
         implements CropGrowthPolicyProvider
     {
+
         private int readCount;
 
         @Override
@@ -426,6 +423,7 @@ class CropGrowthInspectDiagnosticTest {
     }
 
     private static final class RecordingSender {
+
         private final List<String> messages = new ArrayList<>();
 
         CommandSender commandSender() {
@@ -456,7 +454,8 @@ class CropGrowthInspectDiagnosticTest {
     }
 
     private static final class RecordingCurrentSeasonQuery
-        implements CurrentSeasonQuery {
+        implements CurrentSeasonQuery
+    {
 
         private final SeasonId currentSeason;
         private int queryCount;

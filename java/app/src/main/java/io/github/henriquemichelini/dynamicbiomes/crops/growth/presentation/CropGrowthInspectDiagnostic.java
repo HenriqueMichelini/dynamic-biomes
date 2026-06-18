@@ -15,46 +15,55 @@ import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSea
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
-import java.util.Objects;
 import java.util.Optional;
+import lombok.NonNull;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 
 public final class CropGrowthInspectDiagnostic {
+
     private final BiomeResolver biomeResolver;
     private final CropGrowthPolicyProvider policyProvider;
     private final CurrentSeasonQuery currentSeasonQuery;
 
     public CropGrowthInspectDiagnostic(
-        BiomeResolver biomeResolver,
-        CropGrowthPolicyProvider policyProvider,
-        CurrentSeasonQuery currentSeasonQuery
+        @NonNull BiomeResolver biomeResolver,
+        @NonNull CropGrowthPolicyProvider policyProvider,
+        @NonNull CurrentSeasonQuery currentSeasonQuery
     ) {
-        this.biomeResolver = Objects.requireNonNull(biomeResolver);
-        this.policyProvider = Objects.requireNonNull(policyProvider);
-        this.currentSeasonQuery = Objects.requireNonNull(currentSeasonQuery);
+        this.biomeResolver = biomeResolver;
+        this.policyProvider = policyProvider;
+        this.currentSeasonQuery = currentSeasonQuery;
     }
 
     public boolean inspect(CommandSender sender, Block targetBlock) {
-        CropKind cropKind = PaperCropMaterialMapper.cropKindFor(targetBlock.getType())
-            .orElse(null);
+        CropKind cropKind = PaperCropMaterialMapper.cropKindFor(
+            targetBlock.getType()
+        ).orElse(null);
+
         if (cropKind == null) {
             return false;
         }
 
         BlockPosition position = positionOf(targetBlock);
         BiomeContext biomeContext;
+
         try {
             biomeContext = biomeResolver.resolve(position);
         } catch (UnsupportedBiomeException exception) {
-            String biomeId = exception.biomeId()
+            String biomeId = exception
+                .biomeId()
                 .map(BiomeId::value)
                 .orElse("unknown");
             sender.sendMessage("Current biome: " + biomeId);
             sender.sendMessage("DynamicBiomes profile: unsupported");
-            sender.sendMessage(displayName(cropKind) + " growth policy: unsupported");
-            sender.sendMessage("May cancel natural growth: no (vanilla fallback)");
+            sender.sendMessage(
+                displayName(cropKind) + " growth policy: unsupported"
+            );
+            sender.sendMessage(
+                "May cancel natural growth: no (vanilla fallback)"
+            );
             return true;
         }
 
@@ -77,17 +86,25 @@ public final class CropGrowthInspectDiagnostic {
             String lowerDisplayName = lowerDisplayName(cropKind);
             sender.sendMessage(displayName + " growth policy: supported");
             sender.sendMessage(
-                "Configured " + lowerDisplayName + " growth chance: " +
+                "Configured " +
+                    lowerDisplayName +
+                    " growth chance: " +
                     configuredChance.value()
             );
             sender.sendMessage("Current season: " + currentSeason.value());
             sender.sendMessage(
-                "Seasonal " + lowerDisplayName + " growth factor: " +
-                    seasonalFactor.map(CropGrowthSeasonalFactor::factor).orElse(1.0) +
+                "Seasonal " +
+                    lowerDisplayName +
+                    " growth factor: " +
+                    seasonalFactor
+                        .map(CropGrowthSeasonalFactor::factor)
+                        .orElse(1.0) +
                     (seasonalFactor.isPresent() ? "" : " (default)")
             );
             sender.sendMessage(
-                "Effective " + lowerDisplayName + " growth chance: " +
+                "Effective " +
+                    lowerDisplayName +
+                    " growth chance: " +
                     effectiveChance.value()
             );
             sender.sendMessage(
@@ -95,15 +112,22 @@ public final class CropGrowthInspectDiagnostic {
                     (effectiveChance.value() < 1.0 ? "yes" : "no")
             );
         } catch (UnsupportedCropGrowthPolicyException exception) {
-            sender.sendMessage(displayName(cropKind) + " growth policy: unsupported");
-            sender.sendMessage("May cancel natural growth: no (vanilla fallback)");
+            sender.sendMessage(
+                displayName(cropKind) + " growth policy: unsupported"
+            );
+            sender.sendMessage(
+                "May cancel natural growth: no (vanilla fallback)"
+            );
         }
         return true;
     }
 
     private static String displayName(CropKind cropKind) {
         String singularName = singularize(cropKind.policyKey());
-        return Character.toUpperCase(singularName.charAt(0)) + singularName.substring(1);
+        return (
+            Character.toUpperCase(singularName.charAt(0)) +
+            singularName.substring(1)
+        );
     }
 
     private static String singularize(String policyKey) {
