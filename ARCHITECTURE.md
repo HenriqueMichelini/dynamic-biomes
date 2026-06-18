@@ -282,6 +282,8 @@ io.github.henriquemichelini.dynamicbiomes/
 │       │   └── OreDropService.java
 │       ├── infrastructure/
 │       │   ├── PaperOreBreakListener.java
+│       │   ├── PaperOreDropDeltaNotifier.java
+│       │   ├── PaperVanillaDropScanner.java
 │       │   └── YamlOreDropPolicyProvider.java
 │       └── presentation/
 │           └── OreInspectCommandExecutor.java
@@ -512,7 +514,7 @@ Add `presentation/` only when needed. Do not create empty layer packages preempt
 The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/DynamicBiomes` and active at runtime:
 
 - **Ore origin tracking**: `PaperOrePlaceListener` records player-placed ore; `PaperOreBreakListener` clears origin on break; `PaperOreMovementListener` transfers tracked origin across piston movement.
-- **Ore drop behavior**: `PaperOreBreakListener` delegates to `OreDropService` for supported configured Overworld ore materials resolved through `PaperOreMaterialMapper`, which maps Bukkit `Material` values to domain `OreKind` values. The service resolves the biome, looks up the ore drop policy, applies the base multiplier, and applies an optional ore-owned seasonal multiplier factor from `ore-drops.yml` based on the cached current season. When the final quantity differs from the vanilla quantity, the listener sends the mining player a sign-colored delta action-bar message and sign-specific feedback sound.
+- **Ore drop behavior**: `PaperOreBreakListener` delegates to `OreDropService` for supported configured Overworld ore materials resolved through `PaperOreMaterialMapper`, which maps Bukkit `Material` values to domain `OreKind` values. The service resolves the biome, looks up the ore drop policy, applies the base multiplier, and applies an optional ore-owned seasonal multiplier factor from `ore-drops.yml` based on the cached current season. The listener keeps Paper-specific vanilla drop interpretation in `PaperVanillaDropScanner`; when the final quantity differs from the vanilla quantity, it delegates mining-player delta action-bar and sound feedback to `PaperOreDropDeltaNotifier`.
 - **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlCropGrowthPolicyProvider`, `YamlCropYieldPolicyProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup. `season-profiles.yml` is packaged and copied to the plugin data folder, and `YamlSeasonProfileProvider` is implemented, but season profiles are not wired into runtime behavior yet.
 - **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar`, initializes the first season if none exists, and `CachedCurrentSeasonQuery` keeps the runtime season in memory for hot-path reads.
 - **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.

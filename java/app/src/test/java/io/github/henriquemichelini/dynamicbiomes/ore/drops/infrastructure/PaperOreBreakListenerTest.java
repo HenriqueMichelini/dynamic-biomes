@@ -67,7 +67,13 @@ class PaperOreBreakListenerTest {
         RecordingOreOriginRepository repository = new RecordingOreOriginRepository();
         PaperOreBreakListener listener = listener(repository);
 
-        listener.onBlockBreak(eventFor(Material.IRON_ORE, world()));
+        listener.onBlockBreak(
+            eventFor(
+                Material.IRON_ORE,
+                world(),
+                List.of(new FakeItemStack(Material.RAW_IRON))
+            )
+        );
 
         assertEquals(POSITION, resolvedPosition);
         assertEquals(POSITION, repository.removedPosition);
@@ -403,7 +409,12 @@ class PaperOreBreakListenerTest {
             new OreDropMultiplierCalculator(() -> 0.5),
             new OreDropQuantityCalculator(() -> 0.5)
         );
-        return new PaperOreBreakListener(dropService, originTracking, notifier);
+        return new PaperOreBreakListener(
+            dropService,
+            originTracking,
+            new PaperVanillaDropScanner(),
+            new PaperOreDropDeltaNotifier(notifier)
+        );
     }
 
     private static BlockBreakEvent eventFor(Material material, World world) {
