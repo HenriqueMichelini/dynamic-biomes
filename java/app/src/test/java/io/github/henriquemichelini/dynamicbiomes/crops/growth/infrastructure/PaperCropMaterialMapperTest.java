@@ -5,35 +5,38 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
+import java.util.Map;
 import org.bukkit.Material;
 import org.junit.jupiter.api.Test;
 
 class PaperCropMaterialMapperTest {
     @Test
-    void mapsWheatMaterialToWheatCropKind() {
-        assertEquals(
+    void mapsSupportedCropMaterialsToCropKinds() {
+        Map<Material, CropKind> supportedCropKinds = Map.of(
+            Material.WHEAT,
             CropKind.WHEAT,
-            PaperCropMaterialMapper.cropKindFor(Material.WHEAT).orElseThrow()
-        );
-        assertTrue(PaperCropMaterialMapper.isSupportedCrop(Material.WHEAT));
-    }
-
-    @Test
-    void mapsCarrotMaterialToCarrotCropKind() {
-        assertEquals(
+            Material.CARROTS,
             CropKind.CARROTS,
-            PaperCropMaterialMapper.cropKindFor(Material.CARROTS).orElseThrow()
+            Material.POTATOES,
+            CropKind.POTATOES,
+            Material.BEETROOTS,
+            CropKind.BEETROOT
         );
-        assertTrue(PaperCropMaterialMapper.isSupportedCrop(Material.CARROTS));
+
+        supportedCropKinds.forEach((material, cropKind) -> {
+            assertEquals(
+                cropKind,
+                PaperCropMaterialMapper.cropKindFor(material).orElseThrow()
+            );
+            assertTrue(PaperCropMaterialMapper.isSupportedCrop(material));
+        });
     }
 
     @Test
     void rejectsUnsupportedCropMaterials() {
-        assertTrue(PaperCropMaterialMapper.cropKindFor(Material.POTATOES).isEmpty());
-        assertTrue(PaperCropMaterialMapper.cropKindFor(Material.BEETROOTS).isEmpty());
         assertTrue(PaperCropMaterialMapper.cropKindFor(Material.STONE).isEmpty());
-        assertFalse(PaperCropMaterialMapper.isSupportedCrop(Material.POTATOES));
-        assertFalse(PaperCropMaterialMapper.isSupportedCrop(Material.BEETROOTS));
+        assertTrue(PaperCropMaterialMapper.cropKindFor(Material.NETHER_WART).isEmpty());
         assertFalse(PaperCropMaterialMapper.isSupportedCrop(Material.STONE));
+        assertFalse(PaperCropMaterialMapper.isSupportedCrop(Material.NETHER_WART));
     }
 }

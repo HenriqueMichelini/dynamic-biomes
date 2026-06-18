@@ -10,7 +10,11 @@ public final class PaperCropMaterialMapper {
         Material.WHEAT,
         CropKind.WHEAT,
         Material.CARROTS,
-        CropKind.CARROTS
+        CropKind.CARROTS,
+        Material.POTATOES,
+        CropKind.POTATOES,
+        Material.BEETROOTS,
+        CropKind.BEETROOT
     );
 
     private PaperCropMaterialMapper() {}

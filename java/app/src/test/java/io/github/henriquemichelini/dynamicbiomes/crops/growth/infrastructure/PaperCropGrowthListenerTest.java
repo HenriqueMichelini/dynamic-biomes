@@ -107,11 +107,43 @@ class PaperCropGrowthListenerTest {
     }
 
     @Test
+    void delegatesPotatoGrowthWithPotatoCropKind() {
+        PaperCropGrowthListener listener = listenerWithPolicy(
+            policy(1.0, () -> {
+                throw new AssertionError("Variation is unnecessary at full chance");
+            })
+        );
+        BlockGrowEvent event = eventFor(Material.POTATOES);
+
+        listener.onBlockGrow(event);
+
+        assertFalse(event.isCancelled());
+        assertEquals(POSITION, resolvedPosition);
+        assertEquals(CropKind.POTATOES, requestedCropKind);
+    }
+
+    @Test
+    void delegatesBeetrootGrowthWithBeetrootCropKind() {
+        PaperCropGrowthListener listener = listenerWithPolicy(
+            policy(1.0, () -> {
+                throw new AssertionError("Variation is unnecessary at full chance");
+            })
+        );
+        BlockGrowEvent event = eventFor(Material.BEETROOTS);
+
+        listener.onBlockGrow(event);
+
+        assertFalse(event.isCancelled());
+        assertEquals(POSITION, resolvedPosition);
+        assertEquals(CropKind.BEETROOT, requestedCropKind);
+    }
+
+    @Test
     void ignoresUnsupportedCropGrowthWithoutCallingService() {
         PaperCropGrowthListener listener = listenerWithResolver(position -> {
             throw new AssertionError("Service must not resolve biome for unsupported crop growth");
         });
-        BlockGrowEvent event = eventFor(Material.POTATOES);
+        BlockGrowEvent event = eventFor(Material.NETHER_WART);
 
         listener.onBlockGrow(event);
 

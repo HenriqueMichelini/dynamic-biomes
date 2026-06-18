@@ -14,3 +14,17 @@ biomes:
         minecraft:summer: 1.00
         minecraft:autumn: 0.85
         minecraft:winter: 0.60
+    potatoes:
+      growth-chance: 0.60
+      seasonal-factors:
+        minecraft:spring: 1.10
+        minecraft:summer: 1.00
+        minecraft:autumn: 0.85
+        minecraft:winter: 0.60
+    beetroot:
+      growth-chance: 0.55
+      seasonal-factors:
+        minecraft:spring: 1.05
+        minecraft:summer: 1.00
+        minecraft:autumn: 0.85
+        minecraft:winter: 0.65

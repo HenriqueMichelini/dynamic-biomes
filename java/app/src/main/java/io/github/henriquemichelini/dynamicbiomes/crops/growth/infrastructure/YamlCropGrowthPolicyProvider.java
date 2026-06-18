@@ -29,6 +29,7 @@ public final class YamlCropGrowthPolicyProvider
 
     private final Path policyFile;
     private final CropGrowthChanceVariationSource variationSource;
+    private final Map<?, ?> root;
 
     public YamlCropGrowthPolicyProvider(
         Path policyFile,
@@ -36,11 +37,12 @@ public final class YamlCropGrowthPolicyProvider
     ) {
         this.policyFile = policyFile;
         this.variationSource = variationSource;
+        this.root = loadRoot();
+        validateSupportedCropKeys(root);
     }
 
     @Override
     public CropGrowthPolicy policyFor(BiomeId biomeId, CropKind cropKind) {
-        Map<?, ?> root = loadRoot();
         Map<?, ?> biomes = requiredMap(root, BIOMES_KEY, "crop growth policy root.biomes");
 
         for (Map.Entry<?, ?> biomeEntry : biomes.entrySet()) {
@@ -66,6 +68,23 @@ public final class YamlCropGrowthPolicyProvider
                 " growth policy for biome: " +
                 biomeId.value()
         );
+    }
+
+    private static void validateSupportedCropKeys(Map<?, ?> root) {
+        Map<?, ?> biomes = requiredMap(root, BIOMES_KEY, "crop growth policy root.biomes");
+        for (Map.Entry<?, ?> biomeEntry : biomes.entrySet()) {
+            BiomeId configuredBiomeId = new BiomeId(
+                requiredKey(biomeEntry.getKey(), "biome policy key")
+            );
+            Map<?, ?> policy = requiredMapValue(
+                biomeEntry.getValue(),
+                "policy '" + configuredBiomeId.value() + "'"
+            );
+            rejectUnsupportedCropKeys(
+                policy,
+                "policy '" + configuredBiomeId.value() + "'"
+            );
+        }
     }
 
     private CropGrowthPolicy parsePolicy(
@@ -151,12 +170,8 @@ public final class YamlCropGrowthPolicyProvider
     }
 
     private static boolean isSupportedCropKey(Object key) {
-        for (CropKind cropKind : CropKind.values()) {
-            if (cropKind.policyKey().equals(key)) {
-                return true;
-            }
-        }
-        return false;
+        return key instanceof String stringKey &&
+            CropKind.fromPolicyKey(stringKey).isPresent();
     }
 
     private Map<?, ?> loadRoot() {

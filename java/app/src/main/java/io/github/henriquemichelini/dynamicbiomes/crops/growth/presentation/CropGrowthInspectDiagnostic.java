@@ -102,10 +102,18 @@ public final class CropGrowthInspectDiagnostic {
     }
 
     private static String displayName(CropKind cropKind) {
-        return switch (cropKind) {
-            case WHEAT -> "Wheat";
-            case CARROTS -> "Carrot";
-        };
+        String singularName = singularize(cropKind.policyKey());
+        return Character.toUpperCase(singularName.charAt(0)) + singularName.substring(1);
+    }
+
+    private static String singularize(String policyKey) {
+        if (policyKey.endsWith("oes")) {
+            return policyKey.substring(0, policyKey.length() - 2);
+        }
+        if (policyKey.endsWith("s")) {
+            return policyKey.substring(0, policyKey.length() - 1);
+        }
+        return policyKey;
     }
 
     private static String lowerDisplayName(CropKind cropKind) {
