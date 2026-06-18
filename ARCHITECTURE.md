@@ -603,6 +603,44 @@ The following are intentionally not implemented or not wired at runtime:
 - Crop-yield-owned environmental factor composition is modeled in
   `crops/yield/domain` for future Option B runtime use, but it is not wired into
   `CropYieldService`, listeners, YAML, or runtime composition.
+- Future Option B `crop-yields.yml` should migrate from the current
+  biome-scoped multiplier ranges to crop-specific base multiplier ranges. The
+  target shape is:
+
+  ```yaml
+  crops:
+    wheat:
+      base-multiplier:
+        min: 0.90
+        max: 1.10
+      seasonal-factors:
+        minecraft:spring: 1.05
+        minecraft:summer: 1.00
+        minecraft:autumn: 1.00
+        minecraft:winter: 0.90
+
+    carrots:
+      base-multiplier:
+        min: 0.90
+        max: 1.10
+      seasonal-factors:
+        minecraft:spring: 1.00
+        minecraft:summer: 1.05
+        minecraft:autumn: 1.00
+        minecraft:winter: 0.90
+  ```
+
+  The exact numeric values above are illustrative; the semantic requirement is
+  that the multiplier range becomes a crop-specific base range, not a
+  biome-specific range. Biome influence must come from `biomeYieldFactor`
+  derived from `BiomeProfile` fertility, climate influence must come from
+  `climateYieldFactor` derived from `SeasonProfile` climate adjustment, and
+  crop-specific seasonal tuning remains in `crop-yields.yml` as
+  `cropSeasonalFactor`. YAML/resource migration, provider parsing for the new
+  shape, and runtime use of these factors are deferred implementation work.
+  The project does not need to support both the legacy and Option B YAML shapes
+  long-term unless a later card explicitly chooses backward compatibility and
+  defines migration behavior.
 - First-version Option B factor derivation should stay conservative and
   crop-yield-owned:
   - `biomeYieldFactor` is the `crops/yield` interpretation of published
