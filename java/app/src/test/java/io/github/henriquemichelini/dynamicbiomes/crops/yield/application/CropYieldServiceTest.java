@@ -23,6 +23,9 @@ import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldQua
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldSeasonalFactor;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.UnsupportedCropYieldPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonalAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.util.Map;
@@ -38,6 +41,7 @@ class CropYieldServiceTest {
     );
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
     private static final SeasonId SPRING = new SeasonId("minecraft:spring");
+    private static final SeasonId WINTER = new SeasonId("minecraft:winter");
     private static final BiomeContext FOREST_CONTEXT = new BiomeContext(
         FOREST,
         new BiomeProfile(
@@ -67,6 +71,62 @@ class CropYieldServiceTest {
         );
 
         assertEquals(6, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 2));
+    }
+
+    @Test
+    void ignoresSeasonProfileClimateAdjustments() {
+        SeasonProfile freezingWinter = seasonProfile(WINTER, -1.0, -1.0);
+        SeasonProfile hotWetWinter = seasonProfile(WINTER, 1.0, 1.0);
+        CropYieldService service = serviceWith(
+            position -> FOREST_CONTEXT,
+            new CropYieldPolicy(
+                FOREST,
+                Map.of(
+                    CropKind.WHEAT,
+                    new CropYieldCropRule(
+                        new CropYieldMultiplierRange(2.0, 2.0),
+                        Map.of(WINTER, new CropYieldSeasonalFactor(1.5))
+                    )
+                )
+            ),
+            () -> WINTER
+        );
+
+        assertEquals(6, calculateWithIgnoredSeasonProfile(service, freezingWinter));
+        assertEquals(6, calculateWithIgnoredSeasonProfile(service, hotWetWinter));
+    }
+
+    @Test
+    void ignoresBiomeProfileClimateAndEnvironmentValuesAfterResolvingBiomeId() {
+        CropYieldPolicy policy = new CropYieldPolicy(
+            FOREST,
+            Map.of(
+                CropKind.WHEAT,
+                new CropYieldCropRule(
+                    new CropYieldMultiplierRange(2.0, 2.0),
+                    Map.of(SPRING, new CropYieldSeasonalFactor(1.5))
+                )
+            )
+        );
+        CropYieldService barrenColdForestService = serviceWith(
+            position -> biomeContext(FOREST, 0.0, 0.0, 0.0, 0.0, 1.0),
+            policy,
+            () -> SPRING
+        );
+        CropYieldService fertileHotForestService = serviceWith(
+            position -> biomeContext(FOREST, 1.0, 1.0, 1.0, 1.0, 0.0),
+            policy,
+            () -> SPRING
+        );
+
+        assertEquals(
+            barrenColdForestService.calculateProduceQuantity(POSITION, CropKind.WHEAT, 2),
+            fertileHotForestService.calculateProduceQuantity(POSITION, CropKind.WHEAT, 2)
+        );
+        assertEquals(
+            6,
+            fertileHotForestService.calculateProduceQuantity(POSITION, CropKind.WHEAT, 2)
+        );
     }
 
     @Test
@@ -138,6 +198,48 @@ class CropYieldServiceTest {
             currentSeasonQuery,
             new CropYieldMultiplierCalculator(() -> 0.0),
             new CropYieldQuantityCalculator(() -> 0.0)
+        );
+    }
+
+    private static int calculateWithIgnoredSeasonProfile(
+        CropYieldService service,
+        SeasonProfile ignoredSeasonProfile
+    ) {
+        assertEquals(WINTER, ignoredSeasonProfile.seasonId());
+        return service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 2);
+    }
+
+    private static SeasonProfile seasonProfile(
+        SeasonId seasonId,
+        double temperatureAdjustment,
+        double humidityAdjustment
+    ) {
+        return new SeasonProfile(
+            seasonId,
+            new SeasonClimateAdjustment(
+                new SeasonalAdjustment(temperatureAdjustment),
+                new SeasonalAdjustment(humidityAdjustment)
+            )
+        );
+    }
+
+    private static BiomeContext biomeContext(
+        BiomeId biomeId,
+        double humidity,
+        double temperature,
+        double fertility,
+        double mineralRichness,
+        double ecologicalPressure
+    ) {
+        return new BiomeContext(
+            biomeId,
+            new BiomeProfile(
+                biomeId,
+                new ClimateProfile(new Humidity(humidity), new Temperature(temperature)),
+                new Fertility(fertility),
+                new MineralRichness(mineralRichness),
+                new EcologicalPressure(ecologicalPressure)
+            )
         );
     }
 }
