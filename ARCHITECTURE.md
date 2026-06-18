@@ -533,8 +533,8 @@ The following capabilities support runtime behavior while keeping ownership boun
 - **Paper crop growth listener**: `crops/growth/infrastructure` maps Bukkit crop materials through `PaperCropMaterialMapper`, translates supported `BlockGrowEvent` crop growth attempts into `BlockPosition`, delegates to `CropGrowthService`, and cancels only when the service returns a cancel decision.
 - **YAML-backed crop growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `CropGrowthPolicyProvider` port for configured biome-specific wheat, carrot, potato, and beetroot growth chances and optional crop-owned seasonal factors while preserving the existing per-crop YAML shape. It rejects unsupported crop keys and does not listen for Bukkit crop events, query current season state, or mutate world state.
 - **Crop yield policy**: `crops/yield/domain` models configured mature crop produce multipliers, optional yield-owned seasonal factors keyed by published `SeasonId`, deterministic-testable multiplier and quantity variation sources, and probabilistic rounding of the final produce quantity. It supports zero final produce quantity when configured multipliers allow it and does not model Bukkit item stacks, seeds, replanting, or block events.
-- **Crop yield environmental factors**: `crops/yield/domain` models pure Option B environmental factor derivation and effective multiplier composition for future crop yield runtime use. `CropYieldBiomeFactorCalculator` derives a crop-yield-owned biome factor from published `Fertility`, `CropYieldClimateFactorCalculator` derives a climate factor from published season temperature and humidity adjustments, `CropYieldEnvironmentalFactorCalculator` combines already-derived biome and climate factors, and `CropYieldEffectiveMultiplierCalculator` composes an already-selected base crop multiplier with crop seasonal and environmental factors. These calculators are not wired into crop harvest runtime behavior yet.
-- **Biome-aware crop yield service**: `crops/yield/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads configured crop yield policy through `CropYieldPolicyProvider`, reads current season through the published `CurrentSeasonQuery`, and delegates multiplier and quantity calculation to the domain. It preserves vanilla produce quantity only for explicit unsupported biome or unsupported crop yield policy cases.
+- **Crop yield environmental factors**: `crops/yield/domain` models pure Option B environmental factor derivation and effective multiplier composition for crop yield use. `CropYieldBiomeFactorCalculator` derives a crop-yield-owned biome factor from published `Fertility`, `CropYieldClimateFactorCalculator` derives a climate factor from published season temperature and humidity adjustments, `CropYieldEnvironmentalFactorCalculator` combines already-derived biome and climate factors, and `CropYieldEffectiveMultiplierCalculator` composes an already-selected base crop multiplier with crop seasonal and environmental factors.
+- **Biome-aware crop yield service**: `crops/yield/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads configured crop yield policy through `CropYieldPolicyProvider`, reads current season through the published `CurrentSeasonQuery`, and delegates multiplier and quantity calculation to the domain. Its full Option B constructor also consumes the published `SeasonProfileProvider`, derives biome and climate environmental factors, composes the effective multiplier, and delegates final quantity rounding to `CropYieldQuantityCalculator`. The existing constructor remains a non-environmental compatibility path for current pluginruntime composition until a later wiring card updates `DynamicBiomes`. The service preserves vanilla produce quantity only for explicit unsupported biome or unsupported crop yield policy cases.
 - **YAML-backed crop yield policy provider**: `crops/yield/infrastructure` loads `crop-yields.yml` into the typed `CropYieldPolicyProvider` port for configured crop-specific base multiplier ranges for wheat, carrots, potatoes, and beetroot plus optional yield-owned seasonal factors. During the transitional slice before environmental runtime wiring, `CropYieldPolicyProvider.policyFor(BiomeId)` keeps its existing signature but `YamlCropYieldPolicyProvider` returns the same crop base policy regardless of the supplied biome id. It rejects unsupported crop keys and keeps yield factors independent from crop growth factors.
 - **Crop growth inspect diagnostic**: `crops/growth/presentation` maps the targeted block through `PaperCropMaterialMapper` and translates supported crop targets into read-only diagnostics by resolving biome support, querying `CropGrowthPolicyProvider` for the configured chance, and reading `CurrentSeasonQuery` to report the current season, seasonal factor/default, effective chance, and vanilla fallback status without rolling a growth decision.
 - **Tree growth policy**: `trees/growth/domain` models an already-selected configured natural tree growth allow chance, optional tree-owned seasonal factors keyed by published `SeasonId`, a deterministic-testable unit variation source, and an allow/cancel decision. It does not resolve biomes or current season state, read configuration, listen for Bukkit events, or mutate world state.
@@ -601,8 +601,10 @@ The following are intentionally not implemented or not wired at runtime:
     Because `SeasonalAdjustment` is normalized in `[-1.0, 1.0]`, the resulting
     `climateYieldFactor` range is `[0.85, 1.15]`.
 - Crop-yield-owned environmental factor composition is modeled in
-  `crops/yield/domain` for future Option B runtime use, but it is not wired into
-  `CropYieldService`, listeners, or runtime composition.
+  `crops/yield/domain`, and `CropYieldService` has an Option B application path
+  that derives biome and climate factors from published upstream domain
+  contracts. Plugin runtime composition still uses the service compatibility
+  constructor and is not wired to `SeasonProfileProvider` yet.
 - Option B `crop-yields.yml` has migrated from legacy biome-scoped multiplier
   ranges to crop-specific base multiplier ranges. The active shape is:
 
@@ -666,8 +668,9 @@ The following are intentionally not implemented or not wired at runtime:
   `SeasonalAdjustment` values as direct multipliers. Do not push crop-yield
   factor vocabulary into `biome/profile` or `seasons/profile`; `crops/yield`
   owns the interpretation from environmental values to crop yield behavior.
-- Current crop yield runtime behavior remains non-environmental until a later
-  card changes runtime calculation. The current formula is:
+- Current pluginruntime crop yield composition remains non-environmental until
+  a later card wires the full Option B service constructor in `DynamicBiomes`.
+  The current composition formula is:
 
   ```text
   adjustedQuantity =
