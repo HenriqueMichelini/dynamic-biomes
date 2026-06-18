@@ -567,6 +567,33 @@ The following are intentionally not implemented or not wired at runtime:
   climate-adjustment data, initially temperature and humidity unless a better
   existing season profile model is available when that implementation card is
   selected.
+- First-version Option B factor conversion formulas are:
+  - `biomeYieldFactor` derives from published `Fertility.normalized`, where
+    fertility `0.5` is neutral. Fertility `1.0` means highly fertile, not
+    neutral. The formula is:
+
+    ```text
+    biomeYieldFactor =
+      1.0 + ((fertility - 0.5) * 0.40)
+    ```
+
+    Because `Fertility` is normalized in `[0.0, 1.0]`, the resulting
+    `biomeYieldFactor` range is `[0.80, 1.20]`.
+  - `climateYieldFactor` derives from published seasonal temperature and
+    humidity adjustments only, where `SeasonalAdjustment.normalized` `0.0` is
+    neutral. Seasonal adjustment values are delta-like values, not direct
+    multipliers. The formula is:
+
+    ```text
+    averageAdjustment =
+      (temperatureAdjustment + humidityAdjustment) / 2.0
+
+    climateYieldFactor =
+      1.0 + (averageAdjustment * 0.15)
+    ```
+
+    Because `SeasonalAdjustment` is normalized in `[-1.0, 1.0]`, the resulting
+    `climateYieldFactor` range is `[0.85, 1.15]`.
 - Crop-yield-owned environmental factor composition is modeled in
   `crops/yield/domain` for future Option B runtime use, but it is not wired into
   `CropYieldService`, listeners, YAML, or runtime composition.
@@ -596,6 +623,12 @@ The following are intentionally not implemented or not wired at runtime:
   penalties for a crop, the first `climateYieldFactor` should be mild. Existing
   biome-scoped `crop-yields.yml` ranges must not be multiplied by
   `biomeYieldFactor` until those ranges are migrated to base crop ranges.
+  Do not multiply `biomeYieldFactor` or `climateYieldFactor` into current
+  runtime crop yield while `crop-yields.yml` still uses biome-scoped multiplier
+  ranges. Do not treat fertility `1.0` as neutral. Do not treat
+  `SeasonalAdjustment` values as direct multipliers. Do not push crop-yield
+  factor vocabulary into `biome/profile` or `seasons/profile`; `crops/yield`
+  owns the interpretation from environmental values to crop yield behavior.
 - Current crop yield runtime behavior remains unchanged until a later migration
   card changes `crop-yields.yml` and runtime calculation. The current
   `crop-yields.yml` shape is legacy/current behavior: multiplier ranges are
