@@ -1,15 +1,25 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
+import java.util.Map;
 import java.util.Optional;
 import org.bukkit.Material;
 
 public final class PaperCropMaterialMapper {
-    public Optional<CropKind> cropKindFor(Material material) {
-        return switch (material) {
-            case WHEAT -> Optional.of(CropKind.WHEAT);
-            case CARROTS -> Optional.of(CropKind.CARROTS);
-            default -> Optional.empty();
-        };
+    private static final Map<Material, CropKind> CROP_KINDS = Map.of(
+        Material.WHEAT,
+        CropKind.WHEAT,
+        Material.CARROTS,
+        CropKind.CARROTS
+    );
+
+    private PaperCropMaterialMapper() {}
+
+    public static Optional<CropKind> cropKindFor(Material material) {
+        return Optional.ofNullable(CROP_KINDS.get(material));
+    }
+
+    public static boolean isSupportedCrop(Material material) {
+        return CROP_KINDS.containsKey(material);
     }
 }

@@ -13,14 +13,9 @@ import org.bukkit.event.block.BlockGrowEvent;
 
 public final class PaperCropGrowthListener implements Listener {
 
-    private final PaperCropMaterialMapper cropMaterialMapper;
     private final CropGrowthService cropGrowthService;
 
-    public PaperCropGrowthListener(
-        @NonNull PaperCropMaterialMapper cropMaterialMapper,
-        @NonNull CropGrowthService cropGrowthService
-    ) {
-        this.cropMaterialMapper = cropMaterialMapper;
+    public PaperCropGrowthListener(@NonNull CropGrowthService cropGrowthService) {
         this.cropGrowthService = cropGrowthService;
     }
 
@@ -31,7 +26,7 @@ public final class PaperCropGrowthListener implements Listener {
         }
 
         Block block = event.getBlock();
-        CropKind cropKind = cropMaterialMapper
+        CropKind cropKind = PaperCropMaterialMapper
             .cropKindFor(block.getType())
             .orElse(null);
         if (cropKind == null) {

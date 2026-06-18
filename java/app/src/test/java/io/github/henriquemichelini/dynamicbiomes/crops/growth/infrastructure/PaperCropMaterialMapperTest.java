@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
@@ -12,24 +13,27 @@ class PaperCropMaterialMapperTest {
     void mapsWheatMaterialToWheatCropKind() {
         assertEquals(
             CropKind.WHEAT,
-            new PaperCropMaterialMapper().cropKindFor(Material.WHEAT).orElseThrow()
+            PaperCropMaterialMapper.cropKindFor(Material.WHEAT).orElseThrow()
         );
+        assertTrue(PaperCropMaterialMapper.isSupportedCrop(Material.WHEAT));
     }
 
     @Test
     void mapsCarrotMaterialToCarrotCropKind() {
         assertEquals(
             CropKind.CARROTS,
-            new PaperCropMaterialMapper().cropKindFor(Material.CARROTS).orElseThrow()
+            PaperCropMaterialMapper.cropKindFor(Material.CARROTS).orElseThrow()
         );
+        assertTrue(PaperCropMaterialMapper.isSupportedCrop(Material.CARROTS));
     }
 
     @Test
     void rejectsUnsupportedCropMaterials() {
-        PaperCropMaterialMapper mapper = new PaperCropMaterialMapper();
-
-        assertTrue(mapper.cropKindFor(Material.POTATOES).isEmpty());
-        assertTrue(mapper.cropKindFor(Material.BEETROOTS).isEmpty());
-        assertTrue(mapper.cropKindFor(Material.STONE).isEmpty());
+        assertTrue(PaperCropMaterialMapper.cropKindFor(Material.POTATOES).isEmpty());
+        assertTrue(PaperCropMaterialMapper.cropKindFor(Material.BEETROOTS).isEmpty());
+        assertTrue(PaperCropMaterialMapper.cropKindFor(Material.STONE).isEmpty());
+        assertFalse(PaperCropMaterialMapper.isSupportedCrop(Material.POTATOES));
+        assertFalse(PaperCropMaterialMapper.isSupportedCrop(Material.BEETROOTS));
+        assertFalse(PaperCropMaterialMapper.isSupportedCrop(Material.STONE));
     }
 }

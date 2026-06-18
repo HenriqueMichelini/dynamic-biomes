@@ -22,25 +22,22 @@ import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 
 public final class CropGrowthInspectDiagnostic {
-    private final PaperCropMaterialMapper cropMaterialMapper;
     private final BiomeResolver biomeResolver;
     private final CropGrowthPolicyProvider policyProvider;
     private final CurrentSeasonQuery currentSeasonQuery;
 
     public CropGrowthInspectDiagnostic(
-        PaperCropMaterialMapper cropMaterialMapper,
         BiomeResolver biomeResolver,
         CropGrowthPolicyProvider policyProvider,
         CurrentSeasonQuery currentSeasonQuery
     ) {
-        this.cropMaterialMapper = Objects.requireNonNull(cropMaterialMapper);
         this.biomeResolver = Objects.requireNonNull(biomeResolver);
         this.policyProvider = Objects.requireNonNull(policyProvider);
         this.currentSeasonQuery = Objects.requireNonNull(currentSeasonQuery);
     }
 
     public boolean inspect(CommandSender sender, Block targetBlock) {
-        CropKind cropKind = cropMaterialMapper.cropKindFor(targetBlock.getType())
+        CropKind cropKind = PaperCropMaterialMapper.cropKindFor(targetBlock.getType())
             .orElse(null);
         if (cropKind == null) {
             return false;

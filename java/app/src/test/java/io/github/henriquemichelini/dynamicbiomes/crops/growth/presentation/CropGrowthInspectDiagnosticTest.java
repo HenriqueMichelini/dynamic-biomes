@@ -22,7 +22,6 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthC
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropMaterialMapper;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
@@ -294,7 +293,7 @@ class CropGrowthInspectDiagnosticTest {
     }
 
     @Test
-    void ignoresNonWheatTargetsWithoutResolvingBiome() {
+    void ignoresUnsupportedCropTargetsWithoutResolvingBiome() {
         RecordingSender sender = new RecordingSender();
         CountingBiomeResolver biomeResolver = new CountingBiomeResolver();
         CountingCropGrowthPolicyProvider policyProvider =
@@ -333,7 +332,6 @@ class CropGrowthInspectDiagnosticTest {
         CurrentSeasonQuery currentSeasonQuery
     ) {
         return new CropGrowthInspectDiagnostic(
-            new PaperCropMaterialMapper(),
             biomeResolver,
             policyProvider,
             currentSeasonQuery

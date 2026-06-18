@@ -173,7 +173,6 @@ class PaperCropGrowthListenerTest {
         CropGrowthPolicyProvider policyProvider
     ) {
         return new PaperCropGrowthListener(
-            new PaperCropMaterialMapper(),
             new CropGrowthService(biomeResolver, policyProvider, () -> SPRING)
         );
     }

@@ -8,7 +8,6 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.presentation.B
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropGrowthListener;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropMaterialMapper;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.YamlCropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation.CropGrowthInspectDiagnostic;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
@@ -116,7 +115,6 @@ public final class DynamicBiomes extends JavaPlugin {
                 dataPath.resolve("crop-growth.yml"),
                 Math::random
             );
-        PaperCropMaterialMapper cropMaterialMapper = new PaperCropMaterialMapper();
 
         Objects.requireNonNull(
             getCommand("dynamicbiomes"),
@@ -128,7 +126,6 @@ public final class DynamicBiomes extends JavaPlugin {
                 new DynamicBiomesInspectCommandExecutor(
                     List.of(
                         new CropGrowthInspectDiagnostic(
-                            cropMaterialMapper,
                             biomeResolver,
                             cropGrowthPolicyProvider,
                             currentSeasonQuery
@@ -174,7 +171,7 @@ public final class DynamicBiomes extends JavaPlugin {
         );
 
         getServer().getPluginManager().registerEvents(
-            new PaperCropGrowthListener(cropMaterialMapper, cropGrowthService),
+            new PaperCropGrowthListener(cropGrowthService),
             this
         );
 
