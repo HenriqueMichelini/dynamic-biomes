@@ -544,6 +544,40 @@ The following capabilities support runtime behavior while keeping ownership boun
 
 The following are intentionally not implemented or not wired at runtime:
 
+- Crop yield Option B semantics are selected for future implementation but are
+  not active at runtime yet. Future crop yield should calculate:
+
+  ```text
+  effectiveMultiplier =
+    selectedBaseCropMultiplier
+    * biomeYieldFactor
+    * cropSeasonalFactor
+    * climateYieldFactor
+  ```
+
+  `selectedBaseCropMultiplier` is a crop-specific configured base range owned
+  by `crops/yield` and should no longer be tuned per biome after the YAML
+  migration. `biomeYieldFactor` is the explicit environmental contribution
+  derived from published `biome/profile` data or crop-yield-owned biome factor
+  configuration. `cropSeasonalFactor` remains crop-specific yield policy owned
+  by `crops/yield`, currently represented by `crop-yields.yml` seasonal
+  factors. `climateYieldFactor` is derived from published `seasons/profile`
+  climate-adjustment data, initially temperature and humidity unless a better
+  existing season profile model is available when that implementation card is
+  selected.
+- Current crop yield runtime behavior remains unchanged until a later migration
+  card changes `crop-yields.yml` and runtime calculation. The current
+  `crop-yields.yml` shape is legacy/current behavior: multiplier ranges are
+  biome-scoped and may already include biome tuning. Those legacy biome-scoped
+  ranges must not be multiplied by a new `biomeYieldFactor`, because doing so
+  would double-count biome influence.
+- Crop-yield ownership stays split by context during the future migration:
+  crop-specific yield policy belongs to `crops/yield`, biome profile data
+  belongs to `biome/profile`, and season profile data belongs to
+  `seasons/profile`. `biome` and `seasons` must remain environmental contexts
+  and must not gain crop-specific rule vocabulary. Downstream crop yield code
+  may consume published biome and season domain contracts, but not upstream
+  infrastructure.
 - Runtime tree growth behavior and broader season effects on animals beyond the currently modeled feature policies. Season profile data is modeled and has a YAML provider, but that provider is not wired into runtime behavior yet.
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
