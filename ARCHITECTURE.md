@@ -570,6 +570,32 @@ The following are intentionally not implemented or not wired at runtime:
 - Crop-yield-owned environmental factor composition is modeled in
   `crops/yield/domain` for future Option B runtime use, but it is not wired into
   `CropYieldService`, listeners, YAML, or runtime composition.
+- First-version Option B factor derivation should stay conservative and
+  crop-yield-owned:
+  - `biomeYieldFactor` is the `crops/yield` interpretation of published
+    `biome/profile` data. It should derive primarily from `Fertility`, because
+    fertility maps most directly to crop yield. `Humidity` and `Temperature`
+    may influence yield later, but they overlap with `climateYieldFactor` and
+    must be introduced carefully. `EcologicalPressure` should remain out of
+    crop yield unless a later balancing card gives an explicit reason to use it.
+  - `climateYieldFactor` is the `crops/yield` interpretation of published
+    `seasons/profile` climate-adjustment data. Its first version should derive
+    from seasonal temperature and humidity adjustments only. Season profiles
+    remain environmental and must not define crop-specific effects.
+  - `cropSeasonalFactor` remains separate from `climateYieldFactor`.
+    `cropSeasonalFactor` is crop-specific tuning from `crop-yields.yml` for a
+    named season, while `climateYieldFactor` is the environmental climate
+    contribution interpreted by crop yield.
+  These derivations must not add crop-yield vocabulary to `biome/profile` or
+  `seasons/profile`; downstream crop yield may consume published upstream
+  domain contracts, but not upstream infrastructure.
+- Avoid double-counting the same environmental dimension when Option B is
+  implemented. If `biomeYieldFactor` uses humidity strongly, then
+  `climateYieldFactor` should not also apply a large humidity penalty without
+  explicit balancing. If `cropSeasonalFactor` already encodes harsh winter
+  penalties for a crop, the first `climateYieldFactor` should be mild. Existing
+  biome-scoped `crop-yields.yml` ranges must not be multiplied by
+  `biomeYieldFactor` until those ranges are migrated to base crop ranges.
 - Current crop yield runtime behavior remains unchanged until a later migration
   card changes `crop-yields.yml` and runtime calculation. The current
   `crop-yields.yml` shape is legacy/current behavior: multiplier ranges are
