@@ -11,6 +11,10 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.Pap
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.YamlCropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation.CropGrowthInspectDiagnostic;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.application.CropYieldService;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldBiomeFactorCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldClimateFactorCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEffectiveMultiplierCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEnvironmentalFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldQuantityCalculator;
@@ -37,6 +41,8 @@ import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure.Ya
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure.YamlSeasonStateRepository;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.presentation.SeasonCommandExecutor;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfileProvider;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.infrastructure.YamlSeasonProfileProvider;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -128,6 +134,10 @@ public final class DynamicBiomes extends JavaPlugin {
                 dataPath.resolve("crop-yields.yml")
             );
 
+        SeasonProfileProvider seasonProfileProvider = new YamlSeasonProfileProvider(
+            dataPath.resolve("season-profiles.yml")
+        );
+
         Objects.requireNonNull(
             getCommand("dynamicbiomes"),
             "Missing dynamicbiomes command metadata"
@@ -171,8 +181,13 @@ public final class DynamicBiomes extends JavaPlugin {
             biomeResolver,
             cropYieldPolicyProvider,
             currentSeasonQuery,
+            seasonProfileProvider,
             new CropYieldMultiplierCalculator(Math::random),
-            new CropYieldQuantityCalculator(Math::random)
+            new CropYieldQuantityCalculator(Math::random),
+            new CropYieldBiomeFactorCalculator(),
+            new CropYieldClimateFactorCalculator(),
+            new CropYieldEnvironmentalFactorCalculator(),
+            new CropYieldEffectiveMultiplierCalculator()
         );
 
         getServer().getPluginManager().registerEvents(
