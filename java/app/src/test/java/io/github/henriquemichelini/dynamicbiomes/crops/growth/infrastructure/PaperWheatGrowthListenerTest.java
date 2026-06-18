@@ -16,6 +16,7 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperatur
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
@@ -55,6 +56,7 @@ class PaperWheatGrowthListenerTest {
         )
     );
     private BlockPosition resolvedPosition;
+    private CropKind requestedCropKind;
 
     @Test
     void leavesWheatGrowthUncancelledWhenServiceAllowsGrowth() {
@@ -69,6 +71,7 @@ class PaperWheatGrowthListenerTest {
 
         assertFalse(event.isCancelled());
         assertEquals(POSITION, resolvedPosition);
+        assertEquals(CropKind.WHEAT, requestedCropKind);
     }
 
     @Test
@@ -84,6 +87,7 @@ class PaperWheatGrowthListenerTest {
 
         assertTrue(event.isCancelled());
         assertEquals(POSITION, resolvedPosition);
+        assertEquals(CropKind.WHEAT, requestedCropKind);
     }
 
     @Test
@@ -132,14 +136,17 @@ class PaperWheatGrowthListenerTest {
                 resolvedPosition = position;
                 return FOREST_CONTEXT;
             },
-            biomeId -> policy
+            (biomeId, cropKind) -> {
+                requestedCropKind = cropKind;
+                return policy;
+            }
         );
     }
 
     private PaperWheatGrowthListener listenerWithResolver(BiomeResolver biomeResolver) {
         return listenerWithResolver(
             biomeResolver,
-            biomeId -> {
+            (biomeId, cropKind) -> {
                 throw new AssertionError("Policy lookup should not be reached");
             }
         );

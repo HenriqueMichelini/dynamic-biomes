@@ -3,6 +3,7 @@ package io.github.henriquemichelini.dynamicbiomes.crops.growth.application;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
@@ -25,11 +26,15 @@ public final class CropGrowthService {
         this.currentSeasonQuery = currentSeasonQuery;
     }
 
-    public CropGrowthDecision decideNaturalWheatGrowth(BlockPosition position) {
+    public CropGrowthDecision decideNaturalGrowth(
+        BlockPosition position,
+        CropKind cropKind
+    ) {
         try {
             BiomeContext biomeContext = biomeResolver.resolve(position);
             CropGrowthPolicy policy = policyProvider.policyFor(
-                biomeContext.biomeId()
+                biomeContext.biomeId(),
+                cropKind
             );
             return policy.decide(currentSeasonQuery.currentSeason());
         } catch (

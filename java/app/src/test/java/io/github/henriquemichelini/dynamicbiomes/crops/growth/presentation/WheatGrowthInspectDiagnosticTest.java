@@ -17,6 +17,7 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeCo
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
@@ -56,10 +57,13 @@ class WheatGrowthInspectDiagnosticTest {
         RecordingSender sender = new RecordingSender();
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
-            biomeId -> policyFor(
-                0.5,
-                Map.of(WINTER, new CropGrowthSeasonalFactor(0.5))
-            ),
+            (biomeId, cropKind) -> {
+                assertEquals(CropKind.WHEAT, cropKind);
+                return policyFor(
+                    0.5,
+                    Map.of(WINTER, new CropGrowthSeasonalFactor(0.5))
+                );
+            },
             new RecordingCurrentSeasonQuery(WINTER)
         );
 
@@ -89,10 +93,13 @@ class WheatGrowthInspectDiagnosticTest {
         RecordingSender sender = new RecordingSender();
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
-            biomeId -> policyFor(
-                0.75,
-                Map.of(SPRING, new CropGrowthSeasonalFactor(2.0))
-            ),
+            (biomeId, cropKind) -> {
+                assertEquals(CropKind.WHEAT, cropKind);
+                return policyFor(
+                    0.75,
+                    Map.of(SPRING, new CropGrowthSeasonalFactor(2.0))
+                );
+            },
             new RecordingCurrentSeasonQuery(SPRING)
         );
 
@@ -122,10 +129,13 @@ class WheatGrowthInspectDiagnosticTest {
         RecordingSender sender = new RecordingSender();
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
-            biomeId -> policyFor(
-                0.75,
-                Map.of(SUMMER, new CropGrowthSeasonalFactor(0.5))
-            ),
+            (biomeId, cropKind) -> {
+                assertEquals(CropKind.WHEAT, cropKind);
+                return policyFor(
+                    0.75,
+                    Map.of(SUMMER, new CropGrowthSeasonalFactor(0.5))
+                );
+            },
             new RecordingCurrentSeasonQuery(WINTER)
         );
 
@@ -195,7 +205,8 @@ class WheatGrowthInspectDiagnosticTest {
             new RecordingCurrentSeasonQuery(WINTER);
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
-            biomeId -> {
+            (biomeId, cropKind) -> {
+                assertEquals(CropKind.WHEAT, cropKind);
                 throw new UnsupportedCropGrowthPolicyException(
                     "Missing wheat growth policy for biome: " + biomeId.value()
                 );
@@ -225,7 +236,10 @@ class WheatGrowthInspectDiagnosticTest {
     void propagatesCurrentSeasonQueryFailure() {
         WheatGrowthInspectDiagnostic diagnostic = diagnostic(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
-            biomeId -> policyFor(0.75),
+            (biomeId, cropKind) -> {
+                assertEquals(CropKind.WHEAT, cropKind);
+                return policyFor(0.75);
+            },
             () -> {
                 throw new IllegalStateException("Season query failure");
             }
@@ -369,7 +383,7 @@ class WheatGrowthInspectDiagnosticTest {
         private int readCount;
 
         @Override
-        public CropGrowthPolicy policyFor(BiomeId biomeId) {
+        public CropGrowthPolicy policyFor(BiomeId biomeId, CropKind cropKind) {
             readCount++;
             throw new UnsupportedOperationException();
         }

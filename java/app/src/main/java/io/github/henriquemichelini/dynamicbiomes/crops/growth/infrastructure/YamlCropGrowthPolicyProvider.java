@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
@@ -23,7 +24,6 @@ public final class YamlCropGrowthPolicyProvider
     implements CropGrowthPolicyProvider {
 
     private static final String BIOMES_KEY = "biomes";
-    private static final String WHEAT_KEY = "wheat";
     private static final String GROWTH_CHANCE_KEY = "growth-chance";
     private static final String SEASONAL_FACTORS_KEY = "seasonal-factors";
 
@@ -39,56 +39,61 @@ public final class YamlCropGrowthPolicyProvider
     }
 
     @Override
-    public CropGrowthPolicy policyFor(BiomeId biomeId) {
+    public CropGrowthPolicy policyFor(BiomeId biomeId, CropKind cropKind) {
         Map<?, ?> root = loadRoot();
         Map<?, ?> biomes = requiredMap(root, BIOMES_KEY, "crop growth policy root.biomes");
-        Map<BiomeId, CropGrowthPolicy> policies = new LinkedHashMap<>();
 
         for (Map.Entry<?, ?> biomeEntry : biomes.entrySet()) {
             BiomeId configuredBiomeId = new BiomeId(
                 requiredKey(biomeEntry.getKey(), "biome policy key")
             );
-            CropGrowthPolicy previous = policies.put(
-                configuredBiomeId,
-                parsePolicy(configuredBiomeId, biomeEntry.getValue())
+            Map<?, ?> policy = requiredMapValue(
+                biomeEntry.getValue(),
+                "policy '" + configuredBiomeId.value() + "'"
             );
-            if (previous != null) {
-                throw new IllegalArgumentException(
-                    "Duplicate wheat growth policy for biome: " +
-                        configuredBiomeId.value()
-                );
+            rejectUnsupportedCropKeys(
+                policy,
+                "policy '" + configuredBiomeId.value() + "'"
+            );
+            if (configuredBiomeId.equals(biomeId)) {
+                return parsePolicy(configuredBiomeId, policy, cropKind);
             }
         }
 
-        CropGrowthPolicy policy = policies.get(biomeId);
-        if (policy == null) {
-            throw new UnsupportedCropGrowthPolicyException(
-                "Missing wheat growth policy for biome: " + biomeId.value()
-            );
-        }
-        return policy;
+        throw new UnsupportedCropGrowthPolicyException(
+            "Missing " +
+                cropKind.policyKey() +
+                " growth policy for biome: " +
+                biomeId.value()
+        );
     }
 
     private CropGrowthPolicy parsePolicy(
         BiomeId biomeId,
-        Object policyValue
+        Map<?, ?> policy,
+        CropKind cropKind
     ) {
         String policyPath = "policy '" + biomeId.value() + "'";
-        Map<?, ?> policy = requiredMapValue(policyValue, policyPath);
-        rejectUnsupportedCropKeys(policy, policyPath);
-        if (!policy.containsKey(WHEAT_KEY)) {
+        if (!policy.containsKey(cropKind.policyKey())) {
             throw new UnsupportedCropGrowthPolicyException(
-                "Missing wheat growth policy for biome: " + biomeId.value()
+                "Missing " +
+                    cropKind.policyKey() +
+                    " growth policy for biome: " +
+                    biomeId.value()
             );
         }
-        Map<?, ?> wheat = requiredMap(policy, WHEAT_KEY, policyPath + ".wheat");
+        Map<?, ?> cropPolicy = requiredMap(
+            policy,
+            cropKind.policyKey(),
+            policyPath + "." + cropKind.policyKey()
+        );
         double chance = requiredNumber(
-            wheat,
+            cropPolicy,
             GROWTH_CHANCE_KEY,
-            policyPath + ".wheat.growth-chance"
+            policyPath + "." + cropKind.policyKey() + ".growth-chance"
         );
         Map<SeasonId, CropGrowthSeasonalFactor> seasonalFactors =
-            parseSeasonalFactors(wheat, policyPath + ".wheat");
+            parseSeasonalFactors(cropPolicy, policyPath + "." + cropKind.policyKey());
         return new CropGrowthPolicy(
             new CropGrowthChance(chance),
             seasonalFactors,
@@ -97,26 +102,26 @@ public final class YamlCropGrowthPolicyProvider
     }
 
     private static Map<SeasonId, CropGrowthSeasonalFactor> parseSeasonalFactors(
-        Map<?, ?> wheat,
-        String wheatPath
+        Map<?, ?> cropPolicy,
+        String cropPolicyPath
     ) {
-        if (!wheat.containsKey(SEASONAL_FACTORS_KEY)) {
+        if (!cropPolicy.containsKey(SEASONAL_FACTORS_KEY)) {
             return Map.of();
         }
 
         Map<?, ?> seasonalFactors = requiredMap(
-            wheat,
+            cropPolicy,
             SEASONAL_FACTORS_KEY,
-            wheatPath + ".seasonal-factors"
+            cropPolicyPath + ".seasonal-factors"
         );
         Map<SeasonId, CropGrowthSeasonalFactor> result = new LinkedHashMap<>();
         for (Map.Entry<?, ?> entry : seasonalFactors.entrySet()) {
             SeasonId seasonId = new SeasonId(
-                requiredKey(entry.getKey(), wheatPath + ".seasonal-factors key")
+                requiredKey(entry.getKey(), cropPolicyPath + ".seasonal-factors key")
             );
             double factor = requiredNumberValue(
                 entry.getValue(),
-                wheatPath + ".seasonal-factors." + seasonId.value()
+                cropPolicyPath + ".seasonal-factors." + seasonId.value()
             );
             CropGrowthSeasonalFactor previous = result.put(
                 seasonId,
@@ -124,7 +129,7 @@ public final class YamlCropGrowthPolicyProvider
             );
             if (previous != null) {
                 throw new IllegalArgumentException(
-                    "Duplicate wheat growth seasonal factor for season: " +
+                    "Duplicate crop growth seasonal factor for season: " +
                         seasonId.value()
                 );
             }
@@ -137,12 +142,21 @@ public final class YamlCropGrowthPolicyProvider
         String policyPath
     ) {
         for (Object key : policy.keySet()) {
-            if (!WHEAT_KEY.equals(key)) {
+            if (!isSupportedCropKey(key)) {
                 throw new IllegalArgumentException(
                     "Unsupported crop growth policy key in " + policyPath + ": " + key
                 );
             }
         }
+    }
+
+    private static boolean isSupportedCropKey(Object key) {
+        for (CropKind cropKind : CropKind.values()) {
+            if (cropKind.policyKey().equals(key)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Map<?, ?> loadRoot() {

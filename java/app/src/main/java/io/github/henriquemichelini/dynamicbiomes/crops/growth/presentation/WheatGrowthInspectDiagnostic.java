@@ -4,6 +4,7 @@ import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
@@ -60,7 +61,8 @@ public final class WheatGrowthInspectDiagnostic {
 
         try {
             CropGrowthPolicy policy = policyProvider.policyFor(
-                biomeContext.biomeId()
+                biomeContext.biomeId(),
+                CropKind.WHEAT
             );
             CropGrowthChance configuredChance = policy.configuredChance();
             SeasonId currentSeason = currentSeasonQuery.currentSeason();

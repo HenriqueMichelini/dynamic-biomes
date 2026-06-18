@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
@@ -28,13 +29,14 @@ public final class PaperWheatGrowthListener implements Listener {
             return;
         }
 
-        CropGrowthDecision decision = cropGrowthService.decideNaturalWheatGrowth(
+        CropGrowthDecision decision = cropGrowthService.decideNaturalGrowth(
             new BlockPosition(
                 new WorldReference(block.getWorld().getUID()),
                 block.getX(),
                 block.getY(),
                 block.getZ()
-            )
+            ),
+            CropKind.WHEAT
         );
         if (decision == CropGrowthDecision.CANCEL_GROWTH) {
             event.setCancelled(true);

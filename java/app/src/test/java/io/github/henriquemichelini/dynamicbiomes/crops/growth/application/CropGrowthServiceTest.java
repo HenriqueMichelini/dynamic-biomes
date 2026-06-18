@@ -15,6 +15,7 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeCo
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
@@ -68,12 +69,34 @@ class CropGrowthServiceTest {
             biomeResolver,
             policyProvider,
             currentSeasonQuery
-        ).decideNaturalWheatGrowth(POSITION);
+        ).decideNaturalGrowth(POSITION, CropKind.WHEAT);
 
         assertEquals(CropGrowthDecision.ALLOW_GROWTH, decision);
         assertEquals(POSITION, biomeResolver.requestedPosition);
         assertEquals(FOREST, policyProvider.requestedBiomeId);
+        assertEquals(CropKind.WHEAT, policyProvider.requestedCropKind);
         assertEquals(1, currentSeasonQuery.queryCount);
+    }
+
+    @Test
+    void passesRequestedCropKindToPolicyProvider() {
+        RecordingPolicyProvider policyProvider = new RecordingPolicyProvider(
+            policy(1.0, () -> {
+                throw new AssertionError("Variation is unnecessary at full chance");
+            })
+        );
+        CropGrowthService service = new CropGrowthService(
+            position -> FOREST_CONTEXT,
+            policyProvider,
+            new RecordingCurrentSeasonQuery(SPRING)
+        );
+
+        assertEquals(
+            CropGrowthDecision.ALLOW_GROWTH,
+            service.decideNaturalGrowth(POSITION, CropKind.CARROTS)
+        );
+        assertEquals(FOREST, policyProvider.requestedBiomeId);
+        assertEquals(CropKind.CARROTS, policyProvider.requestedCropKind);
     }
 
     @Test
@@ -86,7 +109,7 @@ class CropGrowthServiceTest {
 
         assertEquals(
             CropGrowthDecision.CANCEL_GROWTH,
-            service.decideNaturalWheatGrowth(POSITION)
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
     }
 
@@ -96,7 +119,7 @@ class CropGrowthServiceTest {
 
         assertEquals(
             CropGrowthDecision.ALLOW_GROWTH,
-            service.decideNaturalWheatGrowth(POSITION)
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
     }
 
@@ -106,7 +129,7 @@ class CropGrowthServiceTest {
 
         assertEquals(
             CropGrowthDecision.CANCEL_GROWTH,
-            service.decideNaturalWheatGrowth(POSITION)
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
     }
 
@@ -116,7 +139,7 @@ class CropGrowthServiceTest {
 
         assertEquals(
             CropGrowthDecision.CANCEL_GROWTH,
-            service.decideNaturalWheatGrowth(POSITION)
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
     }
 
@@ -133,7 +156,7 @@ class CropGrowthServiceTest {
 
         assertEquals(
             CropGrowthDecision.CANCEL_GROWTH,
-            service.decideNaturalWheatGrowth(POSITION)
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
     }
 
@@ -150,7 +173,7 @@ class CropGrowthServiceTest {
 
         assertEquals(
             CropGrowthDecision.ALLOW_GROWTH,
-            service.decideNaturalWheatGrowth(POSITION)
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
     }
 
@@ -167,7 +190,7 @@ class CropGrowthServiceTest {
 
         assertEquals(
             CropGrowthDecision.CANCEL_GROWTH,
-            service.decideNaturalWheatGrowth(POSITION)
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
     }
 
@@ -181,7 +204,7 @@ class CropGrowthServiceTest {
                     "Missing static biome profile for resolved biome: minecraft:ocean"
                 );
             },
-            biomeId -> {
+            (biomeId, cropKind) -> {
                 throw new AssertionError("Policy lookup should not run for unsupported biome");
             },
             currentSeasonQuery
@@ -189,7 +212,7 @@ class CropGrowthServiceTest {
 
         assertEquals(
             CropGrowthDecision.ALLOW_GROWTH,
-            service.decideNaturalWheatGrowth(POSITION)
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
         assertEquals(0, currentSeasonQuery.queryCount);
     }
@@ -200,7 +223,7 @@ class CropGrowthServiceTest {
             new RecordingCurrentSeasonQuery(SPRING);
         CropGrowthService service = new CropGrowthService(
             position -> FOREST_CONTEXT,
-            biomeId -> {
+            (biomeId, cropKind) -> {
                 throw new UnsupportedCropGrowthPolicyException(
                     "Missing wheat growth policy for biome: " + biomeId.value()
                 );
@@ -210,7 +233,7 @@ class CropGrowthServiceTest {
 
         assertEquals(
             CropGrowthDecision.ALLOW_GROWTH,
-            service.decideNaturalWheatGrowth(POSITION)
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
         assertEquals(0, currentSeasonQuery.queryCount);
     }
@@ -221,7 +244,7 @@ class CropGrowthServiceTest {
             position -> {
                 throw new IllegalStateException("Resolver failure");
             },
-            biomeId -> {
+            (biomeId, cropKind) -> {
                 throw new AssertionError("Policy lookup should not run when resolver fails");
             },
             new RecordingCurrentSeasonQuery(SPRING)
@@ -229,7 +252,7 @@ class CropGrowthServiceTest {
 
         IllegalStateException exception = assertThrows(
             IllegalStateException.class,
-            () -> service.decideNaturalWheatGrowth(POSITION)
+            () -> service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
 
         assertEquals("Resolver failure", exception.getMessage());
@@ -239,7 +262,7 @@ class CropGrowthServiceTest {
     void propagatesPolicyProviderFailure() {
         CropGrowthService service = new CropGrowthService(
             position -> FOREST_CONTEXT,
-            biomeId -> {
+            (biomeId, cropKind) -> {
                 throw new IllegalStateException("Provider failure");
             },
             new RecordingCurrentSeasonQuery(SPRING)
@@ -247,7 +270,7 @@ class CropGrowthServiceTest {
 
         IllegalStateException exception = assertThrows(
             IllegalStateException.class,
-            () -> service.decideNaturalWheatGrowth(POSITION)
+            () -> service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
 
         assertEquals("Provider failure", exception.getMessage());
@@ -259,7 +282,7 @@ class CropGrowthServiceTest {
 
         assertThrows(
             IllegalArgumentException.class,
-            () -> service.decideNaturalWheatGrowth(POSITION)
+            () -> service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
     }
 
@@ -267,7 +290,7 @@ class CropGrowthServiceTest {
     void propagatesCurrentSeasonQueryFailure() {
         CropGrowthService service = new CropGrowthService(
             position -> FOREST_CONTEXT,
-            biomeId -> policy(0.5, () -> 0.0),
+            (biomeId, cropKind) -> policy(0.5, () -> 0.0),
             () -> {
                 throw new IllegalStateException("Season query failure");
             }
@@ -275,7 +298,7 @@ class CropGrowthServiceTest {
 
         IllegalStateException exception = assertThrows(
             IllegalStateException.class,
-            () -> service.decideNaturalWheatGrowth(POSITION)
+            () -> service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
 
         assertEquals("Season query failure", exception.getMessage());
@@ -291,7 +314,7 @@ class CropGrowthServiceTest {
     ) {
         return new CropGrowthService(
             position -> FOREST_CONTEXT,
-            biomeId -> policy,
+            (biomeId, cropKind) -> policy,
             new RecordingCurrentSeasonQuery(currentSeason)
         );
     }
@@ -338,14 +361,16 @@ class CropGrowthServiceTest {
 
         private final CropGrowthPolicy policy;
         private BiomeId requestedBiomeId;
+        private CropKind requestedCropKind;
 
         private RecordingPolicyProvider(CropGrowthPolicy policy) {
             this.policy = policy;
         }
 
         @Override
-        public CropGrowthPolicy policyFor(BiomeId biomeId) {
+        public CropGrowthPolicy policyFor(BiomeId biomeId, CropKind cropKind) {
             requestedBiomeId = biomeId;
+            requestedCropKind = cropKind;
             return policy;
         }
     }

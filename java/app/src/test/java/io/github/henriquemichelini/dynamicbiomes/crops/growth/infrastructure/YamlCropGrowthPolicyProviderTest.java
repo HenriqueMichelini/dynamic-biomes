@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
@@ -36,9 +37,24 @@ class YamlCropGrowthPolicyProviderTest {
         CropGrowthDecision decision = new YamlCropGrowthPolicyProvider(
             Path.of(resource.toURI()),
             () -> 0.5
-        ).policyFor(FOREST).decide();
+        ).policyFor(FOREST, CropKind.WHEAT).decide();
 
         assertEquals(CropGrowthDecision.ALLOW_GROWTH, decision);
+    }
+
+    @Test
+    void defaultForestPolicyIncludesConfiguredCarrots()
+        throws URISyntaxException {
+        URL resource = getClass().getClassLoader().getResource("crop-growth.yml");
+        assertNotNull(resource, "Missing packaged crop-growth.yml");
+
+        CropGrowthPolicy policy = new YamlCropGrowthPolicyProvider(
+            Path.of(resource.toURI()),
+            () -> 0.5
+        ).policyFor(FOREST, CropKind.CARROTS);
+
+        assertEquals(0.65, policy.configuredChance().value());
+        assertEquals(0.39, policy.effectiveChanceFor(WINTER).value(), 0.0000001);
     }
 
     @Test
@@ -57,7 +73,7 @@ class YamlCropGrowthPolicyProviderTest {
             () -> {
                 throw new AssertionError("Variation is unnecessary at full chance");
             }
-        ).policyFor(FOREST).decide();
+        ).policyFor(FOREST, CropKind.WHEAT).decide();
 
         assertEquals(CropGrowthDecision.ALLOW_GROWTH, decision);
     }
@@ -78,7 +94,7 @@ class YamlCropGrowthPolicyProviderTest {
             () -> {
                 throw new AssertionError("Variation is unnecessary at zero chance");
             }
-        ).policyFor(FOREST).decide();
+        ).policyFor(FOREST, CropKind.WHEAT).decide();
 
         assertEquals(CropGrowthDecision.CANCEL_GROWTH, decision);
     }
@@ -97,13 +113,13 @@ class YamlCropGrowthPolicyProviderTest {
         assertEquals(
             CropGrowthDecision.ALLOW_GROWTH,
             new YamlCropGrowthPolicyProvider(policyFile, () -> 0.49)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
                 .decide()
         );
         assertEquals(
             CropGrowthDecision.CANCEL_GROWTH,
             new YamlCropGrowthPolicyProvider(policyFile, () -> 0.5)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
                 .decide()
         );
     }
@@ -123,7 +139,7 @@ class YamlCropGrowthPolicyProviderTest {
         CropGrowthPolicy policy = new YamlCropGrowthPolicyProvider(
             policyFile,
             () -> 0.49
-        ).policyFor(FOREST);
+        ).policyFor(FOREST, CropKind.WHEAT);
 
         assertEquals(CropGrowthDecision.ALLOW_GROWTH, policy.decide());
         assertEquals(0.5, policy.effectiveChanceFor(SUMMER).value());
@@ -145,10 +161,126 @@ class YamlCropGrowthPolicyProviderTest {
         CropGrowthPolicy policy = new YamlCropGrowthPolicyProvider(
             policyFile,
             () -> 0.0
-        ).policyFor(FOREST);
+        ).policyFor(FOREST, CropKind.WHEAT);
 
         assertEquals(0.75, policy.effectiveChanceFor(SUMMER).value());
         assertEquals(0.5, policy.effectiveChanceFor(WINTER).value());
+    }
+
+    @Test
+    void loadsCarrotPolicyWithSeasonalFactors() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 1.0
+                carrots:
+                  growth-chance: 0.4
+                  seasonal-factors:
+                    minecraft:winter: 0.5
+            """
+        );
+
+        CropGrowthPolicy policy = new YamlCropGrowthPolicyProvider(
+            policyFile,
+            () -> 0.0
+        ).policyFor(FOREST, CropKind.CARROTS);
+
+        assertEquals(0.4, policy.configuredChance().value());
+        assertEquals(0.2, policy.effectiveChanceFor(WINTER).value());
+        assertEquals(0.4, policy.effectiveChanceFor(SUMMER).value());
+    }
+
+    @Test
+    void loadsRequestedCarrotPolicyWhenAnotherBiomeHasOnlyWheat()
+        throws IOException {
+        Path policyFile = writePolicy(
+            """
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 1.0
+                carrots:
+                  growth-chance: 0.4
+              minecraft:plains:
+                wheat:
+                  growth-chance: 0.8
+            """
+        );
+
+        CropGrowthPolicy policy = new YamlCropGrowthPolicyProvider(
+            policyFile,
+            () -> 0.0
+        ).policyFor(FOREST, CropKind.CARROTS);
+
+        assertEquals(0.4, policy.configuredChance().value());
+    }
+
+    @Test
+    void reportsMissingCarrotPolicyExplicitly() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 1.0
+            """
+        );
+
+        UnsupportedCropGrowthPolicyException exception = assertThrows(
+            UnsupportedCropGrowthPolicyException.class,
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
+                .policyFor(FOREST, CropKind.CARROTS)
+        );
+
+        assertTrue(exception.getMessage().contains("carrots"));
+        assertTrue(exception.getMessage().contains("minecraft:forest"));
+    }
+
+    @Test
+    void rejectsInvalidCarrotValuesThroughDomainValidation()
+        throws IOException {
+        Path invalidChancePolicyFile = writePolicy(
+            """
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 1.0
+                carrots:
+                  growth-chance: 1.1
+            """
+        );
+        Path invalidSeasonalFactorPolicyFile = writePolicy(
+            """
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 1.0
+                carrots:
+                  growth-chance: 0.5
+                  seasonal-factors:
+                    minecraft:winter: -0.1
+            """,
+            "invalid-carrot-seasonal-factor.yml"
+        );
+
+        assertAll(
+            () -> assertThrows(
+                IllegalArgumentException.class,
+                () -> new YamlCropGrowthPolicyProvider(
+                    invalidChancePolicyFile,
+                    () -> 0.0
+                ).policyFor(FOREST, CropKind.CARROTS)
+            ),
+            () -> assertThrows(
+                IllegalArgumentException.class,
+                () -> new YamlCropGrowthPolicyProvider(
+                    invalidSeasonalFactorPolicyFile,
+                    () -> 0.0
+                ).policyFor(FOREST, CropKind.CARROTS)
+            )
+        );
     }
 
     @Test
@@ -165,7 +297,7 @@ class YamlCropGrowthPolicyProviderTest {
         UnsupportedCropGrowthPolicyException exception = assertThrows(
             UnsupportedCropGrowthPolicyException.class,
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
-                .policyFor(new BiomeId("minecraft:desert"))
+                .policyFor(new BiomeId("minecraft:desert"), CropKind.WHEAT)
         );
 
         assertTrue(exception.getMessage().contains("minecraft:desert"));
@@ -195,12 +327,12 @@ class YamlCropGrowthPolicyProviderTest {
             () -> assertThrows(
                 IllegalArgumentException.class,
                 () -> new YamlCropGrowthPolicyProvider(aboveMaximumPolicyFile, () -> 0.0)
-                    .policyFor(FOREST)
+                    .policyFor(FOREST, CropKind.WHEAT)
             ),
             () -> assertThrows(
                 IllegalArgumentException.class,
                 () -> new YamlCropGrowthPolicyProvider(belowMinimumPolicyFile, () -> 0.0)
-                    .policyFor(FOREST)
+                    .policyFor(FOREST, CropKind.WHEAT)
             )
         );
     }
@@ -222,7 +354,7 @@ class YamlCropGrowthPolicyProviderTest {
         assertThrows(
             IllegalArgumentException.class,
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
         );
     }
 
@@ -243,7 +375,7 @@ class YamlCropGrowthPolicyProviderTest {
         assertThrows(
             IllegalArgumentException.class,
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
         );
     }
 
@@ -260,7 +392,7 @@ class YamlCropGrowthPolicyProviderTest {
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
         );
 
         assertTrue(exception.getMessage().contains("biomes"));
@@ -278,7 +410,7 @@ class YamlCropGrowthPolicyProviderTest {
         UnsupportedCropGrowthPolicyException exception = assertThrows(
             UnsupportedCropGrowthPolicyException.class,
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
         );
 
         assertTrue(exception.getMessage().contains("minecraft:forest"));
@@ -297,7 +429,7 @@ class YamlCropGrowthPolicyProviderTest {
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
         );
 
         assertTrue(exception.getMessage().contains("growth-chance"));
@@ -317,7 +449,7 @@ class YamlCropGrowthPolicyProviderTest {
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
         );
 
         assertTrue(exception.getMessage().contains("growth-chance"));
@@ -337,7 +469,7 @@ class YamlCropGrowthPolicyProviderTest {
         assertThrows(
             IllegalArgumentException.class,
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
         );
     }
 
@@ -358,19 +490,19 @@ class YamlCropGrowthPolicyProviderTest {
         assertThrows(
             IllegalArgumentException.class,
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
         );
     }
 
     @Test
-    void rejectsNonWheatCropPolicies() throws IOException {
+    void rejectsUnsupportedCropPolicies() throws IOException {
         Path policyFile = writePolicy(
             """
             biomes:
               minecraft:forest:
                 wheat:
                   growth-chance: 1.0
-                carrots:
+                potatoes:
                   growth-chance: 1.0
             """
         );
@@ -378,7 +510,7 @@ class YamlCropGrowthPolicyProviderTest {
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
-                .policyFor(FOREST)
+                .policyFor(FOREST, CropKind.WHEAT)
         );
 
         assertTrue(exception.getMessage().contains("Unsupported crop"));

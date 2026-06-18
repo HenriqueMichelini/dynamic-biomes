@@ -7,3 +7,10 @@ biomes:
         minecraft:summer: 1.00
         minecraft:autumn: 0.80
         minecraft:winter: 0.50
+    carrots:
+      growth-chance: 0.65
+      seasonal-factors:
+        minecraft:spring: 1.10
+        minecraft:summer: 1.00
+        minecraft:autumn: 0.85
+        minecraft:winter: 0.60
