@@ -6,7 +6,7 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeRe
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
-import java.util.Objects;
+import lombok.NonNull;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.Command;
@@ -15,14 +15,15 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 public final class BiomeCommandExecutor implements CommandExecutor {
+
     private static final String PLAYER_ONLY =
         "This command can only be used by a player.";
     private static final String USAGE = "Usage: /dynamicbiomes biome";
 
     private final BiomeResolver biomeResolver;
 
-    public BiomeCommandExecutor(BiomeResolver biomeResolver) {
-        this.biomeResolver = Objects.requireNonNull(biomeResolver);
+    public BiomeCommandExecutor(@NonNull BiomeResolver biomeResolver) {
+        this.biomeResolver = biomeResolver;
     }
 
     @Override
@@ -46,7 +47,8 @@ public final class BiomeCommandExecutor implements CommandExecutor {
             BiomeContext context = biomeResolver.resolve(positionOf(player));
             sendStatus(sender, context.biomeId().value(), "supported");
         } catch (UnsupportedBiomeException exception) {
-            String biomeId = exception.biomeId()
+            String biomeId = exception
+                .biomeId()
                 .map(BiomeId::value)
                 .orElse("unknown");
             sendStatus(sender, biomeId, "unsupported");
@@ -55,12 +57,11 @@ public final class BiomeCommandExecutor implements CommandExecutor {
         return true;
     }
 
-    private static BlockPosition positionOf(Player player) {
+    private static BlockPosition positionOf(@NonNull Player player) {
+        @NonNull
         Location location = player.getLocation();
-        World world = Objects.requireNonNull(
-            location.getWorld(),
-            "Player location must have a world"
-        );
+        @NonNull
+        World world = location.getWorld();
         return new BlockPosition(
             new WorldReference(world.getUID()),
             location.getBlockX(),

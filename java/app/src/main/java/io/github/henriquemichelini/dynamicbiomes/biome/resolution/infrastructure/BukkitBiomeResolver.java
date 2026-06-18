@@ -7,33 +7,32 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeCo
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
-import java.util.Objects;
+import lombok.NonNull;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 
 public final class BukkitBiomeResolver implements BiomeResolver {
+
     private final Server server;
     private final BiomeProfileProvider profileProvider;
 
-    public BukkitBiomeResolver(Server server, BiomeProfileProvider profileProvider) {
-        this.server = Objects.requireNonNull(server, "Bukkit server must not be null");
-        this.profileProvider = Objects.requireNonNull(
-            profileProvider,
-            "Biome profile provider must not be null"
-        );
+    public BukkitBiomeResolver(
+        @NonNull Server server,
+        @NonNull BiomeProfileProvider profileProvider
+    ) {
+        this.server = server;
+        this.profileProvider = profileProvider;
     }
 
     @Override
-    public BiomeContext resolve(BlockPosition position) {
-        Objects.requireNonNull(position, "Block position must not be null");
-        
+    public BiomeContext resolve(@NonNull BlockPosition position) {
         World world = server.getWorld(position.world().id());
-        
+
         if (world == null) {
             throw new IllegalStateException(
-                "Unable to resolve biome because Bukkit world is unavailable: "
-                    + position.world().id()
+                "Unable to resolve biome because Bukkit world is unavailable: " +
+                    position.world().id()
             );
         }
 
@@ -48,7 +47,8 @@ public final class BukkitBiomeResolver implements BiomeResolver {
         if (profile == null) {
             throw new UnsupportedBiomeException(
                 biomeId,
-                "Missing static biome profile for resolved biome: " + biomeId.value()
+                "Missing static biome profile for resolved biome: " +
+                    biomeId.value()
             );
         }
 
