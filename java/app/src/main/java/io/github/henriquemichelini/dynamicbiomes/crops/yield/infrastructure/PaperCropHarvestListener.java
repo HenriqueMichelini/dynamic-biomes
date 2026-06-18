@@ -9,17 +9,26 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.Map;
 import lombok.NonNull;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.inventory.ItemStack;
 
 public final class PaperCropHarvestListener implements Listener {
+    private static final TextColor POSITIVE_DELTA_COLOR = TextColor.color(
+        0x90EE90
+    );
+    private static final TextColor NEGATIVE_DELTA_COLOR = NamedTextColor.RED;
     private static final Map<CropKind, Material> PRODUCE_MATERIALS = new EnumMap<>(
         Map.of(
             CropKind.WHEAT,
@@ -35,17 +44,23 @@ public final class PaperCropHarvestListener implements Listener {
 
     private final CropYieldService cropYieldService;
     private final CropYieldDropper dropper;
+    private final CropYieldActionBarNotifier actionBarNotifier;
 
     public PaperCropHarvestListener(@NonNull CropYieldService cropYieldService) {
-        this(cropYieldService, World::dropItemNaturally);
+        this(cropYieldService, World::dropItemNaturally, (player, message, color, tone) -> {
+            player.sendActionBar(Component.text(message, color));
+            player.playSound(player.getLocation(), soundFor(tone), 1.0f, 1.0f);
+        });
     }
 
     PaperCropHarvestListener(
         @NonNull CropYieldService cropYieldService,
-        @NonNull CropYieldDropper dropper
+        @NonNull CropYieldDropper dropper,
+        @NonNull CropYieldActionBarNotifier actionBarNotifier
     ) {
         this.cropYieldService = cropYieldService;
         this.dropper = dropper;
+        this.actionBarNotifier = actionBarNotifier;
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -90,6 +105,13 @@ public final class PaperCropHarvestListener implements Listener {
             return;
         }
 
+        int delta = adjustedProduceQuantity - vanillaProduceQuantity;
+        actionBarNotifier.send(
+            event.getPlayer(),
+            formatDeltaMessage(delta, produceMaterial),
+            deltaColor(delta),
+            deltaTone(delta)
+        );
         event.setDropItems(false);
         ItemStack produceTemplate = null;
         for (ItemStack vanillaDrop : vanillaDrops) {
@@ -133,9 +155,49 @@ public final class PaperCropHarvestListener implements Listener {
             remaining -= stack.getAmount();
         }
     }
+
+    private static String formatDeltaMessage(int delta, Material material) {
+        String produceName = material.name().toLowerCase().replace('_', ' ');
+        if (delta > 0) {
+            return "+" + delta + " " + produceName + " extra!";
+        }
+        return delta + " " + produceName;
+    }
+
+    private static TextColor deltaColor(int delta) {
+        return delta > 0 ? POSITIVE_DELTA_COLOR : NEGATIVE_DELTA_COLOR;
+    }
+
+    private static CropYieldDeltaTone deltaTone(int delta) {
+        return delta > 0
+            ? CropYieldDeltaTone.POSITIVE
+            : CropYieldDeltaTone.NEGATIVE;
+    }
+
+    private static Sound soundFor(CropYieldDeltaTone tone) {
+        return switch (tone) {
+            case POSITIVE -> Sound.ENTITY_EXPERIENCE_ORB_PICKUP;
+            case NEGATIVE -> Sound.ITEM_WOLF_ARMOR_REPAIR;
+        };
+    }
 }
 
 @FunctionalInterface
 interface CropYieldDropper {
     void drop(World world, Location location, ItemStack itemStack);
+}
+
+@FunctionalInterface
+interface CropYieldActionBarNotifier {
+    void send(
+        Player player,
+        String message,
+        TextColor color,
+        CropYieldDeltaTone tone
+    );
+}
+
+enum CropYieldDeltaTone {
+    POSITIVE,
+    NEGATIVE,
 }

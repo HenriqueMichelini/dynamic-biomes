@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -53,6 +55,7 @@ class PaperCropHarvestListenerTest {
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
     private static final SeasonId SUMMER = new SeasonId("minecraft:summer");
     private final List<ItemStack> droppedItems = new ArrayList<>();
+    private final RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
     private BlockPosition resolvedPosition;
 
     @Test
@@ -64,6 +67,7 @@ class PaperCropHarvestListenerTest {
 
         assertTrue(event.isDropItems());
         assertEquals(List.of(), droppedItems);
+        assertEquals(List.of(), notifier.notifications);
         assertEquals(null, resolvedPosition);
     }
 
@@ -80,6 +84,24 @@ class PaperCropHarvestListenerTest {
 
         assertTrue(event.isDropItems());
         assertEquals(List.of(), droppedItems);
+        assertEquals(List.of(), notifier.notifications);
+        assertEquals(null, resolvedPosition);
+    }
+
+    @Test
+    void ignoresZeroVanillaProduceQuantity() {
+        PaperCropHarvestListener listener = listener(2.0);
+        BlockBreakEvent event = eventFor(
+            Material.WHEAT,
+            true,
+            List.of(new FakeItemStack(Material.WHEAT_SEEDS, 2))
+        );
+
+        listener.onBlockBreak(event);
+
+        assertTrue(event.isDropItems());
+        assertEquals(List.of(), droppedItems);
+        assertEquals(List.of(), notifier.notifications);
         assertEquals(null, resolvedPosition);
     }
 
@@ -101,6 +123,16 @@ class PaperCropHarvestListenerTest {
         assertEquals(POSITION, resolvedPosition);
         assertEquals(List.of(Material.WHEAT_SEEDS, Material.WHEAT), droppedTypes());
         assertEquals(List.of(2, 2), droppedAmounts());
+        assertEquals(
+            List.of(
+                new ActionBarNotification(
+                    "+1 wheat extra!",
+                    TextColor.color(0x90EE90),
+                    CropYieldDeltaTone.POSITIVE
+                )
+            ),
+            notifier.notifications
+        );
     }
 
     @Test
@@ -121,6 +153,54 @@ class PaperCropHarvestListenerTest {
         assertEquals(POSITION, resolvedPosition);
         assertEquals(List.of(Material.BEETROOT_SEEDS), droppedTypes());
         assertEquals(List.of(3), droppedAmounts());
+        assertEquals(
+            List.of(
+                new ActionBarNotification(
+                    "-1 beetroot",
+                    NamedTextColor.RED,
+                    CropYieldDeltaTone.NEGATIVE
+                )
+            ),
+            notifier.notifications
+        );
+    }
+
+    @Test
+    void doesNotSendActionBarWhenAdjustedQuantityMatchesVanillaQuantity() {
+        PaperCropHarvestListener listener = listener(1.0);
+        BlockBreakEvent event = eventFor(
+            Material.WHEAT,
+            true,
+            List.of(
+                new FakeItemStack(Material.WHEAT, 1),
+                new FakeItemStack(Material.WHEAT_SEEDS, 2)
+            )
+        );
+
+        listener.onBlockBreak(event);
+
+        assertTrue(event.isDropItems());
+        assertEquals(POSITION, resolvedPosition);
+        assertEquals(List.of(), droppedItems);
+        assertEquals(List.of(), notifier.notifications);
+    }
+
+    @Test
+    void doesNotSendActionBarForCancelledEvents() {
+        PaperCropHarvestListener listener = listener(2.0);
+        BlockBreakEvent event = eventFor(
+            Material.WHEAT,
+            true,
+            List.of(new FakeItemStack(Material.WHEAT, 1))
+        );
+        event.setCancelled(true);
+
+        listener.onBlockBreak(event);
+
+        assertTrue(event.isDropItems());
+        assertEquals(List.of(), droppedItems);
+        assertEquals(List.of(), notifier.notifications);
+        assertEquals(null, resolvedPosition);
     }
 
     private PaperCropHarvestListener listener(double multiplier) {
@@ -160,7 +240,8 @@ class PaperCropHarvestListenerTest {
         );
         return new PaperCropHarvestListener(
             service,
-            (world, location, itemStack) -> droppedItems.add(itemStack.clone())
+            (world, location, itemStack) -> droppedItems.add(itemStack.clone()),
+            notifier
         );
     }
 
@@ -218,6 +299,27 @@ class PaperCropHarvestListenerTest {
     private List<Integer> droppedAmounts() {
         return droppedItems.stream().map(ItemStack::getAmount).toList();
     }
+
+    private static final class RecordingActionBarNotifier
+        implements CropYieldActionBarNotifier {
+        private final List<ActionBarNotification> notifications = new ArrayList<>();
+
+        @Override
+        public void send(
+            Player player,
+            String message,
+            TextColor color,
+            CropYieldDeltaTone tone
+        ) {
+            notifications.add(new ActionBarNotification(message, color, tone));
+        }
+    }
+
+    private record ActionBarNotification(
+        String message,
+        TextColor color,
+        CropYieldDeltaTone tone
+    ) {}
 
     private static final class FakeItemStack extends ItemStack {
         private final Material type;
