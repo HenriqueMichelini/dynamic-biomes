@@ -24,7 +24,7 @@ Layers are used only when a capability needs them. **Do not create empty layer p
                  ┌─────────────────────────────────────┐
                  │          COMPOSITION ROOT            │
                  │          pluginruntime               │
-                 │   wires modules, owns startup only   │
+                 │ wires startup and root command routes │
                  └──────────────┬──────────────────────┘
                                 │ depends on
                                 ▼
@@ -44,7 +44,8 @@ Layers are used only when a capability needs them. **Do not create empty layer p
 
 Rules:
 
-- `pluginruntime` may import all modules, but **only for composition/startup**.
+- `pluginruntime` may import all modules, but **only for composition/startup**
+  and thin root command routing.
 - **No module imports `pluginruntime`.**
 - **`biome` and `seasons` must not import feature domains.**
 - Feature domains may import upstream vocabulary/ports, but **never upstream infrastructure**.
@@ -337,7 +338,9 @@ io.github.henriquemichelini.dynamicbiomes/
 └── pluginruntime/
     └── lifecycle/
         └── infrastructure/
-            └── DynamicBiomes.java
+            ├── DynamicBiomes.java
+            ├── DynamicBiomesCommandExecutor.java
+            └── DynamicBiomesInspectCommandExecutor.java
 ```
 
 ### 8.1 Spatial Value Objects
@@ -506,7 +509,7 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 
 - **Ore origin tracking**: `PaperOrePlaceListener` records player-placed ore; `PaperOreBreakListener` clears origin on break; `PaperOreMovementListener` transfers tracked origin across piston movement.
 - **Ore drop behavior**: `PaperOreBreakListener` delegates to `OreDropService` for supported configured Overworld ore materials resolved through `PaperOreMaterialMapper`, which maps Bukkit `Material` values to domain `OreKind` values. The service resolves the biome, looks up the ore drop policy, applies the base multiplier, and applies an optional ore-owned seasonal multiplier factor from `ore-drops.yml` based on the cached current season. When the final quantity differs from the vanilla quantity, the listener sends the mining player a sign-colored delta action-bar message and sign-specific feedback sound.
-- **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlSeasonProfileProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup.
+- **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlCropGrowthPolicyProvider`, `YamlCropYieldPolicyProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup. `season-profiles.yml` is packaged and copied to the plugin data folder, and `YamlSeasonProfileProvider` is implemented, but season profiles are not wired into runtime behavior yet.
 - **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar`, initializes the first season if none exists, and `CachedCurrentSeasonQuery` keeps the runtime season in memory for hot-path reads.
 - **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.
 - **Crop growth behavior**: `PaperCropMaterialMapper` maps Bukkit crop materials to supported runtime crop kinds, currently wheat, carrots, potatoes, and beetroot. `PaperCropGrowthListener` delegates supported natural crop `BlockGrowEvent` attempts to `CropGrowthService` with the mapped crop kind; the service resolves biome through `BiomeResolver`, reads configured biome-specific crop growth policy through `YamlCropGrowthPolicyProvider` from `crop-growth.yml`, applies any crop-owned seasonal factor for the cached current season, and cancels growth only when the policy returns a cancel decision.
@@ -541,7 +544,7 @@ The following capabilities support runtime behavior while keeping ownership boun
 
 The following are intentionally not implemented or not wired at runtime:
 
-- Runtime tree growth behavior and broader season effects on animals beyond the currently modeled feature policies (season profile data is loaded but not consumed by those feature domains).
+- Runtime tree growth behavior and broader season effects on animals beyond the currently modeled feature policies. Season profile data is modeled and has a YAML provider, but that provider is not wired into runtime behavior yet.
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
 - Database persistence.
