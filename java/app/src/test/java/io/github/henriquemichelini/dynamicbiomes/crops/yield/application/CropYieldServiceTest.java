@@ -154,8 +154,15 @@ class CropYieldServiceTest {
             () -> {
                 throw new AssertionError("Season query should be skipped");
             },
+            seasonId -> {
+                throw new AssertionError("Season profile lookup should be skipped");
+            },
             new CropYieldMultiplierCalculator(() -> 0.0),
-            new CropYieldQuantityCalculator(() -> 0.0)
+            new CropYieldQuantityCalculator(() -> 0.0),
+            new CropYieldBiomeFactorCalculator(),
+            new CropYieldClimateFactorCalculator(),
+            new CropYieldEnvironmentalFactorCalculator(),
+            new CropYieldEffectiveMultiplierCalculator()
         );
 
         assertEquals(3, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 3));
@@ -171,8 +178,15 @@ class CropYieldServiceTest {
             () -> {
                 throw new AssertionError("Season query should be skipped");
             },
+            seasonId -> {
+                throw new AssertionError("Season profile lookup should be skipped");
+            },
             new CropYieldMultiplierCalculator(() -> 0.0),
-            new CropYieldQuantityCalculator(() -> 0.0)
+            new CropYieldQuantityCalculator(() -> 0.0),
+            new CropYieldBiomeFactorCalculator(),
+            new CropYieldClimateFactorCalculator(),
+            new CropYieldEnvironmentalFactorCalculator(),
+            new CropYieldEffectiveMultiplierCalculator()
         );
 
         assertEquals(3, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 3));

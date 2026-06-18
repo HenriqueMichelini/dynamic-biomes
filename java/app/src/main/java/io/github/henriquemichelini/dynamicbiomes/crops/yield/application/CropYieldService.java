@@ -17,10 +17,8 @@ import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldSea
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.UnsupportedCropYieldPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfileProvider;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonalAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 
 public final class CropYieldService {
@@ -34,29 +32,6 @@ public final class CropYieldService {
     private final CropYieldClimateFactorCalculator climateFactorCalculator;
     private final CropYieldEnvironmentalFactorCalculator environmentalFactorCalculator;
     private final CropYieldEffectiveMultiplierCalculator effectiveMultiplierCalculator;
-    private final boolean environmentalFactorsEnabled;
-
-    public CropYieldService(
-        BiomeResolver biomeResolver,
-        CropYieldPolicyProvider policyProvider,
-        CurrentSeasonQuery currentSeasonQuery,
-        CropYieldMultiplierCalculator multiplierCalculator,
-        CropYieldQuantityCalculator quantityCalculator
-    ) {
-        this(
-            biomeResolver,
-            policyProvider,
-            currentSeasonQuery,
-            CropYieldService::neutralSeasonProfile,
-            multiplierCalculator,
-            quantityCalculator,
-            new CropYieldBiomeFactorCalculator(),
-            new CropYieldClimateFactorCalculator(),
-            new CropYieldEnvironmentalFactorCalculator(),
-            new CropYieldEffectiveMultiplierCalculator(),
-            false
-        );
-    }
 
     public CropYieldService(
         BiomeResolver biomeResolver,
@@ -70,34 +45,6 @@ public final class CropYieldService {
         CropYieldEnvironmentalFactorCalculator environmentalFactorCalculator,
         CropYieldEffectiveMultiplierCalculator effectiveMultiplierCalculator
     ) {
-        this(
-            biomeResolver,
-            policyProvider,
-            currentSeasonQuery,
-            seasonProfileProvider,
-            multiplierCalculator,
-            quantityCalculator,
-            biomeFactorCalculator,
-            climateFactorCalculator,
-            environmentalFactorCalculator,
-            effectiveMultiplierCalculator,
-            true
-        );
-    }
-
-    private CropYieldService(
-        BiomeResolver biomeResolver,
-        CropYieldPolicyProvider policyProvider,
-        CurrentSeasonQuery currentSeasonQuery,
-        SeasonProfileProvider seasonProfileProvider,
-        CropYieldMultiplierCalculator multiplierCalculator,
-        CropYieldQuantityCalculator quantityCalculator,
-        CropYieldBiomeFactorCalculator biomeFactorCalculator,
-        CropYieldClimateFactorCalculator climateFactorCalculator,
-        CropYieldEnvironmentalFactorCalculator environmentalFactorCalculator,
-        CropYieldEffectiveMultiplierCalculator effectiveMultiplierCalculator,
-        boolean environmentalFactorsEnabled
-    ) {
         this.biomeResolver = biomeResolver;
         this.policyProvider = policyProvider;
         this.currentSeasonQuery = currentSeasonQuery;
@@ -108,7 +55,6 @@ public final class CropYieldService {
         this.climateFactorCalculator = climateFactorCalculator;
         this.environmentalFactorCalculator = environmentalFactorCalculator;
         this.effectiveMultiplierCalculator = effectiveMultiplierCalculator;
-        this.environmentalFactorsEnabled = environmentalFactorsEnabled;
     }
 
     public int calculateProduceQuantity(
@@ -126,14 +72,12 @@ public final class CropYieldService {
             CropYieldSeasonalFactor seasonalFactor = new CropYieldSeasonalFactor(
                 policy.seasonalFactorFor(cropKind, currentSeason)
             );
-            double effectiveMultiplier = environmentalFactorsEnabled
-                ? calculateOptionBMultiplier(
-                    biomeContext,
-                    currentSeason,
-                    selectedMultiplier,
-                    seasonalFactor
-                )
-                : selectedMultiplier * seasonalFactor.factor();
+            double effectiveMultiplier = calculateOptionBMultiplier(
+                biomeContext,
+                currentSeason,
+                selectedMultiplier,
+                seasonalFactor
+            );
 
             return quantityCalculator.calculate(
                 vanillaProduceQuantity,
@@ -174,13 +118,4 @@ public final class CropYieldService {
         );
     }
 
-    private static SeasonProfile neutralSeasonProfile(SeasonId seasonId) {
-        return new SeasonProfile(
-            seasonId,
-            new SeasonClimateAdjustment(
-                new SeasonalAdjustment(0.0),
-                new SeasonalAdjustment(0.0)
-            )
-        );
-    }
 }

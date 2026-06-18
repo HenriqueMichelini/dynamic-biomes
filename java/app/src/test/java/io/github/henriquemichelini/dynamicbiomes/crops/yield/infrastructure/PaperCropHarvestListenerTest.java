@@ -15,12 +15,19 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperatur
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.application.CropYieldService;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldBiomeFactorCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldClimateFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldCropRule;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEffectiveMultiplierCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEnvironmentalFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldQuantityCalculator;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonalAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
@@ -209,7 +216,7 @@ class PaperCropHarvestListenerTest {
             new BiomeProfile(
                 FOREST,
                 new ClimateProfile(new Humidity(0.4), new Temperature(0.8)),
-                new Fertility(0.7),
+                new Fertility(0.5),
                 new MineralRichness(0.3),
                 new EcologicalPressure(0.2)
             )
@@ -235,13 +242,28 @@ class PaperCropHarvestListenerTest {
                 )
             ),
             () -> SUMMER,
+            seasonId -> seasonProfile(seasonId),
             new CropYieldMultiplierCalculator(() -> 0.0),
-            new CropYieldQuantityCalculator(() -> 0.0)
+            new CropYieldQuantityCalculator(() -> 0.0),
+            new CropYieldBiomeFactorCalculator(),
+            new CropYieldClimateFactorCalculator(),
+            new CropYieldEnvironmentalFactorCalculator(),
+            new CropYieldEffectiveMultiplierCalculator()
         );
         return new PaperCropHarvestListener(
             service,
             (world, location, itemStack) -> droppedItems.add(itemStack.clone()),
             notifier
+        );
+    }
+
+    private static SeasonProfile seasonProfile(SeasonId seasonId) {
+        return new SeasonProfile(
+            seasonId,
+            new SeasonClimateAdjustment(
+                new SeasonalAdjustment(0.0),
+                new SeasonalAdjustment(0.0)
+            )
         );
     }
 
