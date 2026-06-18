@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.bukkit.Material;
 
 public final class PaperOreMaterialMapper {
+
     private static final Map<Material, OreKind> ORE_KINDS = Map.ofEntries(
         Map.entry(Material.COAL_ORE, new OreKind("minecraft:coal_ore")),
         Map.entry(
@@ -56,6 +57,6 @@ public final class PaperOreMaterialMapper {
     }
 
     public static boolean isSupportedOre(Material material) {
-        return ORE_KINDS.containsKey(material);
+        return oreKindFor(material).isPresent();
     }
 }

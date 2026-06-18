@@ -7,6 +7,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOrigi
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.util.Collection;
+import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -53,11 +54,17 @@ public final class PaperOreBreakListener implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
-        OreKind oreKind = PaperOreMaterialMapper.oreKindFor(block.getType())
-            .orElse(null);
-        if (oreKind == null) {
+        Material material = block.getType();
+
+        Optional<OreKind> oreKindResult = PaperOreMaterialMapper.oreKindFor(
+            material
+        );
+
+        if (oreKindResult.isEmpty()) {
             return;
         }
+
+        OreKind oreKind = oreKindResult.orElseThrow();
 
         BlockPosition position = new BlockPosition(
             new WorldReference(block.getWorld().getUID()),
