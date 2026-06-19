@@ -185,6 +185,18 @@ Configuration files must be split by ownership:
 
 Raw YAML must not leak into domain. Bukkit types must not leak into domain.
 
+Feature-owned configuration may be keyed by published upstream identity types
+when the feature owns the policy semantics. For example, `ore-drops.yml` may
+contain ore-specific drop policy keyed by `BiomeId`, and `crop-yields.yml` may
+contain crop-specific yield policy keyed by `BiomeId`, because those files
+belong to `ore/drops` and `crops/yield`.
+
+Feature-specific behavior remains forbidden in upstream environmental profiles.
+`biome-profiles.yml` must not contain fields such as `cropYieldMultiplier` or
+`oreDropMultiplier`, and `biome/profile` must not own crop-specific or
+ore-specific behavior. Feature contexts interpret published environmental
+contracts and identities into their own behavior.
+
 ## 8. Target Structure
 
 ```text
@@ -548,123 +560,102 @@ The following capabilities support runtime behavior while keeping ownership boun
 - **Persisted season validation**: `SeasonInitializationService` throws `IllegalStateException` if a persisted `SeasonId` is absent from the configured `SeasonCalendar`.
 - **Origin cache safety**: `YamlOreOriginRepository` loads once and serves subsequent reads from memory; save/remove still persist.
 
-### 18.4 Option B Crop Yield Semantics and Still-Deferred Work
+### 18.4 Crop Yield Target Semantics and Still-Deferred Work
 
-The following notes define the active crop yield Option B semantics and the
-remaining work that is still intentionally deferred:
+Crop yield currently uses the Option B runtime described in Section 18.1 and
+18.2, but that base-range-only direction is transitional and is not the final
+target design. The selected target is biome-scoped crop yield policy owned by
+`crops/yield`, matching the gameplay goal that different crops can have
+different configured effectiveness in different biomes.
 
-- Crop yield Option B semantics are active at runtime. Crop yield calculates:
+- Biome-scoped crop yield policy is valid because `crop-yields.yml` belongs to
+  `crops/yield`, not `biome/profile`. This is the same ownership pattern used
+  by `ore-drops.yml`: a feature-owned policy file may key feature-specific
+  rules by published `BiomeId`.
+- The target crop yield multiplier formula is:
 
   ```text
   effectiveMultiplier =
-    selectedBaseCropMultiplier
-    * biomeYieldFactor
+    selectedBiomeCropMultiplier
     * cropSeasonalFactor
     * climateYieldFactor
   ```
 
-- `selectedBaseCropMultiplier` is a crop-specific configured base range owned
-  by `crops/yield` and is no longer tuned per biome after the YAML migration.
-  `biomeYieldFactor` is the explicit environmental contribution derived from
-  published `biome/profile` data. `cropSeasonalFactor` remains crop-specific
-  yield policy owned by `crops/yield`, currently represented by
-  `crop-yields.yml` seasonal factors. `climateYieldFactor` is derived from
-  published `seasons/profile` climate-adjustment data, currently temperature
-  and humidity.
-- First-version Option B factor conversion formulas are:
-  - `biomeYieldFactor` derives from published `Fertility.normalized`, where
-    fertility `0.5` is neutral. Fertility `1.0` means highly fertile, not
-    neutral. The formula is:
-
-    ```text
-    biomeYieldFactor =
-      1.0 + ((fertility - 0.5) * 0.40)
-    ```
-
-    Because `Fertility` is normalized in `[0.0, 1.0]`, the resulting
-    `biomeYieldFactor` range is `[0.80, 1.20]`.
-  - `climateYieldFactor` derives from published seasonal temperature and
-    humidity adjustments only, where `SeasonalAdjustment.normalized` `0.0` is
-    neutral. Seasonal adjustment values are delta-like values, not direct
-    multipliers. The formula is:
-
-    ```text
-    averageAdjustment =
-      (temperatureAdjustment + humidityAdjustment) / 2.0
-
-    climateYieldFactor =
-      1.0 + (averageAdjustment * 0.15)
-    ```
-
-    Because `SeasonalAdjustment` is normalized in `[-1.0, 1.0]`, the resulting
-    `climateYieldFactor` range is `[0.85, 1.15]`.
-- Crop-yield-owned environmental factor composition is modeled in
-  `crops/yield/domain`, and `CropYieldService` has an Option B application path
-  that derives biome and climate factors from published upstream domain
-  contracts. Plugin runtime composition wires the full service constructor with
-  `YamlSeasonProfileProvider` and the crop yield environmental calculators.
-- Option B `crop-yields.yml` has migrated from legacy biome-scoped multiplier
-  ranges to crop-specific base multiplier ranges. The active shape is:
+- `selectedBiomeCropMultiplier` is a `crops/yield` configured multiplier range
+  selected by resolved `BiomeId` and `CropKind`. `cropSeasonalFactor` remains
+  crop-specific seasonal tuning from `crop-yields.yml`. `climateYieldFactor` is
+  the `crops/yield` interpretation of published `SeasonProfile` climate
+  adjustment data.
+- The preferred target `crop-yields.yml` shape is biome-scoped and crop-specific:
 
   ```yaml
-  crops:
-    wheat:
-      base-multiplier:
-        min: 0.90
-        max: 1.10
-      seasonal-factors:
-        minecraft:spring: 1.05
-        minecraft:summer: 1.00
-        minecraft:autumn: 1.00
-        minecraft:winter: 0.90
+  biomes:
+    minecraft:forest:
+      crops:
+        wheat:
+          multiplier:
+            min: 1.00
+            max: 1.10
+          seasonal-factors:
+            minecraft:spring: 1.05
+            minecraft:summer: 1.00
+            minecraft:autumn: 1.00
+            minecraft:winter: 0.90
 
-    carrots:
-      base-multiplier:
-        min: 0.90
-        max: 1.10
-      seasonal-factors:
-        minecraft:spring: 1.00
-        minecraft:summer: 1.05
-        minecraft:autumn: 1.00
-        minecraft:winter: 0.90
+        carrots:
+          multiplier:
+            min: 0.95
+            max: 1.05
+          seasonal-factors:
+            minecraft:spring: 1.00
+            minecraft:summer: 1.05
+            minecraft:autumn: 1.00
+            minecraft:winter: 0.90
+
+    minecraft:desert:
+      crops:
+        wheat:
+          multiplier:
+            min: 0.70
+            max: 0.90
+          seasonal-factors:
+            minecraft:spring: 1.00
+            minecraft:summer: 0.90
+            minecraft:autumn: 1.00
+            minecraft:winter: 1.00
   ```
 
-  Biome influence must come from `biomeYieldFactor` derived from `BiomeProfile`
-  fertility, climate influence must come from `climateYieldFactor` derived from
-  `SeasonProfile` climate adjustment, and crop-specific seasonal tuning remains
-  in `crop-yields.yml` as `cropSeasonalFactor`. The project does not support
-  both the legacy and Option B YAML shapes long-term unless a later card
-  explicitly chooses backward compatibility and defines migration behavior.
-- First-version Option B factor derivation should stay conservative and
-  crop-yield-owned:
-  - `biomeYieldFactor` is the `crops/yield` interpretation of published
-    `biome/profile` data. It should derive primarily from `Fertility`, because
-    fertility maps most directly to crop yield. `Humidity` and `Temperature`
-    may influence yield later, but they overlap with `climateYieldFactor` and
-    must be introduced carefully. `EcologicalPressure` should remain out of
-    crop yield unless a later balancing card gives an explicit reason to use it.
-  - `climateYieldFactor` is the `crops/yield` interpretation of published
-    `seasons/profile` climate-adjustment data. Its first version should derive
-    from seasonal temperature and humidity adjustments only. Season profiles
-    remain environmental and must not define crop-specific effects.
-  - `cropSeasonalFactor` remains separate from `climateYieldFactor`.
-    `cropSeasonalFactor` is crop-specific tuning from `crop-yields.yml` for a
-    named season, while `climateYieldFactor` is the environmental climate
-    contribution interpreted by crop yield.
-  These derivations must not add crop-yield vocabulary to `biome/profile` or
-  `seasons/profile`; downstream crop yield may consume published upstream
-  domain contracts, but not upstream infrastructure.
-- Avoid double-counting the same environmental dimension in future crop yield
-  tuning. If `biomeYieldFactor` uses humidity strongly, then
-  `climateYieldFactor` should not also apply a large humidity penalty without
-  explicit balancing. If `cropSeasonalFactor` already encodes harsh winter
-  penalties for a crop, the first `climateYieldFactor` should be mild. Do not
-  treat fertility `1.0` as neutral. Do not treat `SeasonalAdjustment` values as
-  direct multipliers. Do not push crop-yield factor vocabulary into
-  `biome/profile` or `seasons/profile`; `crops/yield` owns the interpretation
-  from environmental values to crop yield behavior.
-- Current pluginruntime crop yield composition uses the full Option B service
-  constructor in `DynamicBiomes`. The current composition formula is:
+- The current base-range-only `crop-yields.yml` shape is superseded as the
+  target design. It may remain active until a separate implementation card
+  changes runtime parsing and behavior, but it should be treated as transitional
+  documentation, not as the desired end state.
+- `CropYieldPolicyProvider` must remain biome-aware while crop yield policy is
+  biome-scoped. Cleanup that removes `BiomeId` from
+  `CropYieldPolicyProvider.policyFor(BiomeId)` is cancelled or deferred until a
+  separate design explicitly replaces biome-scoped crop yield policy.
+- `BiomeProfile` fertility remains valid environmental data. However,
+  fertility-derived `biomeYieldFactor` must not be applied on top of
+  `selectedBiomeCropMultiplier` by default, because both represent biome
+  influence. When biome-scoped crop multipliers are active, the
+  fertility-derived factor should be removed from active crop yield runtime,
+  neutralized by default, or deferred into a later explicit
+  crop-environmental-sensitivity model.
+- A future crop environmental sensitivity model may add an explicit extra
+  factor, for example:
+
+  ```text
+  effectiveMultiplier =
+    selectedBiomeCropMultiplier
+    * cropEnvironmentalSensitivityFactor
+    * cropSeasonalFactor
+    * climateYieldFactor
+  ```
+
+  That model requires its own design card and must not push crop-yield
+  vocabulary into `biome/profile` or `seasons/profile`.
+- Runtime behavior is intentionally unchanged by this documentation decision.
+  Current pluginruntime crop yield composition still uses the full Option B
+  service constructor in `DynamicBiomes`. The current composition formula is:
 
   ```text
   adjustedQuantity =
