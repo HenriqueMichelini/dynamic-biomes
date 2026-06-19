@@ -25,6 +25,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 public final class OreInspectCommandExecutor implements CommandExecutor {
+
     private static final String PLAYER_ONLY =
         "This command can only be used by a player.";
     private static final String USAGE = "Usage: /dynamicbiomes inspect";
@@ -61,7 +62,9 @@ public final class OreInspectCommandExecutor implements CommandExecutor {
             return true;
         }
 
-        Block targetBlock = player.getTargetBlockExact(TARGET_BLOCK_MAX_DISTANCE);
+        Block targetBlock = player.getTargetBlockExact(
+            TARGET_BLOCK_MAX_DISTANCE
+        );
         if (targetBlock == null) {
             sender.sendMessage("Target block: none");
             sender.sendMessage("Inspection: not an inspected ore");
@@ -69,53 +72,97 @@ public final class OreInspectCommandExecutor implements CommandExecutor {
         }
 
         Material material = targetBlock.getType();
+
         sender.sendMessage("Target block: " + material.name());
+
         if (!inspect(sender, targetBlock)) {
             sender.sendMessage("Inspection: not an inspected ore");
         }
+
         return true;
     }
 
     public boolean inspect(CommandSender sender, Block targetBlock) {
-        Material material = targetBlock.getType();
-        OreKind oreKind = PaperOreMaterialMapper.oreKindFor(material)
-            .orElse(null);
-        if (oreKind == null) {
-            return false;
-        }
+        Optional<OreKind> oreKind = PaperOreMaterialMapper.oreKindFor(
+            targetBlock.getType()
+        );
 
+        if (oreKind.isEmpty()) return false;
+
+        return inspectOre(sender, targetBlock, oreKind.orElseThrow());
+    }
+
+    private boolean inspectOre(
+        CommandSender sender,
+        Block targetBlock,
+        OreKind oreKind
+    ) {
         BlockPosition position = positionOf(targetBlock);
+
         BiomeContext biomeContext;
+
         try {
             biomeContext = biomeResolver.resolve(position);
         } catch (UnsupportedBiomeException exception) {
-            String biomeId = exception.biomeId()
-                .map(BiomeId::value)
-                .orElse("unknown");
-            sender.sendMessage("Current biome: " + biomeId);
-            sender.sendMessage("DynamicBiomes profile: unsupported");
-            sender.sendMessage("Ore drop policy: skipped");
-            sender.sendMessage("Ore origin: not checked");
-            sender.sendMessage("Eligible for multiplier: no");
+            reportUnsupportedBiome(sender, exception);
             return true;
         }
 
+        reportSupportedBiomeOreInspection(
+            sender,
+            biomeContext,
+            oreKind,
+            position
+        );
+        return true;
+    }
+
+    private void reportUnsupportedBiome(
+        CommandSender sender,
+        UnsupportedBiomeException exception
+    ) {
+        String biomeId = exception
+            .biomeId()
+            .map(BiomeId::value)
+            .orElse("unknown");
+
+        sender.sendMessage("Current biome: " + biomeId);
+        sender.sendMessage("DynamicBiomes profile: unsupported");
+        sender.sendMessage("Ore drop policy: skipped");
+        sender.sendMessage("Ore origin: not checked");
+        sender.sendMessage("Eligible for multiplier: no");
+    }
+
+    private void reportSupportedBiomeOreInspection(
+        CommandSender sender,
+        BiomeContext biomeContext,
+        OreKind oreKind,
+        BlockPosition position
+    ) {
         sender.sendMessage("Current biome: " + biomeContext.biomeId().value());
         sender.sendMessage("DynamicBiomes profile: supported");
 
-        boolean policySupported = hasPolicyRule(biomeContext.biomeId(), oreKind);
+        boolean policySupported = hasPolicyRule(
+            biomeContext.biomeId(),
+            oreKind
+        );
+
         sender.sendMessage(
-            "Ore drop policy: " + (policySupported ? "supported" : "unsupported")
+            "Ore drop policy: " +
+                (policySupported ? "supported" : "unsupported")
         );
 
         Optional<OreOrigin> origin = originTracking.originAt(position);
+
         sender.sendMessage("Ore origin: " + originStatus(origin));
-        boolean eligible = policySupported
-            && origin
+
+        boolean eligible =
+            policySupported &&
+            origin
                 .map(OreOrigin::isEligibleForBiomeBasedMultiplier)
                 .orElse(true);
+
         sender.sendMessage("Eligible for multiplier: " + yesNo(eligible));
-        return true;
     }
 
     private boolean hasPolicyRule(BiomeId biomeId, OreKind oreKind) {
