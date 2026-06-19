@@ -11,10 +11,7 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.Pap
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.YamlCropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation.CropGrowthInspectDiagnostic;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.application.CropYieldService;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldBiomeFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldClimateFactorCalculator;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEffectiveMultiplierCalculator;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEnvironmentalFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldQuantityCalculator;
@@ -184,10 +181,7 @@ public final class DynamicBiomes extends JavaPlugin {
             seasonProfileProvider,
             new CropYieldMultiplierCalculator(Math::random),
             new CropYieldQuantityCalculator(Math::random),
-            new CropYieldBiomeFactorCalculator(),
-            new CropYieldClimateFactorCalculator(),
-            new CropYieldEnvironmentalFactorCalculator(),
-            new CropYieldEffectiveMultiplierCalculator()
+            new CropYieldClimateFactorCalculator()
         );
 
         getServer().getPluginManager().registerEvents(
