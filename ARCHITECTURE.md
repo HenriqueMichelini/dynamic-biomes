@@ -320,6 +320,7 @@ io.github.henriquemichelini.dynamicbiomes/
 │   ├── performance/
 │   │   ├── application/
 │   │   │   ├── CropEnvironmentalStateComposer.java
+│   │   │   ├── EnvironmentalStateComposer.java
 │   │   │   └── CropPerformanceService.java
 │   │   ├── domain/
 │   │   │   ├── CropEnvironmentalState.java
@@ -610,6 +611,15 @@ The following capabilities support runtime behavior while keeping ownership boun
 - **Crop yield policy**: `crops/yield/domain` models configured mature crop produce multipliers, optional yield-owned seasonal factors keyed by published `SeasonId`, deterministic-testable multiplier and quantity variation sources, and probabilistic rounding of the final produce quantity. It supports zero final produce quantity when configured multipliers allow it and does not model Bukkit item stacks, seeds, replanting, or block events.
 - **Crop yield environmental factors**: `crops/yield/domain` currently models transitional crop-yield-owned interpretation of published season climate adjustments through `CropYieldClimateFactorCalculator`. The earlier fertility-derived biome factor calculators remain present domain code for now, but they are not wired into active crop yield runtime while biome-scoped crop yield policy owns biome influence. The target environmental interpretation capability is `crops/performance`.
 - **Crop performance scoring**: `crops/performance/domain` models crop-owned normalized environmental state, crop environmental preference profiles, and pure performance scoring. `CropPerformanceCalculator` compares a `CropPerformanceProfile` with a `CropEnvironmentalState` and returns a `CropPerformanceResult` containing an optional overall score plus growth speed, growth chance, and harvest quantity factors. It does not load configuration, resolve upstream context, wire runtime consumers, or model quality concepts.
+- **Crop performance application service**:
+  `crops/performance/application` composes crop environmental state through
+  `EnvironmentalStateComposer`, loads crop-owned preference profiles through
+  `CropPerformanceProfileProvider`, delegates scoring to
+  `CropPerformanceCalculator`, and converts explicit unsupported
+  crop-performance profiles to neutral performance. Unsupported biome,
+  malformed configuration, invalid normalized values, duplicate keys, I/O
+  failures, and programming errors propagate. This service is not wired into
+  active crop growth or yield runtime yet.
 - **YAML-backed crop performance profile provider**:
   `crops/performance/infrastructure` loads `crop-profiles.yml` into the typed
   `CropPerformanceProfileProvider` port for supported crop kinds and crop-owned

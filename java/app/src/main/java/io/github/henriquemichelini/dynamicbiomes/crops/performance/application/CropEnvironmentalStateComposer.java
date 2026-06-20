@@ -12,7 +12,7 @@ import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.Seasonal
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import lombok.NonNull;
 
-public final class CropEnvironmentalStateComposer {
+public final class CropEnvironmentalStateComposer implements EnvironmentalStateComposer {
 
     private static final NormalizedEnvironmentalValue NEUTRAL_ENVIRONMENTAL_VALUE =
         new NormalizedEnvironmentalValue(0.50);
@@ -31,6 +31,7 @@ public final class CropEnvironmentalStateComposer {
         this.seasonProfileProvider = seasonProfileProvider;
     }
 
+    @Override
     public CropEnvironmentalState compose(BlockPosition position) {
         BiomeProfile biomeProfile = biomeResolver.resolve(position).profile();
         SeasonClimateAdjustment seasonClimate = currentSeasonClimate();
