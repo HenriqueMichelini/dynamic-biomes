@@ -15,14 +15,12 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeCo
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldBiomeFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldClimateFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldCropRule;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEffectiveMultiplierCalculator;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEnvironmentalFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicy;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldQuantityCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldSeasonalFactor;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.UnsupportedCropYieldPolicyException;
@@ -46,6 +44,7 @@ class CropYieldServiceTest {
         -20
     );
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
+    private static final BiomeId DESERT = new BiomeId("minecraft:desert");
     private static final SeasonId SPRING = new SeasonId("minecraft:spring");
     private static final BiomeContext FOREST_CONTEXT = new BiomeContext(
         FOREST,
@@ -80,7 +79,45 @@ class CropYieldServiceTest {
     }
 
     @Test
-    void appliesHighBiomeFertilityFactor() {
+    void usesResolvedBiomePolicyMultiplier() {
+        CropYieldService service = serviceWith(
+            position -> biomeContext(DESERT, 0.4, 0.8, 0.5, 0.3, 0.2),
+            biomeId -> {
+                if (FOREST.equals(biomeId)) {
+                    return new CropYieldPolicy(
+                        FOREST,
+                        Map.of(
+                            CropKind.WHEAT,
+                            new CropYieldCropRule(
+                                new CropYieldMultiplierRange(2.0, 2.0),
+                                Map.of()
+                            )
+                        )
+                    );
+                }
+                if (DESERT.equals(biomeId)) {
+                    return new CropYieldPolicy(
+                        DESERT,
+                        Map.of(
+                            CropKind.WHEAT,
+                            new CropYieldCropRule(
+                                new CropYieldMultiplierRange(0.5, 0.5),
+                                Map.of()
+                            )
+                        )
+                    );
+                }
+                throw new UnsupportedCropYieldPolicyException("missing");
+            },
+            () -> SPRING,
+            seasonId -> seasonProfile(seasonId, 0.0, 0.0)
+        );
+
+        assertEquals(50, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
+    }
+
+    @Test
+    void doesNotApplyFertilityDerivedBiomeFactor() {
         CropYieldService service = serviceWith(
             position -> biomeContext(FOREST, 0.4, 0.8, 1.0, 0.3, 0.2),
             policyWith(new CropYieldMultiplierRange(1.0, 1.0), Map.of()),
@@ -88,19 +125,7 @@ class CropYieldServiceTest {
             seasonId -> seasonProfile(seasonId, 0.0, 0.0)
         );
 
-        assertEquals(120, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
-    }
-
-    @Test
-    void appliesLowBiomeFertilityFactor() {
-        CropYieldService service = serviceWith(
-            position -> biomeContext(FOREST, 0.4, 0.8, 0.0, 0.3, 0.2),
-            policyWith(new CropYieldMultiplierRange(1.0, 1.0), Map.of()),
-            () -> SPRING,
-            seasonId -> seasonProfile(seasonId, 0.0, 0.0)
-        );
-
-        assertEquals(80, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
+        assertEquals(100, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
     }
 
     @Test
@@ -128,7 +153,7 @@ class CropYieldServiceTest {
     }
 
     @Test
-    void composesSelectedBaseSeasonalBiomeAndClimateFactors() {
+    void composesSelectedBiomeCropSeasonalAndClimateFactors() {
         CropYieldService service = serviceWith(
             position -> biomeContext(FOREST, 0.4, 0.8, 1.0, 0.3, 0.2),
             policyWith(
@@ -136,10 +161,10 @@ class CropYieldServiceTest {
                 Map.of(SPRING, new CropYieldSeasonalFactor(1.10))
             ),
             () -> SPRING,
-            seasonId -> seasonProfile(seasonId, 0.0, 0.0)
+            seasonId -> seasonProfile(seasonId, 1.0, 1.0)
         );
 
-        assertEquals(165, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
+        assertEquals(159, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
     }
 
     @Test
@@ -159,10 +184,7 @@ class CropYieldServiceTest {
             },
             new CropYieldMultiplierCalculator(() -> 0.0),
             new CropYieldQuantityCalculator(() -> 0.0),
-            new CropYieldBiomeFactorCalculator(),
-            new CropYieldClimateFactorCalculator(),
-            new CropYieldEnvironmentalFactorCalculator(),
-            new CropYieldEffectiveMultiplierCalculator()
+            new CropYieldClimateFactorCalculator()
         );
 
         assertEquals(3, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 3));
@@ -183,10 +205,7 @@ class CropYieldServiceTest {
             },
             new CropYieldMultiplierCalculator(() -> 0.0),
             new CropYieldQuantityCalculator(() -> 0.0),
-            new CropYieldBiomeFactorCalculator(),
-            new CropYieldClimateFactorCalculator(),
-            new CropYieldEnvironmentalFactorCalculator(),
-            new CropYieldEffectiveMultiplierCalculator()
+            new CropYieldClimateFactorCalculator()
         );
 
         assertEquals(3, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 3));
@@ -245,10 +264,24 @@ class CropYieldServiceTest {
             seasonProfileProvider,
             new CropYieldMultiplierCalculator(() -> 0.0),
             new CropYieldQuantityCalculator(() -> 0.0),
-            new CropYieldBiomeFactorCalculator(),
-            new CropYieldClimateFactorCalculator(),
-            new CropYieldEnvironmentalFactorCalculator(),
-            new CropYieldEffectiveMultiplierCalculator()
+            new CropYieldClimateFactorCalculator()
+        );
+    }
+
+    private static CropYieldService serviceWith(
+        BiomeResolver biomeResolver,
+        CropYieldPolicyProvider policyProvider,
+        CurrentSeasonQuery currentSeasonQuery,
+        SeasonProfileProvider seasonProfileProvider
+    ) {
+        return new CropYieldService(
+            biomeResolver,
+            policyProvider,
+            currentSeasonQuery,
+            seasonProfileProvider,
+            new CropYieldMultiplierCalculator(() -> 0.0),
+            new CropYieldQuantityCalculator(() -> 0.0),
+            new CropYieldClimateFactorCalculator()
         );
     }
 
