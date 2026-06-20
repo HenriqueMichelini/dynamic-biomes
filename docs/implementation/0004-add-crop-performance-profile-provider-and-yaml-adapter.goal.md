@@ -18,7 +18,8 @@ Introduce crop-owned preference profiles loaded from `crop-profiles.yml`.
 
 - `AGENTS.md`
 - `ARCHITECTURE.md`
-- `docs/implementation/0003-add-pure-crop-performance-domain-model.goal.md`
+- `docs/implementation/0003a-add-crop-environmental-state-domain.goal.md`
+- `docs/implementation/0003b-add-crop-performance-profile-domain.goal.md`
 - `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/performance/domain`
 - Existing YAML provider tests under `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes`
 
@@ -34,7 +35,7 @@ Required domain decisions:
 
 - `crop-profiles.yml` becomes the crop-owned preference/profile source.
 - `crop-growth.yml` and `crop-yields.yml` remain transitional for one phase.
-- Missing crop profile / unsupported crop-performance profile becomes neutral `CropPerformanceResult`.
+- Missing crop profile / unsupported crop-performance profile is exposed as an unsupported crop-performance condition; neutral result conversion belongs to Card 5B.
 - Malformed config, invalid normalized values, duplicate keys, I/O failures, and programming errors still propagate.
 
 ## Files Or Areas Likely Affected
@@ -49,7 +50,7 @@ Required domain decisions:
 
 - The provider port belongs in `crops/performance/domain`; the YAML adapter and raw YAML parsing belong only in `crops/performance/infrastructure`.
 - Keep the provider responsibility typed and crop-performance-specific; do not introduce a generic configuration provider.
-- The provider reports supported or unsupported profile data; neutral result conversion belongs to the application service in Card 5.
+- The provider reports supported or unsupported profile data; neutral result conversion belongs to the application service in Card 5B.
 - Model YAML translation as adapter code that builds validated domain objects instead of leaking maps, raw YAML nodes, or strings into domain behavior.
 - Add focused provider/adapter tests first, including failure cases, before implementing the adapter or resource changes.
 
@@ -78,11 +79,12 @@ Required domain decisions:
 
 ## Dependencies
 
-- Card 3: Add Pure Crop Performance Domain Model.
+- Card 3A: Add Crop Environmental State Domain.
+- Card 3B: Add Crop Performance Profile Domain.
 
 ## Risks Or Migration Notes
 
-- Missing crop profile is not vanilla fallback here. It is converted to neutral performance by `CropPerformanceService`.
+- Missing crop profile is not vanilla fallback here. It is converted to neutral performance by `CropPerformanceService` in Card 5B.
 - The transitional growth and yield YAML files remain authoritative for their existing behavior until later cards consume crop performance.
 
 ## Acceptance Behavior

@@ -18,7 +18,7 @@ Apply crop performance to existing DynamicBiomes crop growth behavior.
 
 - `AGENTS.md`
 - `ARCHITECTURE.md`
-- `docs/implementation/0005-add-crop-performance-application-service.goal.md`
+- `docs/implementation/0005b-add-crop-performance-application-service.goal.md`
 - `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/growth/application`
 - `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/growth/application`
 - `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/pluginruntime/lifecycle/infrastructure/DynamicBiomes.java`
@@ -74,7 +74,7 @@ Required domain decisions:
 
 ## Dependencies
 
-- Card 5: Add Crop Performance Application Service.
+- Card 5B: Add Crop Performance Application Service.
 
 ## Risks Or Migration Notes
 
