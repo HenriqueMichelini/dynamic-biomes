@@ -24,10 +24,18 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthD
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.application.CropPerformanceService;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropEnvironmentalState;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceResult;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.NormalizedEnvironmentalValue;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.UnsupportedCropPerformanceProfileException;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
+import java.util.OptionalDouble;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import org.junit.jupiter.api.Test;
 
 class CropGrowthServiceTest {
@@ -68,7 +76,8 @@ class CropGrowthServiceTest {
         CropGrowthDecision decision = new CropGrowthService(
             biomeResolver,
             policyProvider,
-            currentSeasonQuery
+            currentSeasonQuery,
+            neutralPerformanceQuery()
         ).decideNaturalGrowth(POSITION, CropKind.WHEAT);
 
         assertEquals(CropGrowthDecision.ALLOW_GROWTH, decision);
@@ -88,7 +97,8 @@ class CropGrowthServiceTest {
         CropGrowthService service = new CropGrowthService(
             position -> FOREST_CONTEXT,
             policyProvider,
-            new RecordingCurrentSeasonQuery(SPRING)
+            new RecordingCurrentSeasonQuery(SPRING),
+            neutralPerformanceQuery()
         );
 
         assertEquals(
@@ -195,9 +205,55 @@ class CropGrowthServiceTest {
     }
 
     @Test
+    void neutralCropPerformancePreservesCurrentDynamicBiomesGrowthBehavior() {
+        CropGrowthService service = serviceWith(policy(0.5, () -> 0.5));
+
+        assertEquals(
+            CropGrowthDecision.CANCEL_GROWTH,
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
+        );
+    }
+
+    @Test
+    void multipliesEffectiveGrowthChanceByCropPerformanceChanceFactor() {
+        RecordingPerformanceQuery performanceQuery = new RecordingPerformanceQuery(
+            0.5
+        );
+        CropGrowthService service = serviceWith(
+            policy(0.8, () -> 0.4),
+            SPRING,
+            performanceQuery
+        );
+
+        assertEquals(
+            CropGrowthDecision.CANCEL_GROWTH,
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
+        );
+        assertEquals(POSITION, performanceQuery.requestedPosition);
+        assertEquals(CropKind.WHEAT, performanceQuery.requestedCropKind);
+    }
+
+    @Test
+    void missingCropPerformanceProfilePreservesCurrentDynamicBiomesGrowthBehavior() {
+        CropGrowthService service = serviceWith(
+            policy(0.5, () -> 0.5),
+            SPRING,
+            missingPerformanceProfileQuery()
+        );
+
+        assertEquals(
+            CropGrowthDecision.CANCEL_GROWTH,
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
+        );
+    }
+
+    @Test
     void allowsGrowthForUnsupportedBiomeToPreserveVanillaBehavior() {
         RecordingCurrentSeasonQuery currentSeasonQuery =
             new RecordingCurrentSeasonQuery(SPRING);
+        RecordingPerformanceQuery performanceQuery = new RecordingPerformanceQuery(
+            0.5
+        );
         CropGrowthService service = new CropGrowthService(
             position -> {
                 throw new UnsupportedBiomeException(
@@ -207,7 +263,8 @@ class CropGrowthServiceTest {
             (biomeId, cropKind) -> {
                 throw new AssertionError("Policy lookup should not run for unsupported biome");
             },
-            currentSeasonQuery
+            currentSeasonQuery,
+            performanceQuery
         );
 
         assertEquals(
@@ -215,12 +272,16 @@ class CropGrowthServiceTest {
             service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
         assertEquals(0, currentSeasonQuery.queryCount);
+        assertEquals(0, performanceQuery.queryCount);
     }
 
     @Test
     void allowsGrowthForMissingWheatPolicyToPreserveVanillaBehavior() {
         RecordingCurrentSeasonQuery currentSeasonQuery =
             new RecordingCurrentSeasonQuery(SPRING);
+        RecordingPerformanceQuery performanceQuery = new RecordingPerformanceQuery(
+            0.5
+        );
         CropGrowthService service = new CropGrowthService(
             position -> FOREST_CONTEXT,
             (biomeId, cropKind) -> {
@@ -228,7 +289,8 @@ class CropGrowthServiceTest {
                     "Missing wheat growth policy for biome: " + biomeId.value()
                 );
             },
-            currentSeasonQuery
+            currentSeasonQuery,
+            performanceQuery
         );
 
         assertEquals(
@@ -236,6 +298,7 @@ class CropGrowthServiceTest {
             service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
         assertEquals(0, currentSeasonQuery.queryCount);
+        assertEquals(0, performanceQuery.queryCount);
     }
 
     @Test
@@ -247,7 +310,8 @@ class CropGrowthServiceTest {
             (biomeId, cropKind) -> {
                 throw new AssertionError("Policy lookup should not run when resolver fails");
             },
-            new RecordingCurrentSeasonQuery(SPRING)
+            new RecordingCurrentSeasonQuery(SPRING),
+            neutralPerformanceQuery()
         );
 
         IllegalStateException exception = assertThrows(
@@ -265,7 +329,8 @@ class CropGrowthServiceTest {
             (biomeId, cropKind) -> {
                 throw new IllegalStateException("Provider failure");
             },
-            new RecordingCurrentSeasonQuery(SPRING)
+            new RecordingCurrentSeasonQuery(SPRING),
+            neutralPerformanceQuery()
         );
 
         IllegalStateException exception = assertThrows(
@@ -293,7 +358,8 @@ class CropGrowthServiceTest {
             (biomeId, cropKind) -> policy(0.5, () -> 0.0),
             () -> {
                 throw new IllegalStateException("Season query failure");
-            }
+            },
+            neutralPerformanceQuery()
         );
 
         IllegalStateException exception = assertThrows(
@@ -312,10 +378,58 @@ class CropGrowthServiceTest {
         CropGrowthPolicy policy,
         SeasonId currentSeason
     ) {
+        return serviceWith(policy, currentSeason, neutralPerformanceQuery());
+    }
+
+    private static CropGrowthService serviceWith(
+        CropGrowthPolicy policy,
+        SeasonId currentSeason,
+        BiFunction<BlockPosition, CropKind, CropPerformanceResult> cropPerformanceQuery
+    ) {
         return new CropGrowthService(
             position -> FOREST_CONTEXT,
             (biomeId, cropKind) -> policy,
-            new RecordingCurrentSeasonQuery(currentSeason)
+            new RecordingCurrentSeasonQuery(currentSeason),
+            cropPerformanceQuery
+        );
+    }
+
+    private static BiFunction<BlockPosition, CropKind, CropPerformanceResult> neutralPerformanceQuery() {
+        return (position, cropKind) -> performanceResult(1.0);
+    }
+
+    private static BiFunction<BlockPosition, CropKind, CropPerformanceResult> missingPerformanceProfileQuery() {
+        CropPerformanceService service = new CropPerformanceService(
+            position -> neutralEnvironmentalState(),
+            cropKind -> {
+                throw new UnsupportedCropPerformanceProfileException(
+                    "Missing crop performance profile for crop: " +
+                    cropKind.policyKey()
+                );
+            },
+            new CropPerformanceCalculator()
+        );
+        return service::performanceFor;
+    }
+
+    private static CropPerformanceResult performanceResult(double growthChanceFactor) {
+        return new CropPerformanceResult(
+            OptionalDouble.empty(),
+            1.0,
+            growthChanceFactor,
+            1.0
+        );
+    }
+
+    private static CropEnvironmentalState neutralEnvironmentalState() {
+        NormalizedEnvironmentalValue neutral = new NormalizedEnvironmentalValue(0.5);
+        return new CropEnvironmentalState(
+            neutral,
+            neutral,
+            neutral,
+            neutral,
+            neutral,
+            neutral
         );
     }
 
@@ -389,6 +503,30 @@ class CropGrowthServiceTest {
         public SeasonId currentSeason() {
             queryCount++;
             return currentSeason;
+        }
+    }
+
+    private static final class RecordingPerformanceQuery
+        implements BiFunction<BlockPosition, CropKind, CropPerformanceResult> {
+
+        private final double growthChanceFactor;
+        private BlockPosition requestedPosition;
+        private CropKind requestedCropKind;
+        private int queryCount;
+
+        private RecordingPerformanceQuery(double growthChanceFactor) {
+            this.growthChanceFactor = growthChanceFactor;
+        }
+
+        @Override
+        public CropPerformanceResult apply(
+            BlockPosition position,
+            CropKind cropKind
+        ) {
+            requestedPosition = position;
+            requestedCropKind = cropKind;
+            queryCount++;
+            return performanceResult(growthChanceFactor);
         }
     }
 }

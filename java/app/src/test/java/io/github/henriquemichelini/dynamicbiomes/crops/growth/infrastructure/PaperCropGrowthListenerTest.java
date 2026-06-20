@@ -20,11 +20,13 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthC
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceResult;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.UUID;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -205,7 +207,17 @@ class PaperCropGrowthListenerTest {
         CropGrowthPolicyProvider policyProvider
     ) {
         return new PaperCropGrowthListener(
-            new CropGrowthService(biomeResolver, policyProvider, () -> SPRING)
+            new CropGrowthService(
+                biomeResolver,
+                policyProvider,
+                () -> SPRING,
+                (position, cropKind) -> new CropPerformanceResult(
+                    OptionalDouble.empty(),
+                    1.0,
+                    1.0,
+                    1.0
+                )
+            )
         );
     }
 

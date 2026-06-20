@@ -10,6 +10,11 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthP
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropGrowthListener;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.YamlCropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.presentation.CropGrowthInspectDiagnostic;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.application.CropEnvironmentalStateComposer;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.application.CropPerformanceService;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceProfileProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.infrastructure.YamlCropPerformanceProfileProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.application.CropYieldService;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldClimateFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
@@ -51,6 +56,7 @@ public final class DynamicBiomes extends JavaPlugin {
     public void onEnable() {
         saveResource("ore-drops.yml", false);
         saveResource("crop-growth.yml", false);
+        saveResource("crop-profiles.yml", false);
         saveResource("crop-yields.yml", false);
         saveResource("biome-profiles.yml", false);
         saveResource("season-profiles.yml", false);
@@ -131,6 +137,11 @@ public final class DynamicBiomes extends JavaPlugin {
                 dataPath.resolve("crop-yields.yml")
             );
 
+        CropPerformanceProfileProvider cropPerformanceProfileProvider =
+            new YamlCropPerformanceProfileProvider(
+                dataPath.resolve("crop-profiles.yml")
+            );
+
         SeasonProfileProvider seasonProfileProvider = new YamlSeasonProfileProvider(
             dataPath.resolve("season-profiles.yml")
         );
@@ -171,7 +182,16 @@ public final class DynamicBiomes extends JavaPlugin {
         CropGrowthService cropGrowthService = new CropGrowthService(
             biomeResolver,
             cropGrowthPolicyProvider,
-            currentSeasonQuery
+            currentSeasonQuery,
+            new CropPerformanceService(
+                new CropEnvironmentalStateComposer(
+                    biomeResolver,
+                    currentSeasonQuery,
+                    seasonProfileProvider
+                ),
+                cropPerformanceProfileProvider,
+                new CropPerformanceCalculator()
+            )::performanceFor
         );
 
         CropYieldService cropYieldService = new CropYieldService(
