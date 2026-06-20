@@ -63,6 +63,10 @@ Downstream feature contexts must consume only explicitly published upstream cont
 - **Ore drops safety contract**: `UnsupportedOreDropConfigurationException` (thrown when a biome has no ore drop policy or an `OreKind` has no configured rule; caught by `ore/drops/application` to preserve vanilla drops).
 - **Spatial vocabulary**: `WorldReference`, `BlockPosition`.
 
+These upstream contracts describe environmental conditions and identity only.
+`biome`, `seasons`, and future weather capabilities must not publish
+crop-specific growth, yield, quality, or performance rule vocabulary.
+
 ### 4.2 What Is Not Published
 
 - Internal infrastructure packages: `biome/*/infrastructure`, `seasons/*/infrastructure`.
@@ -182,6 +186,7 @@ Configuration files must be split by ownership:
 - `ore-drops.yml` belongs to `ore/drops`
 - `crop-growth.yml` belongs to `crops/growth`
 - `crop-yields.yml` belongs to `crops/yield`
+- `crop-profiles.yml` belongs to `crops/performance`
 
 Raw YAML must not leak into domain. Bukkit types must not leak into domain.
 
@@ -189,13 +194,19 @@ Feature-owned configuration may be keyed by published upstream identity types
 when the feature owns the policy semantics. For example, `ore-drops.yml` may
 contain ore-specific drop policy keyed by `BiomeId`, and `crop-yields.yml` may
 contain crop-specific yield policy keyed by `BiomeId`, because those files
-belong to `ore/drops` and `crops/yield`.
+belong to `ore/drops` and `crops/yield`. Biome-scoped crop yield policy is
+transitional once crop performance exists; new crop environmental interpretation
+belongs in `crops/performance` and must use crop-owned profile/preference data.
 
 Feature-specific behavior remains forbidden in upstream environmental profiles.
 `biome-profiles.yml` must not contain fields such as `cropYieldMultiplier` or
 `oreDropMultiplier`, and `biome/profile` must not own crop-specific or
 ore-specific behavior. Feature contexts interpret published environmental
 contracts and identities into their own behavior.
+
+`crop-growth.yml` and `crop-yields.yml` remain transitional crop-owned policy
+sources for one phase. The target crop-owned environmental preference/profile
+source is `crop-profiles.yml` under `crops/performance`.
 
 ## 8. Target Structure
 
@@ -306,6 +317,17 @@ io.github.henriquemichelini.dynamicbiomes/
 │   │   │   └── CropKind.java
 │   │   └── infrastructure/
 │   │       └── PaperCropMaterialMapper.java
+│   ├── performance/
+│   │   ├── application/
+│   │   │   ├── CropEnvironmentalStateComposer.java
+│   │   │   └── CropPerformanceService.java
+│   │   ├── domain/
+│   │   │   ├── CropEnvironmentalState.java
+│   │   │   ├── CropPerformanceProfile.java
+│   │   │   ├── CropPerformanceProfileProvider.java
+│   │   │   └── CropPerformanceResult.java
+│   │   └── infrastructure/
+│   │       └── YamlCropPerformanceProfileProvider.java
 │   ├── growth/
 │   │   ├── application/
 │   │   │   └── CropGrowthService.java
@@ -390,6 +412,34 @@ Dynamic state must not contain ore, crop, or animal rule results.
 - `PaperOrePlaceListener` lives in `ore/origin/infrastructure`.
 - `ore/drops` consumes ore origin data but does not own origin tracking.
 - `OreOrigin` uses pure domain types only; no Bukkit imports.
+
+### 8.4 Crop Performance Owns Crop Environmental Interpretation
+
+`crops/performance` is the crop-owned environmental interpretation capability.
+It consumes published upstream environmental contracts and turns them into
+crop-specific performance factors. Upstream contexts contribute conditions;
+they do not know which crops prefer those conditions.
+
+Responsibilities:
+
+- `biome`, `seasons`, and future weather capabilities describe environmental
+  contributors such as climate, season adjustments, and weather state.
+- `crops/performance` composes a crop-side `CropEnvironmentalState` read model
+  from those contributors.
+- `CropEnvironmentalState` stores normalized `0.0..1.0` variables for wind
+  speed, rain strength, humidity, temperature, solar incidence, and soil
+  fertility.
+- `crop-profiles.yml` is the crop-owned preference/profile source for crop
+  performance.
+- Crop performance output may expose crop behavior factors such as growth speed,
+  growth chance, and harvest quantity factors.
+
+Forbidden:
+
+- Do not add crop-specific vocabulary to `biome`, `seasons`, or future weather
+  contributors.
+- Do not add quality tier, quality probability, quality roll, item quality,
+  quality diagnostics, or `/dynamicbiomes inspect` quality output.
 
 ## 9. Value Object Rules
 
@@ -545,7 +595,7 @@ The following capabilities support runtime behavior while keeping ownership boun
 - **Paper crop growth listener**: `crops/growth/infrastructure` maps Bukkit crop materials through `PaperCropMaterialMapper`, translates supported `BlockGrowEvent` crop growth attempts into `BlockPosition`, delegates to `CropGrowthService`, and cancels only when the service returns a cancel decision.
 - **YAML-backed crop growth policy provider**: `crops/growth/infrastructure` loads `crop-growth.yml` into the typed `CropGrowthPolicyProvider` port for configured biome-specific wheat, carrot, potato, and beetroot growth chances and optional crop-owned seasonal factors while preserving the existing per-crop YAML shape. It rejects unsupported crop keys and does not listen for Bukkit crop events, query current season state, or mutate world state.
 - **Crop yield policy**: `crops/yield/domain` models configured mature crop produce multipliers, optional yield-owned seasonal factors keyed by published `SeasonId`, deterministic-testable multiplier and quantity variation sources, and probabilistic rounding of the final produce quantity. It supports zero final produce quantity when configured multipliers allow it and does not model Bukkit item stacks, seeds, replanting, or block events.
-- **Crop yield environmental factors**: `crops/yield/domain` models crop-yield-owned interpretation of published season climate adjustments through `CropYieldClimateFactorCalculator`. The earlier fertility-derived biome factor calculators remain present domain code for now, but they are not wired into active crop yield runtime while biome-scoped crop yield policy owns biome influence.
+- **Crop yield environmental factors**: `crops/yield/domain` currently models transitional crop-yield-owned interpretation of published season climate adjustments through `CropYieldClimateFactorCalculator`. The earlier fertility-derived biome factor calculators remain present domain code for now, but they are not wired into active crop yield runtime while biome-scoped crop yield policy owns biome influence. The target environmental interpretation capability is `crops/performance`.
 - **Biome-aware crop yield service**: `crops/yield/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads configured biome-scoped crop yield policy through `CropYieldPolicyProvider`, reads current season through the published `CurrentSeasonQuery`, and delegates multiplier and quantity calculation to the domain. Its runtime constructor consumes the published `SeasonProfileProvider`, derives the season-climate factor, composes the selected biome/crop multiplier with the crop seasonal factor and climate factor, and delegates final quantity rounding to `CropYieldQuantityCalculator`. The service preserves vanilla produce quantity only for explicit unsupported biome or unsupported crop yield policy cases.
 - **YAML-backed crop yield policy provider**: `crops/yield/infrastructure` loads `crop-yields.yml` into the typed `CropYieldPolicyProvider` port for configured biome-scoped crop-specific multiplier ranges for wheat, carrots, potatoes, and beetroot plus optional yield-owned seasonal factors. `CropYieldPolicyProvider.policyFor(BiomeId)` remains biome-aware, and `YamlCropYieldPolicyProvider` uses the supplied biome id to select the configured policy. It rejects unsupported biome keys, unsupported crop keys, and keeps yield factors independent from crop growth factors.
 - **Crop growth inspect diagnostic**: `crops/growth/presentation` maps the targeted block through `PaperCropMaterialMapper` and translates supported crop targets into read-only diagnostics by resolving biome support, querying `CropGrowthPolicyProvider` for the configured chance, and reading `CurrentSeasonQuery` to report the current season, seasonal factor/default, effective chance, and vanilla fallback status without rolling a growth decision.
@@ -560,17 +610,34 @@ The following capabilities support runtime behavior while keeping ownership boun
 - **Persisted season validation**: `SeasonInitializationService` throws `IllegalStateException` if a persisted `SeasonId` is absent from the configured `SeasonCalendar`.
 - **Origin cache safety**: `YamlOreOriginRepository` loads once and serves subsequent reads from memory; save/remove still persist.
 
-### 18.4 Crop Yield Target Semantics and Still-Deferred Work
+### 18.4 Crop Performance Target Semantics and Still-Deferred Work
 
-Crop yield uses biome-scoped crop yield policy owned by `crops/yield`,
-matching the gameplay goal that different crops can have different configured
-effectiveness in different biomes.
+Current crop yield runtime still uses biome-scoped crop yield policy owned by
+`crops/yield`. That shape is valid as transitional feature-owned policy because
+`crop-yields.yml` belongs to `crops/yield`, not `biome/profile`, but it is not
+the target crop environmental interpretation model.
 
-- Biome-scoped crop yield policy is valid because `crop-yields.yml` belongs to
-  `crops/yield`, not `biome/profile`. This is the same ownership pattern used
-  by `ore-drops.yml`: a feature-owned policy file may key feature-specific
-  rules by published `BiomeId`.
-- The target crop yield multiplier formula is:
+The target model is:
+
+- `biome`, `seasons`, and future weather capabilities remain upstream
+  environmental contributors. They describe environmental conditions and must
+  not gain crop-specific vocabulary.
+- `crops/performance` owns crop-specific environmental interpretation.
+- `CropEnvironmentalState` is a crop-side read model with normalized `0.0..1.0`
+  values for wind speed, rain strength, humidity, temperature, solar incidence,
+  and soil fertility.
+- `crop-profiles.yml` is the crop-owned source for crop environmental
+  preferences/profiles.
+- Crop performance produces behavior factors for crop systems, not quality
+  output.
+
+During the transitional phase:
+
+- `crop-growth.yml` remains the active crop growth policy source.
+- `crop-yields.yml` remains the active crop yield policy source.
+- Biome-scoped crop yield multipliers remain supported but are transitional
+  once crop performance exists.
+- The active runtime crop yield multiplier formula remains:
 
   ```text
   effectiveMultiplier =
@@ -582,9 +649,10 @@ effectiveness in different biomes.
 - `selectedBiomeCropMultiplier` is a `crops/yield` configured multiplier range
   selected by resolved `BiomeId` and `CropKind`. `cropSeasonalFactor` remains
   crop-specific seasonal tuning from `crop-yields.yml`. `climateYieldFactor` is
-  the `crops/yield` interpretation of published `SeasonProfile` climate
-  adjustment data.
-- The preferred target `crop-yields.yml` shape is biome-scoped and crop-specific.
+  the current `crops/yield` interpretation of published `SeasonProfile` climate
+  adjustment data and is transitional once `crops/performance` owns crop
+  environmental interpretation.
+- The current active `crop-yields.yml` shape is biome-scoped and crop-specific.
   Like `ore-drops.yml`, the root mapping is keyed directly by published
   `BiomeId` values:
 
@@ -628,28 +696,28 @@ effectiveness in different biomes.
   longer the active runtime shape.
 - `CropYieldPolicyProvider` must remain biome-aware while crop yield policy is
   biome-scoped. Cleanup that removes `BiomeId` from
-  `CropYieldPolicyProvider.policyFor(BiomeId)` is cancelled or deferred until a
-  separate design explicitly replaces biome-scoped crop yield policy.
+  `CropYieldPolicyProvider.policyFor(BiomeId)` is deferred until crop
+  performance replaces biome-scoped crop yield policy in a later card.
 - `BiomeProfile` fertility remains valid environmental data. However,
   fertility-derived `biomeYieldFactor` must not be applied on top of
   `selectedBiomeCropMultiplier` by default, because both represent biome
   influence. When biome-scoped crop multipliers are active, the
   fertility-derived factor should be removed from active crop yield runtime,
-  neutralized by default, or deferred into a later explicit
-  crop-environmental-sensitivity model.
-- A future crop environmental sensitivity model may add an explicit extra
-  factor, for example:
+  neutralized by default, or deferred into `crops/performance`.
+- Once crop performance exists, crop growth and crop yield may consume crop
+  performance factors instead of interpreting upstream environmental conditions
+  themselves. For example:
 
   ```text
   effectiveMultiplier =
     selectedBiomeCropMultiplier
-    * cropEnvironmentalSensitivityFactor
+    * cropPerformanceHarvestQuantityFactor
     * cropSeasonalFactor
     * climateYieldFactor
   ```
 
-  That model requires its own design card and must not push crop-yield
-  vocabulary into `biome/profile` or `seasons/profile`.
+  That migration requires later cards and must not push crop vocabulary into
+  `biome/profile`, `seasons/profile`, or future weather contributors.
 - Current pluginruntime crop yield composition uses the corrected biome-scoped
   crop yield service constructor in `DynamicBiomes`. The current composition
   formula is:
@@ -667,9 +735,12 @@ effectiveness in different biomes.
   crop-specific yield policy belongs to `crops/yield`, biome profile data
   belongs to `biome/profile`, and season profile data belongs to
   `seasons/profile`. `biome` and `seasons` must remain environmental contexts
-  and must not gain crop-specific rule vocabulary. Downstream crop yield code
-  may consume published biome and season domain contracts, but not upstream
+  and must not gain crop-specific rule vocabulary. Downstream crop code may
+  consume published biome and season domain contracts, but not upstream
   infrastructure.
+- Quality tier, quality probability, quality roll, item quality, quality
+  diagnostics, and `/dynamicbiomes inspect` quality output are out of scope for
+  crop performance.
 - Runtime tree growth behavior and broader season effects on animals beyond the currently modeled feature policies. Season profile data is modeled and has a YAML provider; crop yield runtime consumes it, while other feature runtimes do not yet consume season profile data.
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
