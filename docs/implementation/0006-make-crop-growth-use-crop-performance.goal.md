@@ -14,6 +14,15 @@ expected_commit: "feat(crops): apply crop performance to growth chance"
 
 Apply crop performance to existing DynamicBiomes crop growth behavior.
 
+## Read First
+
+- `AGENTS.md`
+- `ARCHITECTURE.md`
+- `docs/implementation/0005-add-crop-performance-application-service.goal.md`
+- `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/growth/application`
+- `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/growth/application`
+- `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/pluginruntime/lifecycle/infrastructure/DynamicBiomes.java`
+
 ## Current-State Problem
 
 Growth uses configured biome/crop chance and legacy crop growth seasonal factor only.
@@ -35,6 +44,14 @@ Required domain decisions:
 - `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/pluginruntime/lifecycle/infrastructure/DynamicBiomes.java`
 - `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/growth/application`
 - Existing crop growth infrastructure tests if constructor wiring changes require updates.
+
+## OOP / DDD / TDD Guardrails
+
+- Keep crop growth policy rules in `crops/growth/domain`; keep crop performance scoring in `crops/performance/domain`; use the growth application service only to orchestrate the combined result.
+- Depend on the crop performance application service or an explicit port-style collaborator; do not duplicate crop-performance calculations inside growth.
+- Pluginruntime changes are allowed only for constructor/composition wiring required by this card.
+- Do not import Bukkit/Paper events into application or domain packages.
+- Add focused growth application tests first for neutral, non-neutral, and fallback behavior before changing production wiring.
 
 ## Implementation Boundaries
 

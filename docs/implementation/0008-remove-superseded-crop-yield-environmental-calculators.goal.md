@@ -14,6 +14,16 @@ expected_commit: "refactor(crops): remove superseded yield environmental calcula
 
 Remove or retire yield-specific environmental calculators after crop performance owns environmental interpretation.
 
+## Read First
+
+- `AGENTS.md`
+- `ARCHITECTURE.md`
+- `docs/implementation/0007-make-crop-yield-use-crop-performance.goal.md`
+- `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/yield/domain`
+- `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/yield/application`
+- `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/performance`
+- Matching yield and crop-performance tests under `java/app/src/test/java`
+
 ## Current-State Problem
 
 `CropYieldClimateFactorCalculator`, `CropYieldBiomeFactorCalculator`, and `CropYieldEnvironmentalFactorCalculator` duplicate or conflict with `crops/performance`.
@@ -37,6 +47,14 @@ Required domain decisions:
 - `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/yield/domain`
 - `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/yield/application`
 - `ARCHITECTURE.md`
+
+## OOP / DDD / TDD Guardrails
+
+- Remove only responsibilities that are now owned by `crops/performance`; do not move environmental interpretation back into `crops/yield`.
+- Keep remaining yield classes focused on yield policy, seasonal yield tuning, and final quantity calculation.
+- Do not leave passive compatibility wrappers or empty classes/packages after references are removed.
+- Preserve or replace behavioral coverage before deleting tests; crop-performance tests must cover any transferred environmental interpretation.
+- Use TDD-style cleanup: first add or update safety tests that prove the active yield formula no longer uses superseded calculators, then remove dead code.
 
 ## Implementation Boundaries
 

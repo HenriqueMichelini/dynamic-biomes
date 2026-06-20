@@ -14,6 +14,15 @@ expected_commit: "feat(crops): add crop performance domain model"
 
 Implement pure crop performance domain types and scoring.
 
+## Read First
+
+- `AGENTS.md`
+- `ARCHITECTURE.md`
+- `docs/implementation/0001-reconcile-crop-environmental-design-in-architecture.goal.md`
+- `docs/implementation/0002-define-crop-owned-crop-environmental-state-composition.goal.md`
+- `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops`
+- `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops`
+
 ## Current-State Problem
 
 Growth and yield own separate factors, and no crop model compares current environmental state to crop preferences.
@@ -34,6 +43,14 @@ Required domain decisions:
 
 - `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/performance/domain`
 - `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/performance/domain`
+
+## OOP / DDD / TDD Guardrails
+
+- Keep all behavior in `crops/performance/domain`; no application, infrastructure, runtime, Bukkit/Paper, YAML, or file I/O dependencies.
+- Use value objects for normalized variables and profile preferences; validate construction invariants at object boundaries.
+- Prefer immutable records for simple value objects and explicit classes/domain services for behavior that compares profiles to environmental state.
+- Keep scoring behavior close to the model that owns the data; do not create passive data bags plus unrelated procedural helpers unless a pure domain service is the clearest responsibility.
+- Add or update the smallest matching domain tests first under the mirrored test package, confirm expected failure when practical, then implement.
 
 ## Implementation Boundaries
 

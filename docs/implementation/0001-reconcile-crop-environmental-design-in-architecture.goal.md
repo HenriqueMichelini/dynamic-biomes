@@ -14,6 +14,12 @@ expected_commit: "docs(crops): reconcile crop environmental performance architec
 
 Update architecture documentation to define `crops/performance` as the crop-owned environmental interpretation capability.
 
+## Read First
+
+- `AGENTS.md`
+- `ARCHITECTURE.md`
+- `docs/implementation/0001-reconcile-crop-environmental-design-in-architecture.goal.md`
+
 ## Current-State Problem
 
 `ARCHITECTURE.md` documents crop growth and crop yield behavior, but the current crop environmental target is still framed around biome-scoped crop yield policy instead of a crop-owned performance capability.
@@ -36,6 +42,13 @@ The documentation must preserve these domain decisions:
 ## Files Or Areas Likely Affected
 
 - `ARCHITECTURE.md`
+
+## OOP / DDD / TDD Guardrails
+
+- Treat `ARCHITECTURE.md` as the source of truth for package boundaries and layer responsibilities.
+- Preserve the DDD direction: upstream environmental contexts describe conditions; downstream crop contexts interpret them.
+- Document object responsibilities only when they are required by the selected crop-performance design; do not introduce speculative abstractions.
+- This is a docs-only card, so TDD does not apply to production behavior. Do not add or change code/tests to make the documentation pass.
 
 ## Implementation Boundaries
 

@@ -14,6 +14,14 @@ expected_commit: "feat(crops): load crop performance profiles from yaml"
 
 Introduce crop-owned preference profiles loaded from `crop-profiles.yml`.
 
+## Read First
+
+- `AGENTS.md`
+- `ARCHITECTURE.md`
+- `docs/implementation/0003-add-pure-crop-performance-domain-model.goal.md`
+- `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/performance/domain`
+- Existing YAML provider tests under `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes`
+
 ## Current-State Problem
 
 Existing crop configs describe growth chances and yield multipliers, not crop preferred environmental conditions.
@@ -36,6 +44,14 @@ Required domain decisions:
 - `java/app/src/main/resources/crop-profiles.yml`
 - `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/performance/infrastructure`
 - `java/app/build.gradle.kts` only if needed for resource packaging tests.
+
+## OOP / DDD / TDD Guardrails
+
+- The provider port belongs in `crops/performance/domain`; the YAML adapter and raw YAML parsing belong only in `crops/performance/infrastructure`.
+- Keep the provider responsibility typed and crop-performance-specific; do not introduce a generic configuration provider.
+- The provider reports supported or unsupported profile data; neutral result conversion belongs to the application service in Card 5.
+- Model YAML translation as adapter code that builds validated domain objects instead of leaking maps, raw YAML nodes, or strings into domain behavior.
+- Add focused provider/adapter tests first, including failure cases, before implementing the adapter or resource changes.
 
 ## Implementation Boundaries
 

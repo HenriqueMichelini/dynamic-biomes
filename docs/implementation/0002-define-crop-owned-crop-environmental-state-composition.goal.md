@@ -14,6 +14,13 @@ expected_commit: "docs(crops): define crop environmental state composition"
 
 Specify v1 environmental composition for crop performance.
 
+## Read First
+
+- `AGENTS.md`
+- `ARCHITECTURE.md`
+- `docs/implementation/0001-reconcile-crop-environmental-design-in-architecture.goal.md`
+- `docs/implementation/0002-define-crop-owned-crop-environmental-state-composition.goal.md`
+
 ## Current-State Problem
 
 There is no crop-side read model for environmental variables, and season handling could be misread as modifying all variables.
@@ -35,6 +42,13 @@ V1 composition is unambiguous:
 - `ARCHITECTURE.md`
 - Later implementation under `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/performance`
 - Matching tests under `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/performance`
+
+## OOP / DDD / TDD Guardrails
+
+- Keep `CropEnvironmentalState` documented as a crop-owned read model, not a biome or season model.
+- Do not move crop-specific behavior or terminology into `biome` or `seasons`.
+- Document variable ownership and composition rules in terms of typed domain concepts, not raw YAML or Bukkit/Paper state.
+- This is a docs/design card. Later implementation must use TDD, but this card must not add production or test code.
 
 ## Implementation Boundaries
 

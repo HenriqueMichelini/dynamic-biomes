@@ -14,6 +14,16 @@ expected_commit: "feat(crops): apply crop performance to harvest yield"
 
 Apply crop performance to existing DynamicBiomes crop yield behavior without double-applying season climate.
 
+## Read First
+
+- `AGENTS.md`
+- `ARCHITECTURE.md`
+- `docs/implementation/0005-add-crop-performance-application-service.goal.md`
+- `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/yield/application`
+- `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/yield/domain`
+- `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/yield/application`
+- `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/pluginruntime/lifecycle/infrastructure/DynamicBiomes.java`
+
 ## Current-State Problem
 
 Yield currently applies biome-scoped multiplier, legacy crop-yield seasonal factor, and `CropYieldClimateFactorCalculator`. Once performance owns environmental interpretation, the old climate factor would duplicate season influence.
@@ -48,6 +58,14 @@ Required domain decisions:
 - `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/pluginruntime/lifecycle/infrastructure/DynamicBiomes.java`
 - `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/yield/application`
 - Existing crop yield infrastructure tests if constructor wiring changes require updates.
+
+## OOP / DDD / TDD Guardrails
+
+- Keep yield quantity policy and rounding behavior in `crops/yield/domain`; keep crop-performance environmental interpretation in `crops/performance`.
+- Use the yield application service to orchestrate the transitional formula, not to duplicate crop-performance scoring or YAML parsing.
+- Pluginruntime changes are allowed only for constructor/composition wiring required by this card.
+- Do not import upstream infrastructure or Bukkit/Paper events into application or domain packages.
+- Add focused yield application tests first for neutral performance, non-neutral harvest factor, unsupported fallbacks, and climate-factor removal before production changes.
 
 ## Implementation Boundaries
 

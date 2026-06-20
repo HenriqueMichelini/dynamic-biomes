@@ -14,6 +14,16 @@ expected_commit: "feat(crops): add crop performance application service"
 
 Create orchestration that resolves environment, loads crop profile, and returns crop performance.
 
+## Read First
+
+- `AGENTS.md`
+- `ARCHITECTURE.md`
+- `docs/implementation/0002-define-crop-owned-crop-environmental-state-composition.goal.md`
+- `docs/implementation/0003-add-pure-crop-performance-domain-model.goal.md`
+- `docs/implementation/0004-add-crop-performance-profile-provider-and-yaml-adapter.goal.md`
+- Existing application services under `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops`
+- Matching application tests under `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops`
+
 ## Current-State Problem
 
 Growth and yield services independently resolve biome and season and have no shared crop performance result.
@@ -39,6 +49,14 @@ Required domain decisions:
 - `java/app/src/main/java/io/github/henriquemichelini/dynamicbiomes/crops/performance/application`
 - `java/app/src/test/java/io/github/henriquemichelini/dynamicbiomes/crops/performance/application`
 - Existing published upstream domain contracts under `biome` and `seasons` for read-only consumption.
+
+## OOP / DDD / TDD Guardrails
+
+- Keep `CropPerformanceService` as application orchestration: resolve upstream context, compose `CropEnvironmentalState`, load the crop profile, and delegate scoring to domain.
+- Do not put crop scoring rules, profile matching rules, YAML parsing, Bukkit/Paper translation, or persistence in the application service.
+- Consume only published upstream domain contracts from `biome` and `seasons`; never import upstream infrastructure.
+- Use explicit port dependencies and in-memory fakes/stubs in tests rather than framework mocks or file-backed configuration.
+- Write the smallest application tests first for each orchestration path, confirm expected failure when practical, then implement.
 
 ## Implementation Boundaries
 
