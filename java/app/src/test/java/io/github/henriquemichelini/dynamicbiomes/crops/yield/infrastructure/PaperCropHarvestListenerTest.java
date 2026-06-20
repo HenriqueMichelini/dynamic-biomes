@@ -15,8 +15,11 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperatur
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.application.CropYieldService;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldBiomeFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldClimateFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldCropRule;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEffectiveMultiplierCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEnvironmentalFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicy;
@@ -242,7 +245,10 @@ class PaperCropHarvestListenerTest {
             seasonId -> seasonProfile(seasonId),
             new CropYieldMultiplierCalculator(() -> 0.0),
             new CropYieldQuantityCalculator(() -> 0.0),
-            new CropYieldClimateFactorCalculator()
+            new CropYieldBiomeFactorCalculator(),
+            new CropYieldClimateFactorCalculator(),
+            new CropYieldEnvironmentalFactorCalculator(),
+            new CropYieldEffectiveMultiplierCalculator()
         );
         return new PaperCropHarvestListener(
             service,

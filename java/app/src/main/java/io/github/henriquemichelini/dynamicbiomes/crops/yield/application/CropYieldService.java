@@ -4,8 +4,11 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeCo
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldBiomeFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldClimateFactorCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEffectiveMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEnvironmentalFactor;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldEnvironmentalFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicyProvider;
@@ -25,7 +28,10 @@ public final class CropYieldService {
     private final SeasonProfileProvider seasonProfileProvider;
     private final CropYieldMultiplierCalculator multiplierCalculator;
     private final CropYieldQuantityCalculator quantityCalculator;
+    private final CropYieldBiomeFactorCalculator biomeFactorCalculator;
     private final CropYieldClimateFactorCalculator climateFactorCalculator;
+    private final CropYieldEnvironmentalFactorCalculator environmentalFactorCalculator;
+    private final CropYieldEffectiveMultiplierCalculator effectiveMultiplierCalculator;
 
     public CropYieldService(
         BiomeResolver biomeResolver,
@@ -34,7 +40,10 @@ public final class CropYieldService {
         SeasonProfileProvider seasonProfileProvider,
         CropYieldMultiplierCalculator multiplierCalculator,
         CropYieldQuantityCalculator quantityCalculator,
-        CropYieldClimateFactorCalculator climateFactorCalculator
+        CropYieldBiomeFactorCalculator biomeFactorCalculator,
+        CropYieldClimateFactorCalculator climateFactorCalculator,
+        CropYieldEnvironmentalFactorCalculator environmentalFactorCalculator,
+        CropYieldEffectiveMultiplierCalculator effectiveMultiplierCalculator
     ) {
         this.biomeResolver = biomeResolver;
         this.policyProvider = policyProvider;
@@ -42,7 +51,10 @@ public final class CropYieldService {
         this.seasonProfileProvider = seasonProfileProvider;
         this.multiplierCalculator = multiplierCalculator;
         this.quantityCalculator = quantityCalculator;
+        this.biomeFactorCalculator = biomeFactorCalculator;
         this.climateFactorCalculator = climateFactorCalculator;
+        this.environmentalFactorCalculator = environmentalFactorCalculator;
+        this.effectiveMultiplierCalculator = effectiveMultiplierCalculator;
     }
 
     public int calculateProduceQuantity(
@@ -60,7 +72,8 @@ public final class CropYieldService {
             CropYieldSeasonalFactor seasonalFactor = new CropYieldSeasonalFactor(
                 policy.seasonalFactorFor(cropKind, currentSeason)
             );
-            double effectiveMultiplier = calculateEffectiveMultiplier(
+            double effectiveMultiplier = calculateOptionBMultiplier(
+                biomeContext,
                 currentSeason,
                 selectedMultiplier,
                 seasonalFactor
@@ -78,7 +91,8 @@ public final class CropYieldService {
         }
     }
 
-    private double calculateEffectiveMultiplier(
+    private double calculateOptionBMultiplier(
+        BiomeContext biomeContext,
         SeasonId currentSeason,
         double selectedMultiplier,
         CropYieldSeasonalFactor seasonalFactor
@@ -86,13 +100,22 @@ public final class CropYieldService {
         SeasonProfile currentSeasonProfile = seasonProfileProvider.profileFor(
             currentSeason
         );
+        CropYieldEnvironmentalFactor biomeYieldFactor =
+            biomeFactorCalculator.calculate(biomeContext.profile().fertility());
         CropYieldEnvironmentalFactor climateYieldFactor =
             climateFactorCalculator.calculate(
                 currentSeasonProfile.climateAdjustment()
             );
-        return selectedMultiplier
-            * seasonalFactor.factor()
-            * climateYieldFactor.factor();
+        CropYieldEnvironmentalFactor environmentalFactor =
+            environmentalFactorCalculator.calculate(
+                biomeYieldFactor,
+                climateYieldFactor
+            );
+        return effectiveMultiplierCalculator.calculate(
+            selectedMultiplier,
+            seasonalFactor,
+            environmentalFactor
+        );
     }
 
 }

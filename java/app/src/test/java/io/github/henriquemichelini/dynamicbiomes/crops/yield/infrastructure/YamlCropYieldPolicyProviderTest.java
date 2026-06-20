@@ -39,16 +39,15 @@ class YamlCropYieldPolicyProviderTest {
     }
 
     @Test
-    void loadsConfiguredBiomeScopedMultiplierAndSeasonalFactor() throws Exception {
+    void loadsConfiguredMultiplierAndSeasonalFactor() throws Exception {
         YamlCropYieldPolicyProvider provider = providerFor("""
-            minecraft:forest:
-              crops:
-                wheat:
-                  multiplier:
-                    min: 0.5
-                    max: 1.25
-                  seasonal-factors:
-                    minecraft:spring: 1.4
+            crops:
+              wheat:
+                base-multiplier:
+                  min: 0.5
+                  max: 1.25
+                seasonal-factors:
+                  minecraft:spring: 1.4
             """);
 
         assertEquals(
@@ -66,20 +65,13 @@ class YamlCropYieldPolicyProviderTest {
     }
 
     @Test
-    void returnsDifferentCropRulesForDifferentBiomes() throws Exception {
+    void returnsBaseCropPolicyRegardlessOfBiomeDuringTransitionalSlice() throws Exception {
         YamlCropYieldPolicyProvider provider = providerFor("""
-            minecraft:forest:
-              crops:
-                wheat:
-                  multiplier:
-                    min: 0.9
-                    max: 1.1
-            minecraft:desert:
-              crops:
-                wheat:
-                  multiplier:
-                    min: 0.5
-                    max: 0.7
+            crops:
+              wheat:
+                base-multiplier:
+                  min: 0.9
+                  max: 1.1
             """);
 
         assertEquals(
@@ -87,51 +79,19 @@ class YamlCropYieldPolicyProviderTest {
             provider.policyFor(FOREST).multiplierRangeFor(CropKind.WHEAT).minimum()
         );
         assertEquals(
-            0.5,
+            0.9,
             provider.policyFor(DESERT).multiplierRangeFor(CropKind.WHEAT).minimum()
-        );
-    }
-
-    @Test
-    void missingRootBiomePolicyFails() throws Exception {
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> providerFor("""
-                crops:
-                  wheat:
-                    multiplier:
-                      min: 1.0
-                      max: 1.0
-                """)
-        );
-    }
-
-    @Test
-    void missingBiomePolicyThrowsUnsupportedPolicy() throws Exception {
-        YamlCropYieldPolicyProvider provider = providerFor("""
-            minecraft:forest:
-              crops:
-                wheat:
-                  multiplier:
-                    min: 1.0
-                    max: 1.0
-            """);
-
-        assertThrows(
-            UnsupportedCropYieldPolicyException.class,
-            () -> provider.policyFor(DESERT)
         );
     }
 
     @Test
     void missingCropRuleThrowsUnsupportedPolicy() throws Exception {
         YamlCropYieldPolicyProvider provider = providerFor("""
-            minecraft:forest:
-              crops:
-                wheat:
-                  multiplier:
-                    min: 1.0
-                    max: 1.0
+            crops:
+              wheat:
+                base-multiplier:
+                  min: 1.0
+                  max: 1.0
             """);
 
         assertThrows(
@@ -144,68 +104,53 @@ class YamlCropYieldPolicyProviderTest {
     void rejectsMalformedYamlAndDuplicateKeys() throws Exception {
         assertThrows(
             IllegalArgumentException.class,
-            () -> providerFor("minecraft:forest: [")
+            () -> providerFor("biomes: [")
         );
         assertThrows(
             IllegalArgumentException.class,
             () -> providerFor("""
-                minecraft:forest:
-                  crops:
-                    wheat:
-                      multiplier:
-                        min: 1.0
-                        max: 1.0
-                    wheat:
-                      multiplier:
-                        min: 1.0
-                        max: 1.0
+                crops:
+                  wheat:
+                    base-multiplier:
+                      min: 1.0
+                      max: 1.0
+                  wheat:
+                    base-multiplier:
+                      min: 1.0
+                      max: 1.0
                 """)
         );
     }
 
     @Test
-    void rejectsInvalidNumbersUnsupportedBiomeKeysAndUnsupportedCropKeys() throws Exception {
+    void rejectsInvalidNumbersAndUnsupportedCropKeys() throws Exception {
         assertThrows(
             IllegalArgumentException.class,
             () -> providerFor("""
-                minecraft:forest:
-                  crops:
-                    wheat:
-                      multiplier:
-                        min: -0.1
-                        max: 1.0
+                crops:
+                  wheat:
+                    base-multiplier:
+                      min: -0.1
+                      max: 1.0
                 """).policyFor(FOREST)
         );
         assertThrows(
             IllegalArgumentException.class,
             () -> providerFor("""
-                minecraft:forest:
-                  crops:
-                    wheat:
-                      seasonal-factors:
-                        minecraft:spring: 1.0
+                crops:
+                  wheat:
+                    seasonal-factors:
+                      minecraft:spring: 1.0
                 """).policyFor(FOREST)
         );
         assertThrows(
             IllegalArgumentException.class,
             () -> providerFor("""
-                Not_A_Biome:
-                  crops:
-                    wheat:
-                      multiplier:
-                        min: 1.0
-                        max: 1.0
-                """)
-        );
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> providerFor("""
-                minecraft:forest:
-                  crops:
-                    nether_wart:
-                      multiplier:
-                        min: 1.0
-                        max: 1.0
+                crops:
+                  nether_wart:
+                    base-multiplier:
+                      min: 1.0
+                      max: 1.0
                 """)
         );
     }
