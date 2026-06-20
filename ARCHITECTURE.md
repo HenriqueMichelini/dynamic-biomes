@@ -429,6 +429,18 @@ Responsibilities:
 - `CropEnvironmentalState` stores normalized `0.0..1.0` variables for wind
   speed, rain strength, humidity, temperature, solar incidence, and soil
   fertility.
+- V1 crop environmental state composition uses biome profile humidity and
+  temperature, optionally modified by season profile factors. For those
+  season-modified variables, use only:
+
+  ```text
+  finalVariable = clamp01(biomeVariable * seasonVariableFactor)
+  ```
+
+- V1 soil fertility comes only from `BiomeProfile.Fertility`. Do not apply
+  season or weather factors to soil fertility.
+- V1 wind speed, rain strength, and solar incidence use neutral defaults until
+  upstream weather or solar contracts exist.
 - `crop-profiles.yml` is the crop-owned preference/profile source for crop
   performance.
 - Crop performance output may expose crop behavior factors such as growth speed,
@@ -626,6 +638,17 @@ The target model is:
 - `CropEnvironmentalState` is a crop-side read model with normalized `0.0..1.0`
   values for wind speed, rain strength, humidity, temperature, solar incidence,
   and soil fertility.
+- V1 environmental state composition is intentionally narrow:
+  - Humidity comes from `BiomeProfile.ClimateProfile.Humidity`, optionally
+    modified by the current `SeasonProfile` humidity factor using
+    `finalVariable = clamp01(biomeVariable * seasonVariableFactor)`.
+  - Temperature comes from `BiomeProfile.ClimateProfile.Temperature`,
+    optionally modified by the current `SeasonProfile` temperature factor using
+    `finalVariable = clamp01(biomeVariable * seasonVariableFactor)`.
+  - Soil fertility comes only from `BiomeProfile.Fertility`; season and weather
+    factors must not apply to soil fertility in v1.
+  - Wind speed, rain strength, and solar incidence use neutral defaults until
+    upstream contracts for those contributors exist.
 - `crop-profiles.yml` is the crop-owned source for crop environmental
   preferences/profiles.
 - Crop performance produces behavior factors for crop systems, not quality
