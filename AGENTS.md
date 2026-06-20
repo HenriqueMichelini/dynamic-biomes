@@ -106,6 +106,7 @@ Resource ownership:
 ```text
 ore-drops.yml        -> ore/drops
 crop-growth.yml      -> crops/growth
+crop-profiles.yml    -> crops/performance
 biome-profiles.yml   -> biome/profile
 season-profiles.yml  -> seasons/profile
 season-cycle.yml     -> seasons/cycle

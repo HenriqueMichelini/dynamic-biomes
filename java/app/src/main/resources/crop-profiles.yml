@@ -1,0 +1,33 @@
+profiles:
+  wheat:
+    preferences:
+      wind-speed: 0.35
+      rain-strength: 0.45
+      humidity: 0.55
+      temperature: 0.60
+      solar-incidence: 0.70
+      soil-fertility: 0.75
+  carrots:
+    preferences:
+      wind-speed: 0.30
+      rain-strength: 0.40
+      humidity: 0.50
+      temperature: 0.55
+      solar-incidence: 0.65
+      soil-fertility: 0.70
+  potatoes:
+    preferences:
+      wind-speed: 0.40
+      rain-strength: 0.50
+      humidity: 0.60
+      temperature: 0.50
+      solar-incidence: 0.55
+      soil-fertility: 0.80
+  beetroot:
+    preferences:
+      wind-speed: 0.45
+      rain-strength: 0.35
+      humidity: 0.45
+      temperature: 0.55
+      solar-incidence: 0.60
+      soil-fertility: 0.65

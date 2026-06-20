@@ -49,6 +49,16 @@ class PluginResourcesTest {
     }
 
     @Test
+    void cropPerformanceProfilesUseTheirCapabilityOwnedResourceName() throws IOException {
+        String cropProfiles = readResource("crop-profiles.yml");
+
+        assertTrue(cropProfiles.contains("profiles:"));
+        assertTrue(cropProfiles.contains("wheat:"));
+        assertTrue(cropProfiles.contains("preferences:"));
+        assertTrue(cropProfiles.contains("soil-fertility:"));
+    }
+
+    @Test
     void biomeProfilesUseTheirCapabilityOwnedResourceName() throws IOException {
         String biomeProfiles = readResource("biome-profiles.yml");
 
