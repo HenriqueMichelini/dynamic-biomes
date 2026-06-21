@@ -14,23 +14,21 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRic
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceResult;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.application.CropYieldService;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldClimateFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldCropRule;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldQuantityCalculator;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonalAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.UUID;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -239,25 +237,19 @@ class PaperCropHarvestListenerTest {
                 )
             ),
             () -> SUMMER,
-            seasonId -> seasonProfile(seasonId),
+            (position, cropKind) -> new CropPerformanceResult(
+                OptionalDouble.empty(),
+                1.0,
+                1.0,
+                1.0
+            ),
             new CropYieldMultiplierCalculator(() -> 0.0),
-            new CropYieldQuantityCalculator(() -> 0.0),
-            new CropYieldClimateFactorCalculator()
+            new CropYieldQuantityCalculator(() -> 0.0)
         );
         return new PaperCropHarvestListener(
             service,
             (world, location, itemStack) -> droppedItems.add(itemStack.clone()),
             notifier
-        );
-    }
-
-    private static SeasonProfile seasonProfile(SeasonId seasonId) {
-        return new SeasonProfile(
-            seasonId,
-            new SeasonClimateAdjustment(
-                new SeasonalAdjustment(0.0),
-                new SeasonalAdjustment(0.0)
-            )
         );
     }
 

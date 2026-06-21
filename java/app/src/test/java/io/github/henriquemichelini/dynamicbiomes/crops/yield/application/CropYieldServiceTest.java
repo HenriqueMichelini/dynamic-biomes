@@ -15,7 +15,12 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeCo
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldClimateFactorCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.application.CropPerformanceService;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropEnvironmentalState;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceResult;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.NormalizedEnvironmentalValue;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.UnsupportedCropPerformanceProfileException;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldCropRule;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierRange;
@@ -26,14 +31,12 @@ import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldSea
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.UnsupportedCropYieldPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfileProvider;
-import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonalAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import org.junit.jupiter.api.Test;
 
 class CropYieldServiceTest {
@@ -72,7 +75,7 @@ class CropYieldServiceTest {
                 )
             ),
             () -> SPRING,
-            seasonId -> seasonProfile(seasonId, 0.0, 0.0)
+            neutralPerformance()
         );
 
         assertEquals(6, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 2));
@@ -110,7 +113,7 @@ class CropYieldServiceTest {
                 throw new UnsupportedCropYieldPolicyException("missing");
             },
             () -> SPRING,
-            seasonId -> seasonProfile(seasonId, 0.0, 0.0)
+            neutralPerformance()
         );
 
         assertEquals(50, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
@@ -122,38 +125,58 @@ class CropYieldServiceTest {
             position -> biomeContext(FOREST, 0.4, 0.8, 1.0, 0.3, 0.2),
             policyWith(new CropYieldMultiplierRange(1.0, 1.0), Map.of()),
             () -> SPRING,
-            seasonId -> seasonProfile(seasonId, 0.0, 0.0)
+            neutralPerformance()
         );
 
         assertEquals(100, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
     }
 
     @Test
-    void appliesPositiveSeasonClimateFactor() {
+    void doesNotApplyYieldOwnedSeasonClimateFactorAfterPerformanceIsWired() {
         CropYieldService service = serviceWith(
             position -> FOREST_CONTEXT,
             policyWith(new CropYieldMultiplierRange(1.0, 1.0), Map.of()),
             () -> SPRING,
-            seasonId -> seasonProfile(seasonId, 1.0, 1.0)
+            neutralPerformance()
         );
 
-        assertEquals(115, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
+        assertEquals(100, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
     }
 
     @Test
-    void appliesNegativeSeasonClimateFactor() {
+    void appliesCropPerformanceHarvestQuantityFactor() {
         CropYieldService service = serviceWith(
             position -> FOREST_CONTEXT,
             policyWith(new CropYieldMultiplierRange(1.0, 1.0), Map.of()),
             () -> SPRING,
-            seasonId -> seasonProfile(seasonId, -1.0, -1.0)
+            performance(2.0)
         );
 
-        assertEquals(85, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
+        assertEquals(200, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
     }
 
     @Test
-    void composesSelectedBiomeCropSeasonalAndClimateFactors() {
+    void treatsMissingCropPerformanceProfileAsNeutral() {
+        CropPerformanceService performanceService = new CropPerformanceService(
+            position -> neutralEnvironmentalState(),
+            cropKind -> {
+                throw new UnsupportedCropPerformanceProfileException("missing");
+            },
+            new CropPerformanceCalculator()
+        );
+
+        CropYieldService service = serviceWith(
+            position -> FOREST_CONTEXT,
+            policyWith(new CropYieldMultiplierRange(1.0, 1.0), Map.of()),
+            () -> SPRING,
+            performanceService::performanceFor
+        );
+
+        assertEquals(100, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
+    }
+
+    @Test
+    void composesSelectedBiomeCropSeasonalAndPerformanceFactors() {
         CropYieldService service = serviceWith(
             position -> biomeContext(FOREST, 0.4, 0.8, 1.0, 0.3, 0.2),
             policyWith(
@@ -161,10 +184,10 @@ class CropYieldServiceTest {
                 Map.of(SPRING, new CropYieldSeasonalFactor(1.10))
             ),
             () -> SPRING,
-            seasonId -> seasonProfile(seasonId, 1.0, 1.0)
+            performance(2.0)
         );
 
-        assertEquals(159, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
+        assertEquals(275, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 100));
     }
 
     @Test
@@ -179,12 +202,11 @@ class CropYieldServiceTest {
             () -> {
                 throw new AssertionError("Season query should be skipped");
             },
-            seasonId -> {
-                throw new AssertionError("Season profile lookup should be skipped");
+            (position, cropKind) -> {
+                throw new AssertionError("Crop performance should be skipped");
             },
             new CropYieldMultiplierCalculator(() -> 0.0),
-            new CropYieldQuantityCalculator(() -> 0.0),
-            new CropYieldClimateFactorCalculator()
+            new CropYieldQuantityCalculator(() -> 0.0)
         );
 
         assertEquals(3, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 3));
@@ -200,12 +222,11 @@ class CropYieldServiceTest {
             () -> {
                 throw new AssertionError("Season query should be skipped");
             },
-            seasonId -> {
-                throw new AssertionError("Season profile lookup should be skipped");
+            (position, cropKind) -> {
+                throw new AssertionError("Crop performance should be skipped");
             },
             new CropYieldMultiplierCalculator(() -> 0.0),
-            new CropYieldQuantityCalculator(() -> 0.0),
-            new CropYieldClimateFactorCalculator()
+            new CropYieldQuantityCalculator(() -> 0.0)
         );
 
         assertEquals(3, service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 3));
@@ -225,7 +246,7 @@ class CropYieldServiceTest {
                 )
             ),
             () -> SPRING,
-            seasonId -> seasonProfile(seasonId, 0.0, 0.0)
+            neutralPerformance()
         );
 
         assertThrows(
@@ -235,18 +256,18 @@ class CropYieldServiceTest {
     }
 
     @Test
-    void propagatesMissingSeasonProfilesAsConfigurationFailures() {
+    void propagatesCropPerformanceFailuresAfterYieldPolicySupportIsEstablished() {
         CropYieldService service = serviceWith(
             position -> FOREST_CONTEXT,
             policyWith(new CropYieldMultiplierRange(1.0, 1.0), Map.of()),
             () -> SPRING,
-            seasonId -> {
-                throw new IllegalArgumentException("missing season profile");
+            (position, cropKind) -> {
+                throw new IllegalStateException("performance failed");
             }
         );
 
         assertThrows(
-            IllegalArgumentException.class,
+            IllegalStateException.class,
             () -> service.calculateProduceQuantity(POSITION, CropKind.WHEAT, 3)
         );
     }
@@ -255,16 +276,15 @@ class CropYieldServiceTest {
         BiomeResolver biomeResolver,
         CropYieldPolicy policy,
         CurrentSeasonQuery currentSeasonQuery,
-        SeasonProfileProvider seasonProfileProvider
+        BiFunction<BlockPosition, CropKind, CropPerformanceResult> cropPerformanceQuery
     ) {
         return new CropYieldService(
             biomeResolver,
             biomeId -> policy,
             currentSeasonQuery,
-            seasonProfileProvider,
+            cropPerformanceQuery,
             new CropYieldMultiplierCalculator(() -> 0.0),
-            new CropYieldQuantityCalculator(() -> 0.0),
-            new CropYieldClimateFactorCalculator()
+            new CropYieldQuantityCalculator(() -> 0.0)
         );
     }
 
@@ -272,16 +292,15 @@ class CropYieldServiceTest {
         BiomeResolver biomeResolver,
         CropYieldPolicyProvider policyProvider,
         CurrentSeasonQuery currentSeasonQuery,
-        SeasonProfileProvider seasonProfileProvider
+        BiFunction<BlockPosition, CropKind, CropPerformanceResult> cropPerformanceQuery
     ) {
         return new CropYieldService(
             biomeResolver,
             policyProvider,
             currentSeasonQuery,
-            seasonProfileProvider,
+            cropPerformanceQuery,
             new CropYieldMultiplierCalculator(() -> 0.0),
-            new CropYieldQuantityCalculator(() -> 0.0),
-            new CropYieldClimateFactorCalculator()
+            new CropYieldQuantityCalculator(() -> 0.0)
         );
     }
 
@@ -294,20 +313,6 @@ class CropYieldServiceTest {
             Map.of(
                 CropKind.WHEAT,
                 new CropYieldCropRule(multiplierRange, seasonalFactors)
-            )
-        );
-    }
-
-    private static SeasonProfile seasonProfile(
-        SeasonId seasonId,
-        double temperatureAdjustment,
-        double humidityAdjustment
-    ) {
-        return new SeasonProfile(
-            seasonId,
-            new SeasonClimateAdjustment(
-                new SeasonalAdjustment(temperatureAdjustment),
-                new SeasonalAdjustment(humidityAdjustment)
             )
         );
     }
@@ -329,6 +334,34 @@ class CropYieldServiceTest {
                 new MineralRichness(mineralRichness),
                 new EcologicalPressure(ecologicalPressure)
             )
+        );
+    }
+
+    private static BiFunction<BlockPosition, CropKind, CropPerformanceResult> neutralPerformance() {
+        return performance(1.0);
+    }
+
+    private static BiFunction<BlockPosition, CropKind, CropPerformanceResult> performance(
+        double harvestQuantityFactor
+    ) {
+        CropPerformanceResult result = new CropPerformanceResult(
+            OptionalDouble.empty(),
+            1.0,
+            1.0,
+            harvestQuantityFactor
+        );
+        return (position, cropKind) -> result;
+    }
+
+    private static CropEnvironmentalState neutralEnvironmentalState() {
+        NormalizedEnvironmentalValue neutral = new NormalizedEnvironmentalValue(0.5);
+        return new CropEnvironmentalState(
+            neutral,
+            neutral,
+            neutral,
+            neutral,
+            neutral,
+            neutral
         );
     }
 }

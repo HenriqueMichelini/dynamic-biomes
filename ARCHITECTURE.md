@@ -592,11 +592,11 @@ The following capabilities are wired in `pluginruntime/lifecycle/infrastructure/
 
 - **Ore origin tracking**: `PaperOrePlaceListener` records player-placed ore; `PaperOreBreakListener` clears origin on break; `PaperOreMovementListener` transfers tracked origin across piston movement.
 - **Ore drop behavior**: `PaperOreBreakListener` delegates to `OreDropService` for supported configured Overworld ore materials resolved through `PaperOreMaterialMapper`, which maps Bukkit `Material` values to domain `OreKind` values. The service resolves the biome, looks up the ore drop policy, applies the base multiplier, and applies an optional ore-owned seasonal multiplier factor from `ore-drops.yml` based on the cached current season. The listener keeps Paper-specific vanilla drop interpretation in `PaperVanillaDropScanner`; when the final quantity differs from the vanilla quantity, it delegates mining-player delta action-bar and sound feedback to `PaperOreDropDeltaNotifier`.
-- **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlCropGrowthPolicyProvider`, `YamlCropYieldPolicyProvider`, `YamlCropPerformanceProfileProvider`, `YamlSeasonProfileProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup. `season-profiles.yml` is packaged, copied to the plugin data folder, and used by crop yield and crop performance runtime composition through the published `SeasonProfileProvider` port.
+- **YAML-backed configuration**: `YamlBiomeProfileProvider`, `YamlOreDropPolicyProvider`, `YamlCropGrowthPolicyProvider`, `YamlCropYieldPolicyProvider`, `YamlCropPerformanceProfileProvider`, `YamlSeasonProfileProvider`, and `YamlSeasonCycleSettingsProvider` load configured profiles, policies, and cycle settings at startup. `season-profiles.yml` is packaged, copied to the plugin data folder, and used by crop performance runtime composition through the published `SeasonProfileProvider` port.
 - **Current season initialization**: `SeasonInitializationService` validates any persisted current season against `SeasonCalendar`, initializes the first season if none exists, and `CachedCurrentSeasonQuery` keeps the runtime season in memory for hot-path reads.
 - **Configured season advancement**: `DynamicBiomes` reads `season-cycle.yml`; when `advancement.enabled` is true, it schedules a single repeating `SeasonAdvancementTask` that advances the persisted season through `SeasonCalendar`.
 - **Crop growth behavior**: `PaperCropMaterialMapper` maps Bukkit crop materials to supported runtime crop kinds, currently wheat, carrots, potatoes, and beetroot. `PaperCropGrowthListener` delegates supported natural crop `BlockGrowEvent` attempts to `CropGrowthService` with the mapped crop kind; the service resolves biome through `BiomeResolver`, reads configured biome-specific crop growth policy through `YamlCropGrowthPolicyProvider` from `crop-growth.yml`, applies any crop-owned seasonal factor for the cached current season, multiplies the resulting chance by `CropPerformanceResult.growthChanceFactor` from crop performance, and cancels growth only when the policy returns a cancel decision for the adjusted chance. Unsupported biomes or unsupported crop growth policies still preserve vanilla growth, and unsupported or missing crop performance profiles are neutral.
-- **Crop harvest yield behavior**: `PaperCropHarvestListener` delegates supported mature player `BlockBreakEvent` crop harvests to `CropYieldService` with the mapped crop kind and the server-computed vanilla produce quantity. The service resolves biome through `BiomeResolver`, reads the configured biome-scoped crop yield policy through `YamlCropYieldPolicyProvider` from `crop-yields.yml`, reads the current season through `CachedCurrentSeasonQuery`, reads season profile data through `YamlSeasonProfileProvider`, applies the selected biome/crop multiplier, any yield-owned seasonal factor, and the season-climate-derived climate yield factor, and returns the adjusted produce quantity. The listener replaces only produce drops when the quantity differs, preserves non-produce drops such as seeds unchanged, and does not handle replanting or non-player crop destruction paths.
+- **Crop harvest yield behavior**: `PaperCropHarvestListener` delegates supported mature player `BlockBreakEvent` crop harvests to `CropYieldService` with the mapped crop kind and the server-computed vanilla produce quantity. The service resolves biome through `BiomeResolver`, reads the configured biome-scoped crop yield policy through `YamlCropYieldPolicyProvider` from `crop-yields.yml`, reads the current season through `CachedCurrentSeasonQuery`, applies the selected biome/crop multiplier, any yield-owned seasonal factor, and `CropPerformanceResult.harvestQuantityFactor`, then returns the adjusted produce quantity. The listener replaces only produce drops when the quantity differs, preserves non-produce drops such as seeds unchanged, and does not handle replanting or non-player crop destruction paths.
 - **Read-only observability commands**: `/dynamicbiomes season` reads the cached `CurrentSeasonQuery` and reports the current `SeasonId`; `/dynamicbiomes biome` resolves the player's current `BiomeContext` through `BiomeResolver` and reports whether the biome has a supported DynamicBiomes profile; `/dynamicbiomes inspect` reads the player's target block, delegates to crop and ore diagnostics, reports crop growth policy support/configured chance/current season/seasonal factor/effective chance/fallback status for supported crop targets, checks ore drop policy/rules through `OreDropPolicyProvider`, reads tracked ore origin through `OreOriginTrackingService`, and reports multiplier eligibility without mutating state.
 - **Ore origin persistence**: `YamlOreOriginRepository` lazily loads origin state into memory and writes updates back to disk.
 
@@ -629,17 +629,16 @@ The following capabilities support runtime behavior while keeping ownership boun
   crop-performance profiles to neutral performance. Unsupported biome,
   malformed configuration, invalid normalized values, duplicate keys, I/O
   failures, and programming errors propagate. This service is wired into active
-  crop growth chance behavior, but is not wired into active crop yield runtime
-  yet.
+  crop growth chance behavior and active crop yield quantity behavior.
 - **YAML-backed crop performance profile provider**:
   `crops/performance/infrastructure` loads `crop-profiles.yml` into the typed
   `CropPerformanceProfileProvider` port for supported crop kinds and crop-owned
   environmental preferences. Missing crop profiles are reported as unsupported
   crop-performance profiles; malformed YAML, duplicate keys, invalid normalized
   values, unsupported crop keys, and I/O failures propagate. This provider is
-  wired into active crop growth chance behavior, but is not wired into active
-  crop yield runtime yet.
-- **Biome-aware crop yield service**: `crops/yield/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads configured biome-scoped crop yield policy through `CropYieldPolicyProvider`, reads current season through the published `CurrentSeasonQuery`, and delegates multiplier and quantity calculation to the domain. Its runtime constructor consumes the published `SeasonProfileProvider`, derives the season-climate factor, composes the selected biome/crop multiplier with the crop seasonal factor and climate factor, and delegates final quantity rounding to `CropYieldQuantityCalculator`. The service preserves vanilla produce quantity only for explicit unsupported biome or unsupported crop yield policy cases.
+  wired into active crop growth chance behavior and active crop yield quantity
+  behavior.
+- **Biome-aware crop yield service**: `crops/yield/application` resolves the `BiomeContext` for a `BlockPosition` through the published `BiomeResolver`, loads configured biome-scoped crop yield policy through `CropYieldPolicyProvider`, reads current season through the published `CurrentSeasonQuery`, consumes `CropPerformanceResult` from `crops/performance`, and delegates multiplier and quantity calculation to the domain. Its active formula composes the selected biome/crop multiplier with the crop seasonal factor and `CropPerformanceResult.harvestQuantityFactor`; it no longer applies `CropYieldClimateFactorCalculator` in the active yield path. The service preserves vanilla produce quantity only for explicit unsupported biome or unsupported crop yield policy cases.
 - **YAML-backed crop yield policy provider**: `crops/yield/infrastructure` loads `crop-yields.yml` into the typed `CropYieldPolicyProvider` port for configured biome-scoped crop-specific multiplier ranges for wheat, carrots, potatoes, and beetroot plus optional yield-owned seasonal factors. `CropYieldPolicyProvider.policyFor(BiomeId)` remains biome-aware, and `YamlCropYieldPolicyProvider` uses the supplied biome id to select the configured policy. It rejects unsupported biome keys, unsupported crop keys, and keeps yield factors independent from crop growth factors.
 - **Crop growth inspect diagnostic**: `crops/growth/presentation` maps the targeted block through `PaperCropMaterialMapper` and translates supported crop targets into read-only diagnostics by resolving biome support, querying `CropGrowthPolicyProvider` for the configured chance, and reading `CurrentSeasonQuery` to report the current season, seasonal factor/default, effective chance, and vanilla fallback status without rolling a growth decision.
 - **Tree growth policy**: `trees/growth/domain` models an already-selected configured natural tree growth allow chance, optional tree-owned seasonal factors keyed by published `SeasonId`, a deterministic-testable unit variation source, and an allow/cancel decision. It does not resolve biomes or current season state, read configuration, listen for Bukkit events, or mutate world state.
@@ -702,21 +701,22 @@ During the transitional phase:
 
 - Runtime crop growth speed behavior is not yet affected by
   `CropPerformanceResult.growthSpeedFactor`.
-- The active runtime crop yield multiplier formula remains:
+- The active runtime crop yield multiplier formula is:
 
   ```text
   effectiveMultiplier =
     selectedBiomeCropMultiplier
     * cropSeasonalFactor
-    * climateYieldFactor
+    * cropPerformanceHarvestQuantityFactor
   ```
 
 - `selectedBiomeCropMultiplier` is a `crops/yield` configured multiplier range
   selected by resolved `BiomeId` and `CropKind`. `cropSeasonalFactor` remains
-  crop-specific seasonal tuning from `crop-yields.yml`. `climateYieldFactor` is
-  the current `crops/yield` interpretation of published `SeasonProfile` climate
-  adjustment data and is transitional once `crops/performance` owns crop
-  environmental interpretation.
+  crop-specific seasonal tuning from `crop-yields.yml`.
+  `cropPerformanceHarvestQuantityFactor` is supplied by `crops/performance`,
+  which owns crop-specific environmental interpretation. The yield-owned
+  `CropYieldClimateFactorCalculator` is not applied in the active yield path
+  once crop performance is wired.
 - The current active `crop-yields.yml` shape is biome-scoped and crop-specific.
   Like `ore-drops.yml`, the root mapping is keyed directly by published
   `BiomeId` values:
@@ -769,20 +769,18 @@ During the transitional phase:
   influence. When biome-scoped crop multipliers are active, the
   fertility-derived factor should be removed from active crop yield runtime,
   neutralized by default, or deferred into `crops/performance`.
-- Once crop performance exists, crop growth and crop yield may consume crop
-  performance factors instead of interpreting upstream environmental conditions
-  themselves. For example:
+- Crop growth and crop yield consume crop performance factors instead of
+  interpreting upstream environmental conditions themselves. Crop yield uses:
 
   ```text
   effectiveMultiplier =
     selectedBiomeCropMultiplier
-    * cropPerformanceHarvestQuantityFactor
     * cropSeasonalFactor
-    * climateYieldFactor
+    * cropPerformanceHarvestQuantityFactor
   ```
 
-  That migration requires later cards and must not push crop vocabulary into
-  `biome/profile`, `seasons/profile`, or future weather contributors.
+  This must not push crop vocabulary into `biome/profile`, `seasons/profile`,
+  or future weather contributors.
 - Current pluginruntime crop yield composition uses the corrected biome-scoped
   crop yield service constructor in `DynamicBiomes`. The current composition
   formula is:
@@ -793,7 +791,7 @@ During the transitional phase:
       vanillaProduceQuantity
       * selectedBiomeCropMultiplier
       * cropSeasonalFactor
-      * climateYieldFactor
+      * cropPerformanceHarvestQuantityFactor
     )
   ```
 - Crop-yield ownership stays split by context:
@@ -806,7 +804,7 @@ During the transitional phase:
 - Quality tier, quality probability, quality roll, item quality, quality
   diagnostics, and `/dynamicbiomes inspect` quality output are out of scope for
   crop performance.
-- Runtime tree growth behavior and broader season effects on animals beyond the currently modeled feature policies. Season profile data is modeled and has a YAML provider; crop yield runtime consumes it, while other feature runtimes do not yet consume season profile data.
+- Runtime tree growth behavior and broader season effects on animals beyond the currently modeled feature policies. Season profile data is modeled and has a YAML provider; crop performance runtime consumes it for crop environmental state composition, while other feature runtimes do not yet consume season profile data.
 - Ecological region state and dynamic biome state.
 - Admin commands, public API, or configuration reload commands.
 - Database persistence.

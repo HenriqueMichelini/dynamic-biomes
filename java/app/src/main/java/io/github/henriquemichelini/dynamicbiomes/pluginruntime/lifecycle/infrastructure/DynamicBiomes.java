@@ -16,7 +16,6 @@ import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPe
 import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceProfileProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.performance.infrastructure.YamlCropPerformanceProfileProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.application.CropYieldService;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldClimateFactorCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierCalculator;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldQuantityCalculator;
@@ -179,29 +178,30 @@ public final class DynamicBiomes extends JavaPlugin {
             new OreDropQuantityCalculator(Math::random)
         );
 
+        CropPerformanceService cropPerformanceService = new CropPerformanceService(
+            new CropEnvironmentalStateComposer(
+                biomeResolver,
+                currentSeasonQuery,
+                seasonProfileProvider
+            ),
+            cropPerformanceProfileProvider,
+            new CropPerformanceCalculator()
+        );
+
         CropGrowthService cropGrowthService = new CropGrowthService(
             biomeResolver,
             cropGrowthPolicyProvider,
             currentSeasonQuery,
-            new CropPerformanceService(
-                new CropEnvironmentalStateComposer(
-                    biomeResolver,
-                    currentSeasonQuery,
-                    seasonProfileProvider
-                ),
-                cropPerformanceProfileProvider,
-                new CropPerformanceCalculator()
-            )::performanceFor
+            cropPerformanceService::performanceFor
         );
 
         CropYieldService cropYieldService = new CropYieldService(
             biomeResolver,
             cropYieldPolicyProvider,
             currentSeasonQuery,
-            seasonProfileProvider,
+            cropPerformanceService::performanceFor,
             new CropYieldMultiplierCalculator(Math::random),
-            new CropYieldQuantityCalculator(Math::random),
-            new CropYieldClimateFactorCalculator()
+            new CropYieldQuantityCalculator(Math::random)
         );
 
         getServer().getPluginManager().registerEvents(
