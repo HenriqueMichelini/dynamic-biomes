@@ -6,10 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.EcologicalPressure;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Fertility;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
@@ -54,9 +52,7 @@ class CropYieldServiceTest {
         new BiomeProfile(
             FOREST,
             new ClimateProfile(new Humidity(0.4), new Temperature(0.8)),
-            new Fertility(0.5),
-            new MineralRichness(0.3),
-            new EcologicalPressure(0.2)
+            new Fertility(0.5)
         )
     );
 
@@ -84,7 +80,7 @@ class CropYieldServiceTest {
     @Test
     void usesResolvedBiomePolicyMultiplier() {
         CropYieldService service = serviceWith(
-            position -> biomeContext(DESERT, 0.4, 0.8, 0.5, 0.3, 0.2),
+            position -> biomeContext(DESERT, 0.4, 0.8, 0.5),
             biomeId -> {
                 if (FOREST.equals(biomeId)) {
                     return new CropYieldPolicy(
@@ -122,7 +118,7 @@ class CropYieldServiceTest {
     @Test
     void doesNotApplyFertilityDerivedBiomeFactor() {
         CropYieldService service = serviceWith(
-            position -> biomeContext(FOREST, 0.4, 0.8, 1.0, 0.3, 0.2),
+            position -> biomeContext(FOREST, 0.4, 0.8, 1.0),
             policyWith(new CropYieldMultiplierRange(1.0, 1.0), Map.of()),
             () -> SPRING,
             neutralPerformance()
@@ -178,7 +174,7 @@ class CropYieldServiceTest {
     @Test
     void composesSelectedBiomeCropSeasonalAndPerformanceFactors() {
         CropYieldService service = serviceWith(
-            position -> biomeContext(FOREST, 0.4, 0.8, 1.0, 0.3, 0.2),
+            position -> biomeContext(FOREST, 0.4, 0.8, 1.0),
             policyWith(
                 new CropYieldMultiplierRange(1.25, 1.25),
                 Map.of(SPRING, new CropYieldSeasonalFactor(1.10))
@@ -321,18 +317,14 @@ class CropYieldServiceTest {
         BiomeId biomeId,
         double humidity,
         double temperature,
-        double fertility,
-        double mineralRichness,
-        double ecologicalPressure
+        double fertility
     ) {
         return new BiomeContext(
             biomeId,
             new BiomeProfile(
                 biomeId,
                 new ClimateProfile(new Humidity(humidity), new Temperature(temperature)),
-                new Fertility(fertility),
-                new MineralRichness(mineralRichness),
-                new EcologicalPressure(ecologicalPressure)
+                new Fertility(fertility)
             )
         );
     }

@@ -6,10 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.EcologicalPressure;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Fertility;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
@@ -53,9 +51,7 @@ class CropGrowthServiceTest {
         new BiomeProfile(
             FOREST,
             new ClimateProfile(new Humidity(0.4), new Temperature(0.8)),
-            new Fertility(0.7),
-            new MineralRichness(0.3),
-            new EcologicalPressure(0.2)
+            new Fertility(0.7)
         )
     );
     private static final SeasonId SPRING = new SeasonId("minecraft:spring");

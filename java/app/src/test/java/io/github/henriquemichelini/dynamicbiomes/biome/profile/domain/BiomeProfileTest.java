@@ -14,52 +14,40 @@ class BiomeProfileTest {
         new Temperature(0.6)
     );
     private static final Fertility FERTILITY = new Fertility(0.7);
-    private static final MineralRichness MINERAL_RICHNESS = new MineralRichness(0.3);
-    private static final EcologicalPressure ECOLOGICAL_PRESSURE = new EcologicalPressure(0.2);
 
     @Test
     void containsOnlyStaticEnvironmentalProperties() {
         BiomeProfile profile = new BiomeProfile(
             BIOME_ID,
             CLIMATE,
-            FERTILITY,
-            MINERAL_RICHNESS,
-            ECOLOGICAL_PRESSURE
+            FERTILITY
         );
 
         assertAll(
             () -> assertEquals(BIOME_ID, profile.biomeId()),
             () -> assertEquals(CLIMATE, profile.climate()),
-            () -> assertEquals(FERTILITY, profile.fertility()),
-            () -> assertEquals(MINERAL_RICHNESS, profile.mineralRichness()),
-            () -> assertEquals(ECOLOGICAL_PRESSURE, profile.ecologicalPressure())
+            () -> assertEquals(FERTILITY, profile.fertility())
         );
     }
 
     @Test
     void rejectsMissingStaticEnvironmentalProperties() {
         assertAll(
-            () -> assertThrows(NullPointerException.class, () -> profile(null, CLIMATE, FERTILITY, MINERAL_RICHNESS, ECOLOGICAL_PRESSURE)),
-            () -> assertThrows(NullPointerException.class, () -> profile(BIOME_ID, null, FERTILITY, MINERAL_RICHNESS, ECOLOGICAL_PRESSURE)),
-            () -> assertThrows(NullPointerException.class, () -> profile(BIOME_ID, CLIMATE, null, MINERAL_RICHNESS, ECOLOGICAL_PRESSURE)),
-            () -> assertThrows(NullPointerException.class, () -> profile(BIOME_ID, CLIMATE, FERTILITY, null, ECOLOGICAL_PRESSURE)),
-            () -> assertThrows(NullPointerException.class, () -> profile(BIOME_ID, CLIMATE, FERTILITY, MINERAL_RICHNESS, null))
+            () -> assertThrows(NullPointerException.class, () -> profile(null, CLIMATE, FERTILITY)),
+            () -> assertThrows(NullPointerException.class, () -> profile(BIOME_ID, null, FERTILITY)),
+            () -> assertThrows(NullPointerException.class, () -> profile(BIOME_ID, CLIMATE, null))
         );
     }
 
     private static BiomeProfile profile(
         BiomeId biomeId,
         ClimateProfile climate,
-        Fertility fertility,
-        MineralRichness mineralRichness,
-        EcologicalPressure ecologicalPressure
+        Fertility fertility
     ) {
         return new BiomeProfile(
             biomeId,
             climate,
-            fertility,
-            mineralRichness,
-            ecologicalPressure
+            fertility
         );
     }
 }

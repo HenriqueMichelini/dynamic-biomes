@@ -7,10 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.EcologicalPressure;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Fertility;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
@@ -136,9 +134,7 @@ class CropEnvironmentalStateComposerTest {
             new BiomeProfile(
                 biomeId,
                 new ClimateProfile(new Humidity(humidity), new Temperature(temperature)),
-                new Fertility(fertility),
-                new MineralRichness(0.20),
-                new EcologicalPressure(0.30)
+                new Fertility(fertility)
             )
         );
     }

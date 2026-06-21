@@ -4,10 +4,8 @@ import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfileProvider;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.EcologicalPressure;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Fertility;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import java.io.IOException;
 import java.io.Reader;
@@ -50,9 +48,7 @@ public final class YamlBiomeProfileProvider implements BiomeProfileProvider {
                 new Humidity(requiredNumber(climate, "humidity", biomeId)),
                 new Temperature(requiredNumber(climate, "temperature", biomeId))
             ),
-            new Fertility(requiredNumber(profile, "fertility", biomeId)),
-            new MineralRichness(requiredNumber(profile, "mineral-richness", biomeId)),
-            new EcologicalPressure(requiredNumber(profile, "ecological-pressure", biomeId))
+            new Fertility(requiredNumber(profile, "fertility", biomeId))
         );
     }
 

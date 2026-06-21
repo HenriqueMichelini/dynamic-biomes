@@ -7,10 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.EcologicalPressure;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Fertility;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import org.junit.jupiter.api.Test;
 
@@ -50,9 +48,7 @@ class BiomeContextTest {
         return new BiomeProfile(
             biomeId,
             new ClimateProfile(new Humidity(0.5), new Temperature(0.5)),
-            new Fertility(0.5),
-            new MineralRichness(0.5),
-            new EcologicalPressure(0.5)
+            new Fertility(0.5)
         );
     }
 }

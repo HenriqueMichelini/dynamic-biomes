@@ -6,9 +6,7 @@ import lombok.NonNull;
 public record BiomeProfile(
     @NonNull BiomeId biomeId,
     @NonNull ClimateProfile climate,
-    @NonNull Fertility fertility,
-    @NonNull MineralRichness mineralRichness,
-    @NonNull EcologicalPressure ecologicalPressure
+    @NonNull Fertility fertility
 ) {
     public BiomeProfile {}
 }

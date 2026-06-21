@@ -29,8 +29,6 @@ class BukkitBiomeResolverTest {
                   humidity: 0.50
                   temperature: 0.50
                 fertility: 0.50
-                mineral-richness: 0.50
-                ecological-pressure: 0.50
             """
         );
         YamlBiomeProfileProvider profileProvider = new YamlBiomeProfileProvider(profileFile);

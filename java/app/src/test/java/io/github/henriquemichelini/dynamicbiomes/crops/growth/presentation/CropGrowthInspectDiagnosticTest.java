@@ -8,10 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.EcologicalPressure;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Fertility;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
@@ -118,9 +116,9 @@ class CropGrowthInspectDiagnosticTest {
                 "Performance-adjusted wheat growth chance: 0.25",
                 "May cancel natural growth: yes",
                 "Wheat yield policy: supported",
-                "Configured wheat yield multiplier range: 1.0..1.0",
+                "Configured wheat yield multiplier range: 1.0—1.0",
                 "Seasonal wheat yield factor: 1.0",
-                "Effective wheat yield multiplier range: 1.0..1.0",
+                "Effective wheat yield multiplier range: 1.0—1.0",
                 "Runtime wheat yield quantity: vanilla produce quantity * selected multiplier, with probabilistic rounding for fractional results"
             ),
             sender.messages
@@ -177,9 +175,9 @@ class CropGrowthInspectDiagnosticTest {
                 "Performance-adjusted carrot growth chance: 0.2",
                 "May cancel natural growth: yes",
                 "Carrot yield policy: supported",
-                "Configured carrot yield multiplier range: 1.0..1.0",
+                "Configured carrot yield multiplier range: 1.0—1.0",
                 "Seasonal carrot yield factor: 1.0",
-                "Effective carrot yield multiplier range: 1.0..1.0",
+                "Effective carrot yield multiplier range: 1.0—1.0",
                 "Runtime carrot yield quantity: vanilla produce quantity * selected multiplier, with probabilistic rounding for fractional results"
             ),
             sender.messages
@@ -236,9 +234,9 @@ class CropGrowthInspectDiagnosticTest {
                 "Performance-adjusted wheat growth chance: 1.0",
                 "May cancel natural growth: no",
                 "Wheat yield policy: supported",
-                "Configured wheat yield multiplier range: 1.0..1.0",
+                "Configured wheat yield multiplier range: 1.0—1.0",
                 "Seasonal wheat yield factor: 1.0",
-                "Effective wheat yield multiplier range: 1.0..1.0",
+                "Effective wheat yield multiplier range: 1.0—1.0",
                 "Runtime wheat yield quantity: vanilla produce quantity * selected multiplier, with probabilistic rounding for fractional results"
             ),
             sender.messages
@@ -295,9 +293,9 @@ class CropGrowthInspectDiagnosticTest {
                 "Performance-adjusted wheat growth chance: 0.75",
                 "May cancel natural growth: yes",
                 "Wheat yield policy: supported",
-                "Configured wheat yield multiplier range: 1.0..1.0",
+                "Configured wheat yield multiplier range: 1.0—1.0",
                 "Seasonal wheat yield factor: 1.0",
-                "Effective wheat yield multiplier range: 1.0..1.0",
+                "Effective wheat yield multiplier range: 1.0—1.0",
                 "Runtime wheat yield quantity: vanilla produce quantity * selected multiplier, with probabilistic rounding for fractional results"
             ),
             sender.messages
@@ -361,12 +359,12 @@ class CropGrowthInspectDiagnosticTest {
         );
         assertTrue(
             sender.messages.contains(
-                "Configured wheat yield multiplier range: 1.25..1.75"
+                "Configured wheat yield multiplier range: 1.25—1.75"
             )
         );
         assertTrue(
             sender.messages.contains(
-                "Effective wheat yield multiplier range: 0.8416666666666667..1.1783333333333335"
+                "Effective wheat yield multiplier range: 0.8416666666666667—1.1783333333333335"
             )
         );
     }
@@ -567,9 +565,7 @@ class CropGrowthInspectDiagnosticTest {
         return new BiomeProfile(
             biomeId,
             new ClimateProfile(new Humidity(humidity), new Temperature(temperature)),
-            new Fertility(fertility),
-            new MineralRichness(0.5),
-            new EcologicalPressure(0.5)
+            new Fertility(fertility)
         );
     }
 

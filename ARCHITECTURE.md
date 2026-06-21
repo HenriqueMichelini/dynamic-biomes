@@ -58,7 +58,7 @@ Downstream feature contexts must consume only explicitly published upstream cont
 ### 4.1 What Is Published
 
 - **Biome identity and resolution**: `BiomeId`, `BiomeContext`, `BiomeResolver` port, `UnsupportedBiomeException`.
-- **Biome static profile**: `BiomeProfile`, `BiomeProfileProvider` port, `ClimateProfile`, `Humidity`, `Temperature`, `Fertility`, `MineralRichness`, `EcologicalPressure`.
+- **Biome static profile**: `BiomeProfile`, `BiomeProfileProvider` port, `ClimateProfile`, `Humidity`, `Temperature`, `Fertility`.
 - **Season identity and profile**: `SeasonId`, `CurrentSeasonQuery` port, `SeasonProfile`, `SeasonClimateAdjustment`, `SeasonalAdjustment`, `SeasonProfileProvider` port.
 - **Ore drops safety contract**: `UnsupportedOreDropConfigurationException` (thrown when a biome has no ore drop policy or an `OreKind` has no configured rule; caught by `ore/drops/application` to preserve vanilla drops).
 - **Spatial vocabulary**: `WorldReference`, `BlockPosition`.
@@ -173,8 +173,6 @@ ClimateProfile
 Humidity
 Temperature
 Fertility
-MineralRichness
-EcologicalPressure
 ```
 
 Do **not** introduce `BiomeEffect`, `EffectType`, or any biome-owned rule vocabulary such as `ORE_DROP_MULTIPLIER`.
@@ -237,9 +235,7 @@ io.github.henriquemichelini.dynamicbiomes/
 │       │   ├── BiomeProfileProvider.java
 │       │   ├── Humidity.java
 │       │   ├── Temperature.java
-│       │   ├── Fertility.java
-│       │   ├── MineralRichness.java
-│       │   └── EcologicalPressure.java
+│       │   └── Fertility.java
 │       └── infrastructure/
 │           └── YamlBiomeProfileProvider.java
 │

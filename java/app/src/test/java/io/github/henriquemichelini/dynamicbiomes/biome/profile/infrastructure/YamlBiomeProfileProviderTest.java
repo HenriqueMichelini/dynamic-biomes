@@ -8,10 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.EcologicalPressure;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Fertility;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
-import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.MineralRichness;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -36,9 +34,7 @@ class YamlBiomeProfileProviderTest {
             new BiomeProfile(
                 PLAINS,
                 new ClimateProfile(new Humidity(0.40), new Temperature(0.80)),
-                new Fertility(0.70),
-                new MineralRichness(0.30),
-                new EcologicalPressure(0.20)
+                new Fertility(0.70)
             ),
             profile
         );
@@ -76,14 +72,6 @@ class YamlBiomeProfileProviderTest {
         assertInvalidProfileValue("humidity", profileWithClimate("humidity", 1.1));
         assertInvalidProfileValue("temperature", profileWithClimate("temperature", -0.1));
         assertInvalidProfileValue("fertility", profileWithProperty("fertility", 1.1));
-        assertInvalidProfileValue(
-            "mineral richness",
-            profileWithProperty("mineral-richness", -0.1)
-        );
-        assertInvalidProfileValue(
-            "ecological pressure",
-            profileWithProperty("ecological-pressure", 1.1)
-        );
     }
 
     @Test
@@ -96,15 +84,11 @@ class YamlBiomeProfileProviderTest {
                   humidity: 0.40
                   temperature: 0.80
                 fertility: 0.70
-                mineral-richness: 0.30
-                ecological-pressure: 0.20
               minecraft:plains:
                 climate:
                   humidity: 0.50
                   temperature: 0.50
                 fertility: 0.50
-                mineral-richness: 0.50
-                ecological-pressure: 0.50
             """
         );
 
@@ -123,8 +107,6 @@ class YamlBiomeProfileProviderTest {
                 climate:
                   humidity: 0.40
                   temperature: 0.80
-                fertility: 0.70
-                ecological-pressure: 0.20
             """
         );
 
@@ -133,7 +115,7 @@ class YamlBiomeProfileProviderTest {
             () -> new YamlBiomeProfileProvider(profileFile).profileFor(PLAINS)
         );
 
-        assertTrue(exception.getMessage().contains("mineral-richness"));
+        assertTrue(exception.getMessage().contains("fertility"));
     }
 
     @Test
@@ -192,8 +174,6 @@ class YamlBiomeProfileProviderTest {
                   humidity: 0.40
                   temperature: 0.80
                 fertility: 0.70
-                mineral-richness: 0.30
-                ecological-pressure: 0.20
             """;
     }
 
@@ -207,8 +187,6 @@ class YamlBiomeProfileProviderTest {
                   humidity: %s
                   temperature: %s
                 fertility: 0.70
-                mineral-richness: 0.30
-                ecological-pressure: 0.20
             """.formatted(humidity, temperature);
     }
 
@@ -220,12 +198,6 @@ class YamlBiomeProfileProviderTest {
                   humidity: 0.40
                   temperature: 0.80
                 fertility: %s
-                mineral-richness: %s
-                ecological-pressure: %s
-            """.formatted(
-            field.equals("fertility") ? value : 0.70,
-            field.equals("mineral-richness") ? value : 0.30,
-            field.equals("ecological-pressure") ? value : 0.20
-        );
+            """.formatted(field.equals("fertility") ? value : 0.70);
     }
 }
