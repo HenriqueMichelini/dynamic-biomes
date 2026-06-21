@@ -22,8 +22,23 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthP
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.application.EnvironmentalStateComposer;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropEnvironmentalState;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceCalculator;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceProfile;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceProfileProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.NormalizedEnvironmentalValue;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldCropRule;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierRange;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicy;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldSeasonalFactor;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfileProvider;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonalAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
@@ -82,8 +97,31 @@ class CropGrowthInspectDiagnosticTest {
                 "Configured wheat growth chance: 0.5",
                 "Current season: minecraft:winter",
                 "Seasonal wheat growth factor: 0.5",
-                "Effective wheat growth chance: 0.25",
-                "May cancel natural growth: yes"
+                "Biome humidity: 0.5",
+                "Biome temperature: 0.5",
+                "Biome soil fertility: 0.5",
+                "Season humidity adjustment: 0.0",
+                "Season humidity factor: 1.0",
+                "Season temperature adjustment: 0.0",
+                "Season temperature factor: 1.0",
+                "Crop environmental wind speed: actual=0.5, preferred=0.5",
+                "Crop environmental rain strength: actual=0.5, preferred=0.5",
+                "Crop environmental humidity: actual=0.5, preferred=0.5",
+                "Crop environmental temperature: actual=0.5, preferred=0.5",
+                "Crop environmental solar incidence: actual=0.5, preferred=0.5",
+                "Crop environmental soil fertility: actual=0.5, preferred=0.5",
+                "Crop performance overall score: 1.0",
+                "Crop growth speed factor: 1.0 (not used by natural growth listener)",
+                "Crop growth chance factor: 1.0",
+                "Harvest quantity factor: 1.0",
+                "Effective wheat growth chance before performance: 0.25",
+                "Performance-adjusted wheat growth chance: 0.25",
+                "May cancel natural growth: yes",
+                "Wheat yield policy: supported",
+                "Configured wheat yield multiplier range: 1.0..1.0",
+                "Seasonal wheat yield factor: 1.0",
+                "Effective wheat yield multiplier range: 1.0..1.0",
+                "Runtime wheat yield quantity: vanilla produce quantity * selected multiplier, with probabilistic rounding for fractional results"
             ),
             sender.messages
         );
@@ -118,8 +156,31 @@ class CropGrowthInspectDiagnosticTest {
                 "Configured carrot growth chance: 0.4",
                 "Current season: minecraft:winter",
                 "Seasonal carrot growth factor: 0.5",
-                "Effective carrot growth chance: 0.2",
-                "May cancel natural growth: yes"
+                "Biome humidity: 0.5",
+                "Biome temperature: 0.5",
+                "Biome soil fertility: 0.5",
+                "Season humidity adjustment: 0.0",
+                "Season humidity factor: 1.0",
+                "Season temperature adjustment: 0.0",
+                "Season temperature factor: 1.0",
+                "Crop environmental wind speed: actual=0.5, preferred=0.5",
+                "Crop environmental rain strength: actual=0.5, preferred=0.5",
+                "Crop environmental humidity: actual=0.5, preferred=0.5",
+                "Crop environmental temperature: actual=0.5, preferred=0.5",
+                "Crop environmental solar incidence: actual=0.5, preferred=0.5",
+                "Crop environmental soil fertility: actual=0.5, preferred=0.5",
+                "Crop performance overall score: 1.0",
+                "Crop growth speed factor: 1.0 (not used by natural growth listener)",
+                "Crop growth chance factor: 1.0",
+                "Harvest quantity factor: 1.0",
+                "Effective carrot growth chance before performance: 0.2",
+                "Performance-adjusted carrot growth chance: 0.2",
+                "May cancel natural growth: yes",
+                "Carrot yield policy: supported",
+                "Configured carrot yield multiplier range: 1.0..1.0",
+                "Seasonal carrot yield factor: 1.0",
+                "Effective carrot yield multiplier range: 1.0..1.0",
+                "Runtime carrot yield quantity: vanilla produce quantity * selected multiplier, with probabilistic rounding for fractional results"
             ),
             sender.messages
         );
@@ -154,8 +215,31 @@ class CropGrowthInspectDiagnosticTest {
                 "Configured wheat growth chance: 0.75",
                 "Current season: minecraft:spring",
                 "Seasonal wheat growth factor: 2.0",
-                "Effective wheat growth chance: 1.0",
-                "May cancel natural growth: no"
+                "Biome humidity: 0.5",
+                "Biome temperature: 0.5",
+                "Biome soil fertility: 0.5",
+                "Season humidity adjustment: 0.0",
+                "Season humidity factor: 1.0",
+                "Season temperature adjustment: 0.0",
+                "Season temperature factor: 1.0",
+                "Crop environmental wind speed: actual=0.5, preferred=0.5",
+                "Crop environmental rain strength: actual=0.5, preferred=0.5",
+                "Crop environmental humidity: actual=0.5, preferred=0.5",
+                "Crop environmental temperature: actual=0.5, preferred=0.5",
+                "Crop environmental solar incidence: actual=0.5, preferred=0.5",
+                "Crop environmental soil fertility: actual=0.5, preferred=0.5",
+                "Crop performance overall score: 1.0",
+                "Crop growth speed factor: 1.0 (not used by natural growth listener)",
+                "Crop growth chance factor: 1.0",
+                "Harvest quantity factor: 1.0",
+                "Effective wheat growth chance before performance: 1.0",
+                "Performance-adjusted wheat growth chance: 1.0",
+                "May cancel natural growth: no",
+                "Wheat yield policy: supported",
+                "Configured wheat yield multiplier range: 1.0..1.0",
+                "Seasonal wheat yield factor: 1.0",
+                "Effective wheat yield multiplier range: 1.0..1.0",
+                "Runtime wheat yield quantity: vanilla produce quantity * selected multiplier, with probabilistic rounding for fractional results"
             ),
             sender.messages
         );
@@ -190,10 +274,100 @@ class CropGrowthInspectDiagnosticTest {
                 "Configured wheat growth chance: 0.75",
                 "Current season: minecraft:winter",
                 "Seasonal wheat growth factor: 1.0 (default)",
-                "Effective wheat growth chance: 0.75",
-                "May cancel natural growth: yes"
+                "Biome humidity: 0.5",
+                "Biome temperature: 0.5",
+                "Biome soil fertility: 0.5",
+                "Season humidity adjustment: 0.0",
+                "Season humidity factor: 1.0",
+                "Season temperature adjustment: 0.0",
+                "Season temperature factor: 1.0",
+                "Crop environmental wind speed: actual=0.5, preferred=0.5",
+                "Crop environmental rain strength: actual=0.5, preferred=0.5",
+                "Crop environmental humidity: actual=0.5, preferred=0.5",
+                "Crop environmental temperature: actual=0.5, preferred=0.5",
+                "Crop environmental solar incidence: actual=0.5, preferred=0.5",
+                "Crop environmental soil fertility: actual=0.5, preferred=0.5",
+                "Crop performance overall score: 1.0",
+                "Crop growth speed factor: 1.0 (not used by natural growth listener)",
+                "Crop growth chance factor: 1.0",
+                "Harvest quantity factor: 1.0",
+                "Effective wheat growth chance before performance: 0.75",
+                "Performance-adjusted wheat growth chance: 0.75",
+                "May cancel natural growth: yes",
+                "Wheat yield policy: supported",
+                "Configured wheat yield multiplier range: 1.0..1.0",
+                "Seasonal wheat yield factor: 1.0",
+                "Effective wheat yield multiplier range: 1.0..1.0",
+                "Runtime wheat yield quantity: vanilla produce quantity * selected multiplier, with probabilistic rounding for fractional results"
             ),
             sender.messages
+        );
+    }
+
+    @Test
+    void reportsCropPerformanceAndYieldVariablesForSupportedCrop() {
+        RecordingSender sender = new RecordingSender();
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
+            position -> new BiomeContext(
+                FOREST,
+                profileFor(FOREST, 0.4, 0.6, 0.8)
+            ),
+            (biomeId, cropKind) -> policyFor(0.5),
+            new RecordingCurrentSeasonQuery(SPRING),
+            seasonId -> new SeasonProfile(
+                seasonId,
+                new SeasonClimateAdjustment(
+                    new SeasonalAdjustment(-0.25),
+                    new SeasonalAdjustment(0.5)
+                )
+            ),
+            position -> environmentalState(0.5, 0.5, 0.6, 0.45, 0.5, 0.8),
+            cropKind -> performanceProfileFor(cropKind, 0.25, 0.75),
+            biomeId -> yieldPolicyFor(
+                CropKind.WHEAT,
+                new CropYieldMultiplierRange(1.25, 1.75),
+                Map.of(SPRING, new CropYieldSeasonalFactor(0.8))
+            )
+        );
+
+        boolean handled = diagnostic.inspect(
+            sender.commandSender(),
+            block(Material.WHEAT)
+        );
+
+        assertTrue(handled);
+        assertTrue(
+            sender.messages.contains(
+                "Season humidity adjustment: 0.5"
+            )
+        );
+        assertTrue(sender.messages.contains("Biome humidity: 0.4"));
+        assertTrue(sender.messages.contains("Biome temperature: 0.6"));
+        assertTrue(sender.messages.contains("Biome soil fertility: 0.8"));
+        assertTrue(
+            sender.messages.contains(
+                "Crop environmental humidity: actual=0.6, preferred=0.25"
+            )
+        );
+        assertTrue(
+            sender.messages.contains(
+                "Crop performance overall score: 0.8416666666666667"
+            )
+        );
+        assertTrue(
+            sender.messages.contains(
+                "Performance-adjusted wheat growth chance: 0.42083333333333334"
+            )
+        );
+        assertTrue(
+            sender.messages.contains(
+                "Configured wheat yield multiplier range: 1.25..1.75"
+            )
+        );
+        assertTrue(
+            sender.messages.contains(
+                "Effective wheat yield multiplier range: 0.8416666666666667..1.1783333333333335"
+            )
         );
     }
 
@@ -323,10 +497,41 @@ class CropGrowthInspectDiagnosticTest {
         CropGrowthPolicyProvider policyProvider,
         CurrentSeasonQuery currentSeasonQuery
     ) {
+        return diagnostic(
+            biomeResolver,
+            policyProvider,
+            currentSeasonQuery,
+            seasonId -> new SeasonProfile(
+                seasonId,
+                new SeasonClimateAdjustment(
+                    new SeasonalAdjustment(0.0),
+                    new SeasonalAdjustment(0.0)
+                )
+            ),
+            position -> environmentalState(0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+            cropKind -> performanceProfileFor(cropKind, 0.5),
+            biomeId -> defaultYieldPolicy()
+        );
+    }
+
+    private static CropGrowthInspectDiagnostic diagnostic(
+        BiomeResolver biomeResolver,
+        CropGrowthPolicyProvider policyProvider,
+        CurrentSeasonQuery currentSeasonQuery,
+        SeasonProfileProvider seasonProfileProvider,
+        EnvironmentalStateComposer environmentalStateComposer,
+        CropPerformanceProfileProvider cropPerformanceProfileProvider,
+        CropYieldPolicyProvider cropYieldPolicyProvider
+    ) {
         return new CropGrowthInspectDiagnostic(
             biomeResolver,
             policyProvider,
-            currentSeasonQuery
+            currentSeasonQuery,
+            seasonProfileProvider,
+            environmentalStateComposer,
+            cropPerformanceProfileProvider,
+            new CropPerformanceCalculator(),
+            cropYieldPolicyProvider
         );
     }
 
@@ -350,12 +555,96 @@ class CropGrowthInspectDiagnosticTest {
     }
 
     private static BiomeProfile profileFor(BiomeId biomeId) {
+        return profileFor(biomeId, 0.5, 0.5, 0.5);
+    }
+
+    private static BiomeProfile profileFor(
+        BiomeId biomeId,
+        double humidity,
+        double temperature,
+        double fertility
+    ) {
         return new BiomeProfile(
             biomeId,
-            new ClimateProfile(new Humidity(0.5), new Temperature(0.5)),
-            new Fertility(0.5),
+            new ClimateProfile(new Humidity(humidity), new Temperature(temperature)),
+            new Fertility(fertility),
             new MineralRichness(0.5),
             new EcologicalPressure(0.5)
+        );
+    }
+
+    private static CropPerformanceProfile performanceProfileFor(
+        CropKind cropKind,
+        double preferredValue
+    ) {
+        return performanceProfileFor(cropKind, preferredValue, preferredValue);
+    }
+
+    private static CropPerformanceProfile performanceProfileFor(
+        CropKind cropKind,
+        double preferredHumidity,
+        double preferredTemperature
+    ) {
+        return new CropPerformanceProfile(
+            cropKind,
+            new NormalizedEnvironmentalValue(0.5),
+            new NormalizedEnvironmentalValue(0.5),
+            new NormalizedEnvironmentalValue(preferredHumidity),
+            new NormalizedEnvironmentalValue(preferredTemperature),
+            new NormalizedEnvironmentalValue(0.5),
+            new NormalizedEnvironmentalValue(0.5)
+        );
+    }
+
+    private static CropEnvironmentalState environmentalState(
+        double windSpeed,
+        double rainStrength,
+        double humidity,
+        double temperature,
+        double solarIncidence,
+        double soilFertility
+    ) {
+        return new CropEnvironmentalState(
+            new NormalizedEnvironmentalValue(windSpeed),
+            new NormalizedEnvironmentalValue(rainStrength),
+            new NormalizedEnvironmentalValue(humidity),
+            new NormalizedEnvironmentalValue(temperature),
+            new NormalizedEnvironmentalValue(solarIncidence),
+            new NormalizedEnvironmentalValue(soilFertility)
+        );
+    }
+
+    private static CropYieldPolicy yieldPolicyFor(
+        CropKind cropKind,
+        CropYieldMultiplierRange multiplierRange,
+        Map<SeasonId, CropYieldSeasonalFactor> seasonalFactors
+    ) {
+        return new CropYieldPolicy(
+            FOREST,
+            Map.of(
+                cropKind,
+                new CropYieldCropRule(multiplierRange, seasonalFactors)
+            )
+        );
+    }
+
+    private static CropYieldPolicy defaultYieldPolicy() {
+        CropYieldMultiplierRange neutralRange = new CropYieldMultiplierRange(
+            1.0,
+            1.0
+        );
+        return new CropYieldPolicy(
+            FOREST,
+            Map.of(
+                CropKind.WHEAT,
+                new CropYieldCropRule(neutralRange, Map.of()),
+                CropKind.CARROTS,
+                new CropYieldCropRule(neutralRange, Map.of()),
+                CropKind.POTATOES,
+                new CropYieldCropRule(neutralRange, Map.of()),
+                CropKind.BEETROOT,
+                new CropYieldCropRule(neutralRange, Map.of())
+            )
         );
     }
 

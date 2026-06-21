@@ -145,6 +145,13 @@ public final class DynamicBiomes extends JavaPlugin {
             dataPath.resolve("season-profiles.yml")
         );
 
+        CropEnvironmentalStateComposer cropEnvironmentalStateComposer =
+            new CropEnvironmentalStateComposer(
+                biomeResolver,
+                currentSeasonQuery,
+                seasonProfileProvider
+            );
+
         Objects.requireNonNull(
             getCommand("dynamicbiomes"),
             "Missing dynamicbiomes command metadata"
@@ -157,7 +164,12 @@ public final class DynamicBiomes extends JavaPlugin {
                         new CropGrowthInspectDiagnostic(
                             biomeResolver,
                             cropGrowthPolicyProvider,
-                            currentSeasonQuery
+                            currentSeasonQuery,
+                            seasonProfileProvider,
+                            cropEnvironmentalStateComposer,
+                            cropPerformanceProfileProvider,
+                            new CropPerformanceCalculator(),
+                            cropYieldPolicyProvider
                         )::inspect,
                         new OreInspectCommandExecutor(
                             biomeResolver,
@@ -179,11 +191,7 @@ public final class DynamicBiomes extends JavaPlugin {
         );
 
         CropPerformanceService cropPerformanceService = new CropPerformanceService(
-            new CropEnvironmentalStateComposer(
-                biomeResolver,
-                currentSeasonQuery,
-                seasonProfileProvider
-            ),
+            cropEnvironmentalStateComposer,
             cropPerformanceProfileProvider,
             new CropPerformanceCalculator()
         );
