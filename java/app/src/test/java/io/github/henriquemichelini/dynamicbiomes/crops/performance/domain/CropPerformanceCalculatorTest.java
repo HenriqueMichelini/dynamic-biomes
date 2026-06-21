@@ -40,6 +40,26 @@ class CropPerformanceCalculatorTest {
         );
     }
 
+    @Test
+    void soilFertilityMismatchReducesHarvestQuantityFactor() {
+        CropPerformanceProfile profile = profile(0.5, 0.5, 0.5, 0.5, 0.5, 0.5);
+        CropEnvironmentalState state = state(0.5, 0.5, 0.5, 0.5, 0.5, 0.0);
+
+        CropPerformanceResult result = calculator.calculate(profile, state);
+
+        assertEquals(0.916_666_666, result.harvestQuantityFactor(), 0.000_000_001);
+    }
+
+    @Test
+    void humidityAndTemperatureMismatchReduceHarvestQuantityFactor() {
+        CropPerformanceProfile profile = profile(0.5, 0.5, 0.5, 0.5, 0.5, 0.5);
+        CropEnvironmentalState state = state(0.5, 0.5, 0.0, 1.0, 0.5, 0.5);
+
+        CropPerformanceResult result = calculator.calculate(profile, state);
+
+        assertEquals(0.833_333_333, result.harvestQuantityFactor(), 0.000_000_001);
+    }
+
     private static CropPerformanceProfile profile(
         double windSpeed,
         double rainStrength,

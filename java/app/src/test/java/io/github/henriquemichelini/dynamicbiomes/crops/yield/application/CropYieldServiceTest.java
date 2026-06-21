@@ -61,7 +61,7 @@ class CropYieldServiceTest {
     );
 
     @Test
-    void appliesResolvedPolicySeasonalFactorAndNeutralEnvironmentalFactors() {
+    void appliesResolvedPolicySeasonalFactorAndNeutralCropPerformance() {
         CropYieldService service = serviceWith(
             position -> FOREST_CONTEXT,
             new CropYieldPolicy(

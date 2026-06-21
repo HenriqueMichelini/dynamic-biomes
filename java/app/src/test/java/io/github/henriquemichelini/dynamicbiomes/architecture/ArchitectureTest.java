@@ -16,6 +16,8 @@ class ArchitectureTest {
     private static final String PLUGIN_RUNTIME = ROOT + ".pluginruntime..";
     private static final String BIOME = ROOT + ".biome..";
     private static final String SEASONS = ROOT + ".seasons..";
+    private static final String CROP_YIELD_DOMAIN =
+        ROOT + ".crops.yield.domain..";
     // New top-level production packages are treated as feature contexts until classified here.
     private static final Set<String> NON_FEATURE_CONTEXTS = Set.of(
         "biome",
@@ -246,6 +248,17 @@ class ArchitectureTest {
         noClasses()
             .that().resideInAnyPackage(ROOT + ".spatial..")
             .should().dependOnClassesThat(DOMAIN_OR_SPATIAL_FORBIDDEN_DEPENDENCY)
+            .allowEmptyShould(true)
+            .check(productionClasses);
+    }
+
+    @Test
+    void cropYieldDomainMustNotOwnEnvironmentalFactorCalculators() {
+        noClasses()
+            .that().resideInAnyPackage(CROP_YIELD_DOMAIN)
+            .should().haveSimpleNameContaining("EnvironmentalFactor")
+            .orShould().haveSimpleNameContaining("ClimateFactor")
+            .orShould().haveSimpleNameContaining("BiomeFactor")
             .allowEmptyShould(true)
             .check(productionClasses);
     }
