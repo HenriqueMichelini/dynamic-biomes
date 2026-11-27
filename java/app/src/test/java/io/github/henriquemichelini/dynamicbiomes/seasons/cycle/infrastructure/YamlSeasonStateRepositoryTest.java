@@ -2,9 +2,11 @@ package io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStatePersistenceException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -72,7 +74,9 @@ class YamlSeasonStateRepositoryTest {
         Path existingContent = Files.writeString(repositoryFile.resolve("keep"), "data");
         YamlSeasonStateRepository repository = new YamlSeasonStateRepository(repositoryFile);
 
-        assertThrows(IllegalStateException.class, () -> repository.saveCurrentSeason(SUMMER));
+        SeasonStatePersistenceException failure =
+            assertThrows(SeasonStatePersistenceException.class, () -> repository.saveCurrentSeason(SUMMER));
+        assertInstanceOf(IOException.class, failure.getCause());
 
         assertEquals("data", Files.readString(existingContent));
         try (var entries = Files.list(temporaryDirectory)) {

@@ -9,7 +9,7 @@ public record OreKind(String value) {
 
     public OreKind {
         if (value == null || !VALID_ID.matcher(value).matches()) {
-            throw new IllegalArgumentException(
+            throw new InvalidOreKindException(
                 "Ore kind must be a valid lowercase namespaced identifier"
             );
         }

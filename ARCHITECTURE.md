@@ -60,7 +60,7 @@ Downstream feature contexts must consume only explicitly published upstream cont
 - **Biome identity and resolution**: `BiomeId`, `BiomeContext`, `BiomeResolver` port, `UnsupportedBiomeException`.
 - **Biome static profile**: `BiomeProfile`, `BiomeProfileProvider` port, `ClimateProfile`, `Humidity`, `Temperature`, `Fertility`.
 - **Biome ecological observations**: `EcologicalRegionState`, `SkyWeather`, and `DayPhase`.
-- **Season identity and profile**: `SeasonId`, `CurrentSeasonQuery` port, `SeasonProfile`, `SeasonClimateAdjustment`, `SeasonalAdjustment`, `SeasonProfileProvider` port.
+- **Season identity and profile**: `SeasonId`, `CurrentSeasonQuery` port, `SeasonProfile`, `SeasonClimateAdjustment`, `SeasonalAdjustment`, `SeasonProfileProvider` port, `MissingSeasonProfileException`.
 - **Ore drops safety contract**: `UnsupportedOreDropConfigurationException` (thrown when a biome has no ore drop policy or an `OreKind` has no configured rule; caught by `ore/drops/application` to preserve vanilla drops).
 - **Spatial vocabulary**: `WorldReference`, `BlockPosition`, `EcologicalRegionId`.
 
@@ -481,6 +481,27 @@ Forbidden:
 - **Records are appropriate** for immutable value objects (`BiomeId`, `BlockPosition`, `SeasonId`, etc.).
 - **Entities/aggregates should not be passive records** unless immutability and all transition methods are explicitly modeled.
 - **Equality is by value** for value objects, by identity for entities.
+
+## 10. Exception Ownership
+
+The capability that defines a domain rule owns its exception. Invalid identities,
+profile values, policies, and calendar settings use capability-specific
+exceptions derived from `IllegalArgumentException`. A valid season outside the
+configured calendar is reported by `SeasonNotInCalendarException`. Season
+initialization wraps that exception in `InvalidPersistedSeasonException` when
+the invalid selection came from persisted state.
+
+Use the provider or resolver's explicit absence contract when deciding whether
+to fall back. The `Unsupported…Exception` contracts identify missing optional
+policies and profiles. Animal breeding expresses policy absence with
+`Optional`. A season in the active calendar requires a profile, and
+`MissingSeasonProfileException` fails validation.
+
+Repository adapters report storage I/O failures using their port's persistence
+exception and preserve the underlying cause. Malformed YAML and persistence
+format errors are adapter concerns. Java exceptions still express internal
+preconditions such as invalid variation sources. Presentation translates
+expected failures into command feedback and lets unexpected failures propagate.
 
 ## 11. Persistence and Configuration Are Infrastructure
 

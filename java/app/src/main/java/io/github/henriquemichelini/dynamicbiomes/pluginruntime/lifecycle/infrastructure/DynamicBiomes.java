@@ -250,12 +250,7 @@ public final class DynamicBiomes extends JavaPlugin {
                 .initializeIfMissing();
             return new CachedCurrentSeasonQuery(initialSeason);
         }
-        SeasonId currentSeason = currentSeasonQuery.currentSeason();
-        if (!calendar.contains(currentSeason)) {
-            throw new IllegalArgumentException(
-                "Configured calendar must include the current season: " + currentSeason.value()
-            );
-        }
+        calendar.requireSeason(currentSeasonQuery.currentSeason());
         return currentSeasonQuery;
     }
 

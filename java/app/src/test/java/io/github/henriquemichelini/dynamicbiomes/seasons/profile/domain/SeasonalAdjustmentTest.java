@@ -10,11 +10,11 @@ class SeasonalAdjustmentTest {
     @Test
     void rejectsNonFiniteAndOutOfRangeValues() {
         assertAll(
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonalAdjustment(Double.NaN)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonalAdjustment(Double.NEGATIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonalAdjustment(Double.POSITIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonalAdjustment(-1.1)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonalAdjustment(1.1))
+            () -> assertThrows(InvalidSeasonProfileException.class, () -> new SeasonalAdjustment(Double.NaN)),
+            () -> assertThrows(InvalidSeasonProfileException.class, () -> new SeasonalAdjustment(Double.NEGATIVE_INFINITY)),
+            () -> assertThrows(InvalidSeasonProfileException.class, () -> new SeasonalAdjustment(Double.POSITIVE_INFINITY)),
+            () -> assertThrows(InvalidSeasonProfileException.class, () -> new SeasonalAdjustment(-1.1)),
+            () -> assertThrows(InvalidSeasonProfileException.class, () -> new SeasonalAdjustment(1.1))
         );
     }
 

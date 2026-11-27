@@ -1,5 +1,6 @@
 package io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure;
 
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStatePersistenceException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStateRepository;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
@@ -37,7 +38,7 @@ public final class YamlSeasonStateRepository implements SeasonStateRepository {
             Map<?, ?> root = requiredMap(loaded);
             return Optional.of(new SeasonId(requiredCurrentSeason(root)));
         } catch (IOException exception) {
-            throw new IllegalStateException(
+            throw new SeasonStatePersistenceException(
                 "Unable to read season state repository file: " + repositoryFile,
                 exception
             );
@@ -76,7 +77,7 @@ public final class YamlSeasonStateRepository implements SeasonStateRepository {
                 throw exception;
             }
         } catch (IOException exception) {
-            throw new IllegalStateException(
+            throw new SeasonStatePersistenceException(
                 "Unable to write season state repository file: " + repositoryFile,
                 exception
             );

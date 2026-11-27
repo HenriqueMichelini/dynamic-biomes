@@ -15,12 +15,12 @@ public record SeasonCycleSettings(
     public SeasonCycleSettings {
         Objects.requireNonNull(calendar, "Season calendar is required");
         if (initialDelayTicks < 0) {
-            throw new IllegalArgumentException(
+            throw new InvalidSeasonCycleSettingsException(
                 "initial-delay-ticks must be non-negative"
             );
         }
         if (intervalTicks <= 0) {
-            throw new IllegalArgumentException(
+            throw new InvalidSeasonCycleSettingsException(
                 "interval-ticks must be positive"
             );
         }

@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.seasons.profile.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.MissingSeasonProfileException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfileProvider;
@@ -52,9 +53,7 @@ public final class YamlSeasonProfileProvider implements SeasonProfileProvider {
         return seasonId -> {
             SeasonProfile profile = snapshot.get(seasonId);
             if (profile == null) {
-                throw new IllegalArgumentException(
-                    "Missing season profile: " + seasonId.value()
-                );
+                throw new MissingSeasonProfileException(seasonId);
             }
             return profile;
         };

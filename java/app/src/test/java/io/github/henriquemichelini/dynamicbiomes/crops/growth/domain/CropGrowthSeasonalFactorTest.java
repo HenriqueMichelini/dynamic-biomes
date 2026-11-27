@@ -20,19 +20,19 @@ class CropGrowthSeasonalFactorTest {
     void rejectsNegativeOrNonFiniteFactors() {
         assertAll(
             () -> assertThrows(
-                IllegalArgumentException.class,
+                InvalidCropGrowthPolicyException.class,
                 () -> new CropGrowthSeasonalFactor(-0.1)
             ),
             () -> assertThrows(
-                IllegalArgumentException.class,
+                InvalidCropGrowthPolicyException.class,
                 () -> new CropGrowthSeasonalFactor(Double.NaN)
             ),
             () -> assertThrows(
-                IllegalArgumentException.class,
+                InvalidCropGrowthPolicyException.class,
                 () -> new CropGrowthSeasonalFactor(Double.NEGATIVE_INFINITY)
             ),
             () -> assertThrows(
-                IllegalArgumentException.class,
+                InvalidCropGrowthPolicyException.class,
                 () -> new CropGrowthSeasonalFactor(Double.POSITIVE_INFINITY)
             )
         );

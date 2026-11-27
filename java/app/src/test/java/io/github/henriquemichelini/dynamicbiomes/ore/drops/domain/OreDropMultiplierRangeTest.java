@@ -10,13 +10,13 @@ class OreDropMultiplierRangeTest {
     @Test
     void rejectsInvalidBounds() {
         assertAll(
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreDropMultiplierRange(Double.NaN, 1.0)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreDropMultiplierRange(1.0, Double.NaN)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreDropMultiplierRange(Double.NEGATIVE_INFINITY, 1.0)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreDropMultiplierRange(1.0, Double.POSITIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreDropMultiplierRange(-0.1, 1.0)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreDropMultiplierRange(0.0, -0.1)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreDropMultiplierRange(1.1, 1.0))
+            () -> assertThrows(InvalidOreDropPolicyException.class, () -> new OreDropMultiplierRange(Double.NaN, 1.0)),
+            () -> assertThrows(InvalidOreDropPolicyException.class, () -> new OreDropMultiplierRange(1.0, Double.NaN)),
+            () -> assertThrows(InvalidOreDropPolicyException.class, () -> new OreDropMultiplierRange(Double.NEGATIVE_INFINITY, 1.0)),
+            () -> assertThrows(InvalidOreDropPolicyException.class, () -> new OreDropMultiplierRange(1.0, Double.POSITIVE_INFINITY)),
+            () -> assertThrows(InvalidOreDropPolicyException.class, () -> new OreDropMultiplierRange(-0.1, 1.0)),
+            () -> assertThrows(InvalidOreDropPolicyException.class, () -> new OreDropMultiplierRange(0.0, -0.1)),
+            () -> assertThrows(InvalidOreDropPolicyException.class, () -> new OreDropMultiplierRange(1.1, 1.0))
         );
     }
 

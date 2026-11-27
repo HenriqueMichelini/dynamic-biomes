@@ -7,9 +7,13 @@ import java.util.function.DoubleSupplier;
 public record AnimalBreedingPolicy(Map<SeasonId, Double> seasonalChances) {
     public AnimalBreedingPolicy {
         seasonalChances = Map.copyOf(seasonalChances);
-        seasonalChances.forEach((season, chance) ->
-            requireUnitValue(chance, "Breeding chance for " + season.value())
-        );
+        seasonalChances.forEach((season, chance) -> {
+            if (!isUnitValue(chance)) {
+                throw new InvalidAnimalBreedingPolicyException(
+                    "Breeding chance for " + season.value() + " must be within [0.0, 1.0]"
+                );
+            }
+        });
     }
 
     public boolean allowsBreeding(SeasonId season, DoubleSupplier variationSource) {
@@ -22,13 +26,13 @@ public record AnimalBreedingPolicy(Map<SeasonId, Double> seasonalChances) {
         }
 
         double roll = variationSource.getAsDouble();
-        requireUnitValue(roll, "Breeding chance roll");
+        if (!isUnitValue(roll)) {
+            throw new IllegalArgumentException("Breeding chance roll must be within [0.0, 1.0]");
+        }
         return roll < chance;
     }
 
-    private static void requireUnitValue(double value, String description) {
-        if (!Double.isFinite(value) || value < 0.0 || value > 1.0) {
-            throw new IllegalArgumentException(description + " must be within [0.0, 1.0]");
-        }
+    private static boolean isUnitValue(double value) {
+        return Double.isFinite(value) && value >= 0.0 && value <= 1.0;
     }
 }

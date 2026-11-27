@@ -12,7 +12,7 @@ public final class CropYieldCropRule {
         Map<SeasonId, CropYieldSeasonalFactor> seasonalFactors
     ) {
         if (multiplierRange == null) {
-            throw new IllegalArgumentException(
+            throw new InvalidCropYieldPolicyException(
                 "Crop yield rule multiplier range must not be null"
             );
         }

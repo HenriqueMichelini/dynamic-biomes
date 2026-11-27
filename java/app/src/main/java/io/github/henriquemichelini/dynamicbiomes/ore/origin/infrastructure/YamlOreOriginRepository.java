@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
+import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginPersistenceException;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginRepository;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
@@ -93,7 +94,7 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
                 }
             }
         } catch (IOException exception) {
-            throw new IllegalStateException(
+            throw new OreOriginPersistenceException(
                 "Unable to read ore origin repository file: " + repositoryFile,
                 exception
             );
@@ -166,7 +167,7 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
                 if (!committed) Files.deleteIfExists(staged);
             }
         } catch (IOException exception) {
-            throw new IllegalStateException(
+            throw new OreOriginPersistenceException(
                 "Unable to write ore origin repository file: " + repositoryFile,
                 exception
             );

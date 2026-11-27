@@ -48,7 +48,7 @@ class AnimalBreedingPolicyTest {
     @ValueSource(doubles = {-0.01, 1.01, Double.NaN, Double.POSITIVE_INFINITY})
     void rejectsInvalidConfiguredChances(double chance) {
         assertThrows(
-            IllegalArgumentException.class,
+            InvalidAnimalBreedingPolicyException.class,
             () -> new AnimalBreedingPolicy(Map.of(WINTER, chance))
         );
     }

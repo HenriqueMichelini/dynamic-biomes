@@ -10,11 +10,11 @@ class HumidityTest {
     @Test
     void rejectsValuesOutsideNormalizedRange() {
         assertAll(
-            () -> assertThrows(IllegalArgumentException.class, () -> new Humidity(Double.NaN)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Humidity(Double.NEGATIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Humidity(Double.POSITIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Humidity(-0.1)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Humidity(1.1))
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Humidity(Double.NaN)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Humidity(Double.NEGATIVE_INFINITY)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Humidity(Double.POSITIVE_INFINITY)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Humidity(-0.1)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Humidity(1.1))
         );
     }
 

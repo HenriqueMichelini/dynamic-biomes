@@ -10,11 +10,11 @@ class FertilityTest {
     @Test
     void rejectsValuesOutsideNormalizedRange() {
         assertAll(
-            () -> assertThrows(IllegalArgumentException.class, () -> new Fertility(Double.NaN)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Fertility(Double.NEGATIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Fertility(Double.POSITIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Fertility(-0.1)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Fertility(1.1))
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Fertility(Double.NaN)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Fertility(Double.NEGATIVE_INFINITY)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Fertility(Double.POSITIVE_INFINITY)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Fertility(-0.1)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Fertility(1.1))
         );
     }
 

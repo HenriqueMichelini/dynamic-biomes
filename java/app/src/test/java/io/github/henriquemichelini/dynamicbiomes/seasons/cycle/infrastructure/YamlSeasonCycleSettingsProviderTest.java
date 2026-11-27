@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.InvalidSeasonCycleSettingsException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCycleSettings;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
@@ -126,8 +127,8 @@ class YamlSeasonCycleSettingsProviderTest {
             """
         );
 
-        IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
+        InvalidSeasonCycleSettingsException exception = assertThrows(
+            InvalidSeasonCycleSettingsException.class,
             () -> new YamlSeasonCycleSettingsProvider(settingsFile).settings()
         );
 
@@ -147,8 +148,8 @@ class YamlSeasonCycleSettingsProviderTest {
             """
         );
 
-        IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
+        InvalidSeasonCycleSettingsException exception = assertThrows(
+            InvalidSeasonCycleSettingsException.class,
             () -> new YamlSeasonCycleSettingsProvider(settingsFile).settings()
         );
 
