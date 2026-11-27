@@ -1,0 +1,12 @@
+# Growth chance is the fraction of eligible vanilla tree generation attempts to allow.
+# Seasonal factors multiply the chance, capped at 1.0. An unlisted season uses 1.0.
+# Unlisted biomes use vanilla growth. Set biomes to {} to disable all policies.
+# Paper 1.21.4 reports dispenser bone meal as natural growth, so it can use these policies.
+biomes:
+  minecraft:forest:
+    growth-chance: 0.80
+    seasonal-factors:
+      minecraft:spring: 1.25
+      minecraft:summer: 1.00
+      minecraft:autumn: 0.85
+      minecraft:winter: 0.50
