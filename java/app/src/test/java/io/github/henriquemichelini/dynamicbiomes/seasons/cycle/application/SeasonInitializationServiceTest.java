@@ -3,6 +3,7 @@ package io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.InvalidSeasonCalendarException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCalendar;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStateRepository;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
@@ -62,8 +63,8 @@ class SeasonInitializationServiceTest {
         InMemorySeasonStateRepository repository = new InMemorySeasonStateRepository(unknown);
         SeasonInitializationService service = new SeasonInitializationService(CALENDAR, repository);
 
-        IllegalStateException exception = assertThrows(
-            IllegalStateException.class,
+        InvalidPersistedSeasonException exception = assertThrows(
+            InvalidPersistedSeasonException.class,
             service::initializeIfMissing
         );
 
@@ -77,7 +78,7 @@ class SeasonInitializationServiceTest {
     @Test
     void rejectsEmptyCalendarThroughDomainValidation() {
         assertThrows(
-            IllegalArgumentException.class,
+            InvalidSeasonCalendarException.class,
             () -> new SeasonCalendar(List.of())
         );
     }

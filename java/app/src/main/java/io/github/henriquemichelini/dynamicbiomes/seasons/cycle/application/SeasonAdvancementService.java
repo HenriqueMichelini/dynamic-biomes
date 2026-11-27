@@ -24,11 +24,7 @@ public final class SeasonAdvancementService {
     }
 
     public synchronized SeasonId setCurrentSeason(SeasonId season) {
-        if (!calendar.contains(season)) {
-            throw new IllegalArgumentException(
-                "Season is not in the configured calendar: " + (season == null ? null : season.value())
-            );
-        }
+        calendar.requireSeason(season);
         return persist(season);
     }
 

@@ -10,11 +10,11 @@ class CropGrowthChanceTest {
     @Test
     void rejectsChanceOutsideInclusiveUnitInterval() {
         assertAll(
-            () -> assertThrows(IllegalArgumentException.class, () -> new CropGrowthChance(-0.1)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new CropGrowthChance(1.1)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new CropGrowthChance(Double.NaN)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new CropGrowthChance(Double.NEGATIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new CropGrowthChance(Double.POSITIVE_INFINITY))
+            () -> assertThrows(InvalidCropGrowthPolicyException.class, () -> new CropGrowthChance(-0.1)),
+            () -> assertThrows(InvalidCropGrowthPolicyException.class, () -> new CropGrowthChance(1.1)),
+            () -> assertThrows(InvalidCropGrowthPolicyException.class, () -> new CropGrowthChance(Double.NaN)),
+            () -> assertThrows(InvalidCropGrowthPolicyException.class, () -> new CropGrowthChance(Double.NEGATIVE_INFINITY)),
+            () -> assertThrows(InvalidCropGrowthPolicyException.class, () -> new CropGrowthChance(Double.POSITIVE_INFINITY))
         );
     }
 

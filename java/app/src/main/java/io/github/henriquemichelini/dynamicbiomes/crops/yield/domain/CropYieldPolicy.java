@@ -14,12 +14,12 @@ public final class CropYieldPolicy {
         Map<CropKind, CropYieldCropRule> cropRules
     ) {
         if (biomeId == null) {
-            throw new IllegalArgumentException(
+            throw new InvalidCropYieldPolicyException(
                 "Crop yield policy biome identity must not be null"
             );
         }
         if (cropRules == null || cropRules.isEmpty()) {
-            throw new IllegalArgumentException(
+            throw new InvalidCropYieldPolicyException(
                 "Crop yield policy must define at least one crop rule"
             );
         }

@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application;
 
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCalendar;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonNotInCalendarException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStateRepository;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.util.Optional;
@@ -18,10 +19,10 @@ public final class SeasonInitializationService {
         Optional<SeasonId> currentSeason = repository.findCurrentSeason();
         if (currentSeason.isPresent()) {
             SeasonId season = currentSeason.get();
-            if (!calendar.contains(season)) {
-                throw new IllegalStateException(
-                    "Persisted current season is not in configured calendar: " + season.value()
-                );
+            try {
+                calendar.requireSeason(season);
+            } catch (SeasonNotInCalendarException exception) {
+                throw new InvalidPersistedSeasonException(season, exception);
             }
             return season;
         }

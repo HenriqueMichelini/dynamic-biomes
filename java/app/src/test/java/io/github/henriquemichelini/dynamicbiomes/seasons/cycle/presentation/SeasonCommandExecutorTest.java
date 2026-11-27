@@ -1,9 +1,13 @@
 package io.github.henriquemichelini.dynamicbiomes.seasons.cycle.presentation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCalendar;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStatePersistenceException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -113,10 +117,38 @@ class SeasonCommandExecutorTest {
         RecordingSender sender = new RecordingSender(true);
 
         assertTrue(setSeason(sender, season -> {
-            throw new IllegalStateException("Persistence failed");
+            throw new SeasonStatePersistenceException("Persistence failed", null);
         }, "minecraft:winter"));
 
         assertEquals(List.of("Unable to set the current season. Persistence failed"), sender.messages);
+    }
+
+    @Test
+    void reportsASeasonOutsideTheCalendarWithoutReportingSuccess() {
+        RecordingSender sender = new RecordingSender(true);
+
+        assertTrue(setSeason(sender, SeasonCalendar.standard()::requireSeason, "custom:monsoon"));
+
+        assertEquals(
+            List.of("Season is not in the configured calendar: custom:monsoon"),
+            sender.messages
+        );
+    }
+
+    @Test
+    void propagatesUnexpectedFailuresFromTheSeasonUpdate() {
+        RecordingSender sender = new RecordingSender(true);
+
+        for (RuntimeException failure : List.of(
+            new IllegalArgumentException("Invalid dependency input"),
+            new IllegalStateException("Invalid dependency state")
+        )) {
+            assertSame(failure, assertThrows(RuntimeException.class, () ->
+                setSeason(sender, season -> { throw failure; }, "minecraft:winter")
+            ));
+        }
+
+        assertTrue(sender.messages.isEmpty());
     }
 
     private static boolean setSeason(

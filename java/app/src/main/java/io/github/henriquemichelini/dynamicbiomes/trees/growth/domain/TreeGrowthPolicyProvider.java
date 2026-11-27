@@ -4,5 +4,6 @@ import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 
 @FunctionalInterface
 public interface TreeGrowthPolicyProvider {
+    /** @throws UnsupportedTreeGrowthPolicyException if the biome has no tree growth policy */
     TreeGrowthPolicy policyFor(BiomeId biomeId);
 }

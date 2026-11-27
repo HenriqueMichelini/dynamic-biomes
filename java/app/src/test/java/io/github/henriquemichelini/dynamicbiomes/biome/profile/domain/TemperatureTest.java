@@ -10,11 +10,11 @@ class TemperatureTest {
     @Test
     void rejectsValuesOutsideNormalizedRange() {
         assertAll(
-            () -> assertThrows(IllegalArgumentException.class, () -> new Temperature(Double.NaN)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Temperature(Double.NEGATIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Temperature(Double.POSITIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Temperature(-0.1)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new Temperature(1.1))
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Temperature(Double.NaN)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Temperature(Double.NEGATIVE_INFINITY)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Temperature(Double.POSITIVE_INFINITY)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Temperature(-0.1)),
+            () -> assertThrows(InvalidBiomeProfileException.class, () -> new Temperature(1.1))
         );
     }
 

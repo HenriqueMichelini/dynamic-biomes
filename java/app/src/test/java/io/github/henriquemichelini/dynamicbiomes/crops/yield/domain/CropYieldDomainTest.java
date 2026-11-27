@@ -16,9 +16,9 @@ class CropYieldDomainTest {
 
     @Test
     void validatesMultiplierRange() {
-        assertThrows(IllegalArgumentException.class, () -> new CropYieldMultiplierRange(-0.1, 1.0));
-        assertThrows(IllegalArgumentException.class, () -> new CropYieldMultiplierRange(1.1, 1.0));
-        assertThrows(IllegalArgumentException.class, () -> new CropYieldMultiplierRange(1.0, Double.NaN));
+        assertThrows(InvalidCropYieldPolicyException.class, () -> new CropYieldMultiplierRange(-0.1, 1.0));
+        assertThrows(InvalidCropYieldPolicyException.class, () -> new CropYieldMultiplierRange(1.1, 1.0));
+        assertThrows(InvalidCropYieldPolicyException.class, () -> new CropYieldMultiplierRange(1.0, Double.NaN));
     }
 
     @Test
@@ -83,7 +83,7 @@ class CropYieldDomainTest {
 
     @Test
     void rejectsInvalidSeasonalFactors() {
-        assertThrows(IllegalArgumentException.class, () -> new CropYieldSeasonalFactor(0.0));
-        assertThrows(IllegalArgumentException.class, () -> new CropYieldSeasonalFactor(Double.POSITIVE_INFINITY));
+        assertThrows(InvalidCropYieldPolicyException.class, () -> new CropYieldSeasonalFactor(0.0));
+        assertThrows(InvalidCropYieldPolicyException.class, () -> new CropYieldSeasonalFactor(Double.POSITIVE_INFINITY));
     }
 }

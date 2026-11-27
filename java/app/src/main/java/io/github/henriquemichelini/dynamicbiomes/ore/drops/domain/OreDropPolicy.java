@@ -14,12 +14,12 @@ public final class OreDropPolicy {
         Map<OreKind, OreDropOreRule> oreRules
     ) {
         if (biomeId == null) {
-            throw new IllegalArgumentException(
+            throw new InvalidOreDropPolicyException(
                 "Ore drop policy biome identity must not be null"
             );
         }
         if (oreRules == null || oreRules.isEmpty()) {
-            throw new IllegalArgumentException(
+            throw new InvalidOreDropPolicyException(
                 "Ore drop policy must define at least one ore rule"
             );
         }

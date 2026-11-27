@@ -161,23 +161,23 @@ class TreeGrowthPolicyTest {
     void rejectsInvalidChanceAndSeasonalFactorValues() {
         assertAll(
             () -> assertThrows(
-                IllegalArgumentException.class,
+                InvalidTreeGrowthPolicyException.class,
                 () -> new TreeGrowthChance(-0.1)
             ),
             () -> assertThrows(
-                IllegalArgumentException.class,
+                InvalidTreeGrowthPolicyException.class,
                 () -> new TreeGrowthChance(1.1)
             ),
             () -> assertThrows(
-                IllegalArgumentException.class,
+                InvalidTreeGrowthPolicyException.class,
                 () -> new TreeGrowthChance(Double.NaN)
             ),
             () -> assertThrows(
-                IllegalArgumentException.class,
+                InvalidTreeGrowthPolicyException.class,
                 () -> new TreeGrowthSeasonalFactor(-0.1)
             ),
             () -> assertThrows(
-                IllegalArgumentException.class,
+                InvalidTreeGrowthPolicyException.class,
                 () -> new TreeGrowthSeasonalFactor(Double.POSITIVE_INFINITY)
             )
         );

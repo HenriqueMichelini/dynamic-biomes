@@ -10,14 +10,14 @@ class SeasonIdTest {
     @Test
     void rejectsInvalidIdentifiers() {
         assertAll(
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonId(null)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonId("")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonId(" ")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonId("spring")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonId(":spring")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonId("dynamicbiomes:")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonId("DynamicBiomes:spring")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new SeasonId("dynamicbiomes:early spring"))
+            () -> assertThrows(InvalidSeasonIdException.class, () -> new SeasonId(null)),
+            () -> assertThrows(InvalidSeasonIdException.class, () -> new SeasonId("")),
+            () -> assertThrows(InvalidSeasonIdException.class, () -> new SeasonId(" ")),
+            () -> assertThrows(InvalidSeasonIdException.class, () -> new SeasonId("spring")),
+            () -> assertThrows(InvalidSeasonIdException.class, () -> new SeasonId(":spring")),
+            () -> assertThrows(InvalidSeasonIdException.class, () -> new SeasonId("dynamicbiomes:")),
+            () -> assertThrows(InvalidSeasonIdException.class, () -> new SeasonId("DynamicBiomes:spring")),
+            () -> assertThrows(InvalidSeasonIdException.class, () -> new SeasonId("dynamicbiomes:early spring"))
         );
     }
 

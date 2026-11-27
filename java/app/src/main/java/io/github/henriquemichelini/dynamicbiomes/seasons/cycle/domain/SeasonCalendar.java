@@ -14,13 +14,13 @@ public record SeasonCalendar(List<SeasonId> seasons) {
 
     public SeasonCalendar {
         if (seasons == null || seasons.isEmpty()) {
-            throw new IllegalArgumentException("Season calendar requires at least one season");
+            throw new InvalidSeasonCalendarException("Season calendar requires at least one season");
         }
         if (seasons.stream().anyMatch(season -> season == null)) {
-            throw new IllegalArgumentException("Season calendar cannot contain null seasons");
+            throw new InvalidSeasonCalendarException("Season calendar cannot contain null seasons");
         }
         if (new HashSet<>(seasons).size() != seasons.size()) {
-            throw new IllegalArgumentException("Season calendar cannot contain duplicate seasons");
+            throw new InvalidSeasonCalendarException("Season calendar cannot contain duplicate seasons");
         }
 
         seasons = List.copyOf(seasons);
@@ -31,12 +31,20 @@ public record SeasonCalendar(List<SeasonId> seasons) {
     }
 
     public SeasonId nextAfter(SeasonId currentSeason) {
-        int currentIndex = currentSeason == null ? -1 : seasons.indexOf(currentSeason);
-        if (currentIndex < 0) {
-            throw new IllegalArgumentException("Unknown season: " + currentSeason);
-        }
-
+        int currentIndex = indexOfConfiguredSeason(currentSeason);
         return seasons.get((currentIndex + 1) % seasons.size());
+    }
+
+    public void requireSeason(SeasonId season) {
+        indexOfConfiguredSeason(season);
+    }
+
+    private int indexOfConfiguredSeason(SeasonId season) {
+        int currentIndex = season == null ? -1 : seasons.indexOf(season);
+        if (currentIndex < 0) {
+            throw new SeasonNotInCalendarException(season);
+        }
+        return currentIndex;
     }
 
     public boolean contains(SeasonId season) {

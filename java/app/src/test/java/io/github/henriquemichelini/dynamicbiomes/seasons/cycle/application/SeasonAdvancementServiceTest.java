@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCalendar;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonNotInCalendarException;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStatePersistenceException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStateRepository;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.util.List;
@@ -78,7 +80,7 @@ class SeasonAdvancementServiceTest {
         );
 
         assertThrows(
-            IllegalStateException.class,
+            SeasonStatePersistenceException.class,
             service::advance
         );
 
@@ -100,7 +102,7 @@ class SeasonAdvancementServiceTest {
             currentSeasonQuery
         );
 
-        assertThrows(IllegalArgumentException.class, service::advance);
+        assertThrows(SeasonNotInCalendarException.class, service::advance);
         assertEquals(monsoon, currentSeasonQuery.currentSeason());
     }
 
@@ -127,7 +129,7 @@ class SeasonAdvancementServiceTest {
         );
 
         assertThrows(
-            IllegalArgumentException.class,
+            SeasonNotInCalendarException.class,
             () -> service.setCurrentSeason(new SeasonId("minecraft:monsoon"))
         );
         assertEquals(SPRING, repository.findCurrentSeason().orElseThrow());
@@ -142,7 +144,7 @@ class SeasonAdvancementServiceTest {
             CALENDAR, repository, currentSeasonQuery
         );
 
-        assertThrows(IllegalStateException.class, () -> service.setCurrentSeason(WINTER));
+        assertThrows(SeasonStatePersistenceException.class, () -> service.setCurrentSeason(WINTER));
         assertEquals(SPRING, currentSeasonQuery.currentSeason());
     }
 
@@ -182,7 +184,7 @@ class SeasonAdvancementServiceTest {
 
         @Override
         public void saveCurrentSeason(SeasonId seasonId) {
-            throw new IllegalStateException("Persistence failed");
+            throw new SeasonStatePersistenceException("Persistence failed", null);
         }
     }
 }

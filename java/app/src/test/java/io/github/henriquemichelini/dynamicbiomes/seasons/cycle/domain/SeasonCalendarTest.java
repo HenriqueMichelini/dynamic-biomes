@@ -15,13 +15,13 @@ class SeasonCalendarTest {
 
     @Test
     void requiresAtLeastOneSeason() {
-        assertThrows(IllegalArgumentException.class, () -> new SeasonCalendar(List.of()));
+        assertThrows(InvalidSeasonCalendarException.class, () -> new SeasonCalendar(List.of()));
     }
 
     @Test
     void rejectsDuplicateSeasonIds() {
         assertThrows(
-            IllegalArgumentException.class,
+            InvalidSeasonCalendarException.class,
             () -> new SeasonCalendar(List.of(SPRING, SUMMER, SPRING))
         );
     }
@@ -39,7 +39,7 @@ class SeasonCalendarTest {
         SeasonCalendar calendar = standardCalendar();
         SeasonId unknown = new SeasonId("dynamicbiomes:monsoon");
 
-        assertThrows(IllegalArgumentException.class, () -> calendar.nextAfter(unknown));
+        assertThrows(SeasonNotInCalendarException.class, () -> calendar.nextAfter(unknown));
     }
 
     @Test

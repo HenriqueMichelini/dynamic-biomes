@@ -10,14 +10,14 @@ class BiomeIdTest {
     @Test
     void rejectsInvalidIdentifiers() {
         assertAll(
-            () -> assertThrows(IllegalArgumentException.class, () -> new BiomeId(null)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new BiomeId("")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new BiomeId(" ")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new BiomeId("plains")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new BiomeId(":plains")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new BiomeId("minecraft:")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new BiomeId("Minecraft:plains")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new BiomeId("minecraft:bad path"))
+            () -> assertThrows(InvalidBiomeIdException.class, () -> new BiomeId(null)),
+            () -> assertThrows(InvalidBiomeIdException.class, () -> new BiomeId("")),
+            () -> assertThrows(InvalidBiomeIdException.class, () -> new BiomeId(" ")),
+            () -> assertThrows(InvalidBiomeIdException.class, () -> new BiomeId("plains")),
+            () -> assertThrows(InvalidBiomeIdException.class, () -> new BiomeId(":plains")),
+            () -> assertThrows(InvalidBiomeIdException.class, () -> new BiomeId("minecraft:")),
+            () -> assertThrows(InvalidBiomeIdException.class, () -> new BiomeId("Minecraft:plains")),
+            () -> assertThrows(InvalidBiomeIdException.class, () -> new BiomeId("minecraft:bad path"))
         );
     }
 

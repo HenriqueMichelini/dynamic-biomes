@@ -2,10 +2,12 @@ package io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
+import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginPersistenceException;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
@@ -177,9 +179,11 @@ class YamlOreOriginRepositoryTest {
         Files.createDirectory(repositoryFile);
 
         OreOrigin naturalOrigin = new OreOrigin(POSITION, OreOriginType.NATURAL);
-        assertThrows(IllegalStateException.class, () -> repository.save(naturalOrigin));
+        OreOriginPersistenceException failure =
+            assertThrows(OreOriginPersistenceException.class, () -> repository.save(naturalOrigin));
+        assertInstanceOf(IOException.class, failure.getCause());
         assertEquals(PLAYER_PLACED_ORIGIN, repository.findByPosition(POSITION).orElseThrow());
-        assertThrows(IllegalStateException.class, () -> repository.removeByPosition(POSITION));
+        assertThrows(OreOriginPersistenceException.class, () -> repository.removeByPosition(POSITION));
         assertEquals(PLAYER_PLACED_ORIGIN, repository.findByPosition(POSITION).orElseThrow());
     }
 }

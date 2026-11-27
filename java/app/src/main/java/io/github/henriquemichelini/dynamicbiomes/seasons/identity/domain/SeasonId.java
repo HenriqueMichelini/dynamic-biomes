@@ -9,7 +9,7 @@ public record SeasonId(String value) {
 
     public SeasonId {
         if (value == null || !VALID_ID.matcher(value).matches()) {
-            throw new IllegalArgumentException(
+            throw new InvalidSeasonIdException(
                 "Season identity must be a valid lowercase namespaced identifier"
             );
         }

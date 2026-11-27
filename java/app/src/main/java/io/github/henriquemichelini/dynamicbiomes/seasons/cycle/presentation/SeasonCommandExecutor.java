@@ -1,6 +1,9 @@
 package io.github.henriquemichelini.dynamicbiomes.seasons.cycle.presentation;
 
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonNotInCalendarException;
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStatePersistenceException;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.InvalidSeasonIdException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -62,9 +65,9 @@ public final class SeasonCommandExecutor implements CommandExecutor {
             SeasonId season = new SeasonId(requestedSeason);
             updateSeason.accept(season);
             sender.sendMessage("Current season: " + season.value());
-        } catch (IllegalArgumentException exception) {
+        } catch (InvalidSeasonIdException | SeasonNotInCalendarException exception) {
             sender.sendMessage(exception.getMessage());
-        } catch (IllegalStateException exception) {
+        } catch (SeasonStatePersistenceException exception) {
             sender.sendMessage("Unable to set the current season. " + exception.getMessage());
         }
     }

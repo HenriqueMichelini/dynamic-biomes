@@ -47,11 +47,11 @@ class CropEnvironmentalStateTest {
     @Test
     void rejectsInvalidNormalizedValues() {
         assertAll(
-            () -> assertThrows(IllegalArgumentException.class, () -> new NormalizedEnvironmentalValue(-0.01)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new NormalizedEnvironmentalValue(1.01)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new NormalizedEnvironmentalValue(Double.NaN)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new NormalizedEnvironmentalValue(Double.NEGATIVE_INFINITY)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new NormalizedEnvironmentalValue(Double.POSITIVE_INFINITY))
+            () -> assertThrows(InvalidCropEnvironmentalValueException.class, () -> new NormalizedEnvironmentalValue(-0.01)),
+            () -> assertThrows(InvalidCropEnvironmentalValueException.class, () -> new NormalizedEnvironmentalValue(1.01)),
+            () -> assertThrows(InvalidCropEnvironmentalValueException.class, () -> new NormalizedEnvironmentalValue(Double.NaN)),
+            () -> assertThrows(InvalidCropEnvironmentalValueException.class, () -> new NormalizedEnvironmentalValue(Double.NEGATIVE_INFINITY)),
+            () -> assertThrows(InvalidCropEnvironmentalValueException.class, () -> new NormalizedEnvironmentalValue(Double.POSITIVE_INFINITY))
         );
     }
 

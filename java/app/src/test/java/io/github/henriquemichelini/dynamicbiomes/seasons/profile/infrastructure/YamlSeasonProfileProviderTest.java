@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.InvalidSeasonProfileException;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.MissingSeasonProfileException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfileProvider;
@@ -57,8 +59,8 @@ class YamlSeasonProfileProviderTest {
         Path profileFile = writeProfiles(validProfiles());
         SeasonId winter = new SeasonId("minecraft:winter");
 
-        IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
+        MissingSeasonProfileException exception = assertThrows(
+            MissingSeasonProfileException.class,
             () -> new YamlSeasonProfileProvider(profileFile).profileFor(winter)
         );
 
@@ -77,8 +79,8 @@ class YamlSeasonProfileProviderTest {
             """
         );
 
-        IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
+        InvalidSeasonProfileException exception = assertThrows(
+            InvalidSeasonProfileException.class,
             () -> new YamlSeasonProfileProvider(profileFile).profileFor(SPRING)
         );
 

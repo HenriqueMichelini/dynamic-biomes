@@ -9,7 +9,7 @@ public record BiomeId(String value) {
 
     public BiomeId {
         if (value == null || !VALID_ID.matcher(value).matches()) {
-            throw new IllegalArgumentException(
+            throw new InvalidBiomeIdException(
                 "Biome identity must be a valid lowercase namespaced identifier"
             );
         }

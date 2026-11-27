@@ -12,7 +12,7 @@ public final class OreDropOreRule {
         Map<SeasonId, OreDropSeasonalAdjustment> seasonalAdjustments
     ) {
         if (multiplierRange == null) {
-            throw new IllegalArgumentException(
+            throw new InvalidOreDropPolicyException(
                 "Ore drop rule multiplier range must not be null"
             );
         }

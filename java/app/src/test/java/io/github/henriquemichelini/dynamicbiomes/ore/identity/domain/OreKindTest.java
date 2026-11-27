@@ -10,14 +10,14 @@ class OreKindTest {
     @Test
     void rejectsInvalidIdentifiers() {
         assertAll(
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreKind(null)),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreKind("")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreKind(" ")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreKind("iron_ore")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreKind(":iron_ore")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreKind("minecraft:")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreKind("Minecraft:iron_ore")),
-            () -> assertThrows(IllegalArgumentException.class, () -> new OreKind("minecraft:bad ore"))
+            () -> assertThrows(InvalidOreKindException.class, () -> new OreKind(null)),
+            () -> assertThrows(InvalidOreKindException.class, () -> new OreKind("")),
+            () -> assertThrows(InvalidOreKindException.class, () -> new OreKind(" ")),
+            () -> assertThrows(InvalidOreKindException.class, () -> new OreKind("iron_ore")),
+            () -> assertThrows(InvalidOreKindException.class, () -> new OreKind(":iron_ore")),
+            () -> assertThrows(InvalidOreKindException.class, () -> new OreKind("minecraft:")),
+            () -> assertThrows(InvalidOreKindException.class, () -> new OreKind("Minecraft:iron_ore")),
+            () -> assertThrows(InvalidOreKindException.class, () -> new OreKind("minecraft:bad ore"))
         );
     }
 
