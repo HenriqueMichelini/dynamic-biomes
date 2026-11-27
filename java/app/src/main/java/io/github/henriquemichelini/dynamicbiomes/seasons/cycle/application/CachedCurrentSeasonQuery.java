@@ -4,7 +4,7 @@ import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSea
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 
 public final class CachedCurrentSeasonQuery implements CurrentSeasonQuery {
-    private SeasonId currentSeason;
+    private volatile SeasonId currentSeason;
 
     public CachedCurrentSeasonQuery(SeasonId initialSeason) {
         if (initialSeason == null) {

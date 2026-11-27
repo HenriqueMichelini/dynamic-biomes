@@ -19,11 +19,22 @@ public final class SeasonAdvancementService {
         this.currentSeasonQuery = currentSeasonQuery;
     }
 
-    public SeasonId advance() {
-        SeasonId currentSeason = currentSeasonQuery.currentSeason();
-        SeasonId nextSeason = calendar.nextAfter(currentSeason);
-        repository.saveCurrentSeason(nextSeason);
-        currentSeasonQuery.updateCurrentSeason(nextSeason);
-        return nextSeason;
+    public synchronized SeasonId advance() {
+        return persist(calendar.nextAfter(currentSeasonQuery.currentSeason()));
+    }
+
+    public synchronized SeasonId setCurrentSeason(SeasonId season) {
+        if (!calendar.contains(season)) {
+            throw new IllegalArgumentException(
+                "Season is not in the configured calendar: " + (season == null ? null : season.value())
+            );
+        }
+        return persist(season);
+    }
+
+    private SeasonId persist(SeasonId season) {
+        repository.saveCurrentSeason(season);
+        currentSeasonQuery.updateCurrentSeason(season);
+        return season;
     }
 }

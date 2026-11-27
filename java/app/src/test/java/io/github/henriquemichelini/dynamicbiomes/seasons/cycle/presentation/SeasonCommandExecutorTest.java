@@ -8,6 +8,7 @@ import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonI
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.Test;
 
@@ -71,6 +72,67 @@ class SeasonCommandExecutorTest {
         assertEquals(0, currentSeasonQuery.readCount);
     }
 
+    @Test
+    void setsSeasonForAnAuthorizedSender() {
+        RecordingSender sender = new RecordingSender(true);
+        List<SeasonId> updates = new ArrayList<>();
+
+        assertTrue(setSeason(sender, updates::add, "minecraft:winter"));
+
+        assertEquals(List.of(new SeasonId("minecraft:winter")), updates);
+        assertEquals(List.of("Current season: minecraft:winter"), sender.messages);
+    }
+
+    @Test
+    void deniesSeasonUpdatesWithoutTheAdminPermission() {
+        RecordingSender sender = new RecordingSender();
+        List<SeasonId> updates = new ArrayList<>();
+
+        assertTrue(setSeason(sender, updates::add, "minecraft:winter"));
+
+        assertTrue(updates.isEmpty());
+        assertEquals(List.of("You do not have permission to set the season."), sender.messages);
+    }
+
+    @Test
+    void reportsAnInvalidSeasonIdWithoutAttemptingAnUpdate() {
+        RecordingSender sender = new RecordingSender(true);
+        List<SeasonId> updates = new ArrayList<>();
+
+        assertTrue(setSeason(sender, updates::add, "winter"));
+
+        assertTrue(updates.isEmpty());
+        assertEquals(
+            List.of("Season identity must be a valid lowercase namespaced identifier"),
+            sender.messages
+        );
+    }
+
+    @Test
+    void reportsPersistenceFailureWithoutReportingSuccess() {
+        RecordingSender sender = new RecordingSender(true);
+
+        assertTrue(setSeason(sender, season -> {
+            throw new IllegalStateException("Persistence failed");
+        }, "minecraft:winter"));
+
+        assertEquals(List.of("Unable to set the current season. Persistence failed"), sender.messages);
+    }
+
+    private static boolean setSeason(
+        RecordingSender sender,
+        Consumer<SeasonId> updateSeason,
+        String requestedSeason
+    ) {
+        SeasonCommandExecutor command = new SeasonCommandExecutor(
+            () -> new SeasonId("minecraft:summer"), updateSeason
+        );
+        return command.onCommand(
+            sender.commandSender(), null, "dynamicbiomes",
+            new String[] { "season", "set", requestedSeason }
+        );
+    }
+
     private static final class CountingCurrentSeasonQuery
         implements CurrentSeasonQuery {
         private int readCount;
@@ -84,6 +146,15 @@ class SeasonCommandExecutorTest {
 
     private static final class RecordingSender {
         private final List<String> messages = new ArrayList<>();
+        private final boolean seasonAdmin;
+
+        private RecordingSender() {
+            this(false);
+        }
+
+        private RecordingSender(boolean seasonAdmin) {
+            this.seasonAdmin = seasonAdmin;
+        }
 
         CommandSender commandSender() {
             return (CommandSender) Proxy.newProxyInstance(
@@ -92,6 +163,9 @@ class SeasonCommandExecutorTest {
                 (proxy, method, arguments) -> {
                     if (method.getName().equals("sendMessage")) {
                         recordMessages(arguments);
+                    }
+                    if (method.getName().equals("hasPermission")) {
+                        return seasonAdmin && "dynamicbiomes.admin.season".equals(arguments[0]);
                     }
                     return defaultValue(method.getReturnType());
                 }

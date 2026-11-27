@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfile;
+import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonProfileProvider;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonalAdjustment;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -36,6 +37,19 @@ class YamlSeasonProfileProviderTest {
             ),
             profile
         );
+    }
+
+    @Test
+    void loadedProfilesAreIndependentOfSubsequentFileChanges() throws IOException {
+        Path profileFile = writeProfiles(validProfiles());
+        YamlSeasonProfileProvider provider = new YamlSeasonProfileProvider(profileFile);
+        SeasonProfileProvider original = provider.load();
+
+        writeProfiles(validProfiles().replace("0.10", "0.30"));
+        SeasonProfileProvider updated = provider.load();
+
+        assertEquals(new SeasonalAdjustment(0.10), original.profileFor(SPRING).climateAdjustment().temperature());
+        assertEquals(new SeasonalAdjustment(0.30), updated.profileFor(SPRING).climateAdjustment().temperature());
     }
 
     @Test
