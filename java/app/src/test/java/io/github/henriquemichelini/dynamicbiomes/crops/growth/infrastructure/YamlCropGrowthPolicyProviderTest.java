@@ -110,6 +110,24 @@ class YamlCropGrowthPolicyProviderTest {
     }
 
     @Test
+    void rejectsMisspelledOptionalSeasonalFactorsWhenLoading() throws IOException {
+        Path policyFile = writePolicy("""
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 0.5
+                  sesonal-factors:
+                    minecraft:winter: 0.0
+            """);
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
+        );
+        assertTrue(exception.getMessage().contains("sesonal-factors"));
+    }
+
+    @Test
     void loadsZeroChanceWheatPolicy() throws IOException {
         Path policyFile = writePolicy(
             """

@@ -49,11 +49,22 @@ public final class CropGrowthPolicy {
         return configuredChance;
     }
 
-    public CropGrowthChance effectiveChanceFor(@NonNull SeasonId seasonId) {
-        CropGrowthSeasonalFactor seasonalFactor = seasonalFactors.get(seasonId);
-        double factor = seasonalFactor == null ? 1.0 : seasonalFactor.factor();
-        double effectiveChance = Math.min(1.0, configuredChance().value() * factor);
-        return new CropGrowthChance(effectiveChance);
+    public CropGrowthChance effectiveChanceFor(SeasonId seasonId) {
+        return effectiveChanceFor(seasonId, 1.0);
+    }
+
+    public CropGrowthChance effectiveChanceFor(
+        @NonNull SeasonId seasonId,
+        double performanceFactor
+    ) {
+        if (!Double.isFinite(performanceFactor) || performanceFactor < 0.0) {
+            throw new IllegalArgumentException("Growth performance factor must be finite and non-negative");
+        }
+        double seasonalFactor = seasonalFactorFor(seasonId)
+            .map(CropGrowthSeasonalFactor::factor)
+            .orElse(1.0);
+        double adjustedChance = configuredChance().value() * seasonalFactor * performanceFactor;
+        return new CropGrowthChance(Math.min(1.0, adjustedChance));
     }
 
     public Optional<CropGrowthSeasonalFactor> seasonalFactorFor(

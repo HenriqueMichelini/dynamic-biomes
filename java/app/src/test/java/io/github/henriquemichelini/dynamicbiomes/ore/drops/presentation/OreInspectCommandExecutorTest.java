@@ -26,6 +26,7 @@ import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -417,6 +418,15 @@ class OreInspectCommandExecutorTest {
         public void removeByPosition(BlockPosition position) {
             removedPositions.add(position);
             origins.remove(position);
+        }
+
+        @Override
+        public void applyChanges(
+            Collection<BlockPosition> removedPositions,
+            Collection<OreOrigin> savedOrigins
+        ) {
+            removedPositions.forEach(this::removeByPosition);
+            savedOrigins.forEach(this::save);
         }
 
         void clearMutations() {

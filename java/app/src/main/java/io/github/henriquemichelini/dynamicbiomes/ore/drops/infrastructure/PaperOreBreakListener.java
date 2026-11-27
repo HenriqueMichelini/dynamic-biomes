@@ -3,34 +3,31 @@ package io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreDropService;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.infrastructure.PaperOreMaterialMapper;
-import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
-import java.util.Collection;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.NonNull;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.Item;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.block.BlockDropItemEvent;
 
 public final class PaperOreBreakListener implements Listener {
 
     private final OreDropService dropService;
-    private final OreOriginTrackingService originTracking;
     private final PaperVanillaDropScanner vanillaDropScanner;
     private final OreDropDeltaNotifier deltaNotifier;
+    private final Map<BlockDropItemEvent, Integer> pendingDeltas = new IdentityHashMap<>();
 
-    public PaperOreBreakListener(
-        OreDropService dropService,
-        OreOriginTrackingService originTracking
-    ) {
+    public PaperOreBreakListener(OreDropService dropService) {
         this(
             dropService,
-            originTracking,
             new PaperVanillaDropScanner(),
             new PaperOreDropDeltaNotifier()
         );
@@ -38,81 +35,53 @@ public final class PaperOreBreakListener implements Listener {
 
     PaperOreBreakListener(
         @NonNull OreDropService dropService,
-        @NonNull OreOriginTrackingService originTracking,
         @NonNull PaperVanillaDropScanner vanillaDropScanner,
         @NonNull OreDropDeltaNotifier deltaNotifier
     ) {
         this.dropService = dropService;
-        this.originTracking = originTracking;
         this.vanillaDropScanner = vanillaDropScanner;
         this.deltaNotifier = deltaNotifier;
     }
 
-    @EventHandler(ignoreCancelled = true)
-    public void onBlockBreak(BlockBreakEvent event) {
-        Player player = event.getPlayer();
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockDropItems(BlockDropItemEvent event) {
+        if (event.isCancelled()) return;
+
+        Material material = event.getBlockState().getType();
+        Optional<OreKind> oreKind = PaperOreMaterialMapper.oreKindFor(material);
+        if (oreKind.isEmpty()) return;
+
+        List<Item> drops = event.getItems();
+        PaperVanillaDropScan scan = vanillaDropScanner.scan(drops, material);
+        if (scan.wouldDropOriginalBlock() || scan.quantity() == 0) return;
+
         Block block = event.getBlock();
-        Material material = block.getType();
-
-        Optional<OreKind> oreKindResult = PaperOreMaterialMapper.oreKindFor(
-            material
+        int adjustedQuantity = dropService.calculateDrops(
+            positionOf(block),
+            oreKind.orElseThrow(),
+            scan.quantity()
         );
+        int delta = adjustedQuantity - scan.quantity();
+        if (delta == 0) return;
 
-        if (oreKindResult.isEmpty()) return;
+        scan.adjustQuantity(drops, block.getWorld(), delta);
+        pendingDeltas.put(event, delta);
+    }
 
-        OreKind oreKind = oreKindResult.orElseThrow();
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onBlockDropItemsFinished(BlockDropItemEvent event) {
+        Integer delta = pendingDeltas.remove(event);
+        if (delta != null && !event.isCancelled()) {
+            deltaNotifier.notifyDelta(event.getPlayer(), event.getBlockState().getType(), delta);
+        }
+    }
 
-        BlockPosition position = new BlockPosition(
+    private static BlockPosition positionOf(Block block) {
+        return new BlockPosition(
             new WorldReference(block.getWorld().getUID()),
             block.getX(),
             block.getY(),
             block.getZ()
         );
-
-        try {
-            Collection<ItemStack> vanillaDrops = block.getDrops(
-                player.getInventory().getItemInMainHand(),
-                player
-            );
-
-            PaperVanillaDropScan vanillaDropScan = vanillaDropScanner.scan(
-                vanillaDrops,
-                material
-            );
-
-            if (vanillaDropScan.empty()) return;
-
-            if (vanillaDropScan.wouldDropOriginalBlock()) return;
-
-            int vanillaFortuneQuantity = vanillaDropScan.quantity();
-
-            int quantity = dropService.calculateDrops(
-                position,
-                oreKind,
-                vanillaFortuneQuantity
-            );
-
-            if (quantity == vanillaFortuneQuantity) return;
-
-            int delta = quantity - vanillaFortuneQuantity;
-
-            deltaNotifier.notifyDelta(player, material, delta);
-
-            event.setDropItems(false);
-
-            if (quantity <= 0) return;
-
-            ItemStack boostedDrop = vanillaDropScan
-                .representativeDrop()
-                .orElseThrow();
-
-            boostedDrop.setAmount(quantity);
-
-            block
-                .getWorld()
-                .dropItemNaturally(block.getLocation(), boostedDrop);
-        } finally {
-            originTracking.clearTrackedOrigin(position);
-        }
     }
 }

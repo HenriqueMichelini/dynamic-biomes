@@ -10,6 +10,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +116,25 @@ class PaperOreMovementListenerTest {
     }
 
     @Test
+    void pistonMovementReadsAdjacentOreOriginsBeforeOverwritingTheirPositions() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        BlockPosition next = new BlockPosition(SOURCE.world(), SOURCE.x(), SOURCE.y(), SOURCE.z() - 1);
+        BlockPosition last = new BlockPosition(SOURCE.world(), SOURCE.x(), SOURCE.y(), SOURCE.z() - 2);
+        repository.save(new OreOrigin(SOURCE, OreOriginType.PLAYER_PLACED));
+        BlockPistonExtendEvent event = new BlockPistonExtendEvent(
+            pistonBlock(),
+            List.of(movedBlock(Material.IRON_ORE, SOURCE), movedBlock(Material.DIAMOND_ORE, next)),
+            BlockFace.NORTH
+        );
+
+        listener(repository).onPistonExtend(event);
+
+        assertTrue(repository.findByPosition(SOURCE).isEmpty());
+        assertEquals(Optional.of(new OreOrigin(next, OreOriginType.PLAYER_PLACED)), repository.findByPosition(next));
+        assertTrue(repository.findByPosition(last).isEmpty());
+    }
+
+    @Test
     void pistonExtendIgnoresNonOreBlocks() {
         InMemoryOreOriginRepository repository =
             new InMemoryOreOriginRepository();
@@ -142,7 +162,7 @@ class PaperOreMovementListenerTest {
     }
 
     @Test
-    void pistonRetractMovesTrackedPlayerPlacedOre() {
+    void pistonRetractUsesTheMovementDirectionReportedByPaper() {
         InMemoryOreOriginRepository repository =
             new InMemoryOreOriginRepository();
         repository.save(new OreOrigin(SOURCE, OreOriginType.PLAYER_PLACED));
@@ -157,7 +177,7 @@ class PaperOreMovementListenerTest {
         BlockPistonRetractEvent event = new BlockPistonRetractEvent(
             pistonBlock(),
             List.of(movedBlock(Material.IRON_ORE, SOURCE)),
-            BlockFace.NORTH
+            BlockFace.SOUTH
         );
         listener.onPistonRetract(event);
 
@@ -230,6 +250,15 @@ class PaperOreMovementListenerTest {
         @Override
         public void removeByPosition(BlockPosition position) {
             origins.remove(position);
+        }
+
+        @Override
+        public void applyChanges(
+            Collection<BlockPosition> removedPositions,
+            Collection<OreOrigin> savedOrigins
+        ) {
+            removedPositions.forEach(this::removeByPosition);
+            savedOrigins.forEach(this::save);
         }
     }
 }

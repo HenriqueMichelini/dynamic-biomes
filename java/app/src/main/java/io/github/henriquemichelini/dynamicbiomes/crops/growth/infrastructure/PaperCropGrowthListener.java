@@ -8,6 +8,7 @@ import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import lombok.NonNull;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.Ageable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockGrowEvent;
@@ -31,6 +32,15 @@ public final class PaperCropGrowthListener implements Listener {
             .cropKindFor(block.getType())
             .orElse(null);
         if (cropKind == null) {
+            return;
+        }
+
+        // Paper uses the same event for natural ticks and bone meal.
+        // Natural growth proposes one stage on the same crop.
+        if (!(block.getBlockData() instanceof Ageable current &&
+            event.getNewState().getBlockData() instanceof Ageable proposed &&
+            current.getMaterial() == proposed.getMaterial() &&
+            proposed.getAge() - current.getAge() == 1)) {
             return;
         }
 

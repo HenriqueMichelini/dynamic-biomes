@@ -105,6 +105,11 @@ class YamlOreOriginRepositoryTest {
             repositoryFile,
             """
             origins:
+              - world: fdab89dd-8aac-4be0-9c26-8752ae6ce85e
+                x: 11
+                y: 64
+                z: -20
+                type: PLAYER_PLACED
               - world: not-a-uuid
                 x: 10
                 y: 64
@@ -113,11 +118,13 @@ class YamlOreOriginRepositoryTest {
             """
         );
 
+        YamlOreOriginRepository repository = new YamlOreOriginRepository(repositoryFile);
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
-            () -> new YamlOreOriginRepository(repositoryFile).findByPosition(POSITION)
+            () -> repository.findByPosition(POSITION)
         );
 
         assertTrue(exception.getMessage().contains("world"));
+        assertThrows(IllegalArgumentException.class, () -> repository.findByPosition(POSITION));
     }
 }

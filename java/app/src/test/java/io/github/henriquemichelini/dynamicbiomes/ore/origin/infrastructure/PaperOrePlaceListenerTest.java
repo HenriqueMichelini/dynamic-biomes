@@ -10,6 +10,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -124,6 +125,15 @@ class PaperOrePlaceListenerTest {
         @Override
         public void removeByPosition(BlockPosition position) {
             origins.remove(position);
+        }
+
+        @Override
+        public void applyChanges(
+            Collection<BlockPosition> removedPositions,
+            Collection<OreOrigin> savedOrigins
+        ) {
+            removedPositions.forEach(this::removeByPosition);
+            savedOrigins.forEach(this::save);
         }
     }
 }

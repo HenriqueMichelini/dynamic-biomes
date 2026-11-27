@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -62,6 +63,7 @@ public final class YamlCropYieldPolicyProvider
                 biomeEntry.getValue(),
                 biomePath
             );
+            rejectUnknownKeys(biomePolicy, Set.of(CROPS_KEY), biomePath);
             Map<?, ?> crops = requiredMap(
                 biomePolicy,
                 CROPS_KEY,
@@ -95,10 +97,9 @@ public final class YamlCropYieldPolicyProvider
                 .orElseThrow(() -> new IllegalArgumentException(
                     "Unsupported crop yield policy key in " + policyPath + ": " + cropKey
                 ));
-            Map<?, ?> cropPolicy = requiredMapValue(
-                cropEntry.getValue(),
-                policyPath + "." + cropKind.policyKey()
-            );
+            String cropPath = policyPath + "." + cropKind.policyKey();
+            Map<?, ?> cropPolicy = requiredMapValue(cropEntry.getValue(), cropPath);
+            rejectUnknownKeys(cropPolicy, Set.of(MULTIPLIER_KEY, SEASONAL_FACTORS_KEY), cropPath);
             CropYieldCropRule previous = rules.put(
                 cropKind,
                 new CropYieldCropRule(
@@ -127,6 +128,7 @@ public final class YamlCropYieldPolicyProvider
             MULTIPLIER_KEY,
             cropPath + ".multiplier"
         );
+        rejectUnknownKeys(multiplier, Set.of(MIN_KEY, MAX_KEY), cropPath + ".multiplier");
         double minimum = requiredNumber(
             multiplier,
             MIN_KEY,
@@ -239,6 +241,14 @@ public final class YamlCropYieldPolicyProvider
             );
         }
         return map;
+    }
+
+    private static void rejectUnknownKeys(Map<?, ?> fields, Set<String> supportedKeys, String path) {
+        for (Object key : fields.keySet()) {
+            if (!(key instanceof String name) || !supportedKeys.contains(name)) {
+                throw new IllegalArgumentException("Unknown key in " + path + ": " + key);
+            }
+        }
     }
 
     private static String requiredKey(Object key, String description) {

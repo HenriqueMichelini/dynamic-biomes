@@ -60,21 +60,17 @@ public final class YamlSeasonCycleSettingsProvider {
     private static boolean requiredBoolean(Map<?, ?> entry, String key) {
         Object value = entry.get(key);
         if (!(value instanceof Boolean booleanValue)) {
-            throw invalid(contextPath(entry, key) + " must be a boolean");
+            throw invalid(ADVANCEMENT_KEY + "." + key + " must be a boolean");
         }
         return booleanValue;
     }
 
     private static long requiredLong(Map<?, ?> entry, String key) {
         Object value = entry.get(key);
-        if (!(value instanceof Number number)) {
-            throw invalid(contextPath(entry, key) + " must be a long integer");
+        if (!(value instanceof Integer || value instanceof Long)) {
+            throw invalid(ADVANCEMENT_KEY + "." + key + " must be a long integer");
         }
-        return number.longValue();
-    }
-
-    private static String contextPath(Map<?, ?> entry, String key) {
-        return ADVANCEMENT_KEY + "." + key;
+        return ((Number) value).longValue();
     }
 
     private static IllegalArgumentException invalid(String detail) {

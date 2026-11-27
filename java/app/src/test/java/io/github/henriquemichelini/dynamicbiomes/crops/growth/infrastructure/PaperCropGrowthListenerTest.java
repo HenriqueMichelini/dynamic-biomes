@@ -30,6 +30,7 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.data.Ageable;
 import org.bukkit.event.block.BlockGrowEvent;
 import org.junit.jupiter.api.Test;
 
@@ -162,6 +163,19 @@ class PaperCropGrowthListenerTest {
     }
 
     @Test
+    void skipsGrowthPolicyForAMultipleStageAdvance() {
+        PaperCropGrowthListener listener = listenerWithResolver(position -> {
+            throw new AssertionError("Service must not resolve biome for multistage growth");
+        });
+        BlockGrowEvent event = eventFor(Material.WHEAT, 4);
+
+        listener.onBlockGrow(event);
+
+        assertFalse(event.isCancelled());
+        assertEquals(4, ((Ageable) event.getNewState().getBlockData()).getAge());
+    }
+
+    @Test
     void propagatesServiceFailures() {
         PaperCropGrowthListener listener = listenerWithResolver(position -> {
             throw new IllegalStateException("Service failure");
@@ -233,18 +247,30 @@ class PaperCropGrowthListenerTest {
     }
 
     private static BlockGrowEvent eventFor(Material material) {
+        return eventFor(material, 1);
+    }
+
+    private static BlockGrowEvent eventFor(Material material, int proposedAge) {
         Block block = proxy(
             Block.class,
             Map.of(
                 "getType", material,
+                "getBlockData", ageable(material, 0),
                 "getWorld", world(),
                 "getX", POSITION.x(),
                 "getY", POSITION.y(),
                 "getZ", POSITION.z()
             )
         );
-        BlockState newState = proxy(BlockState.class, Map.of());
+        BlockState newState = proxy(
+            BlockState.class,
+            Map.of("getBlockData", ageable(material, proposedAge))
+        );
         return new BlockGrowEvent(block, newState);
+    }
+
+    private static Ageable ageable(Material material, int age) {
+        return proxy(Ageable.class, Map.of("getMaterial", material, "getAge", age));
     }
 
     @SuppressWarnings("unchecked")

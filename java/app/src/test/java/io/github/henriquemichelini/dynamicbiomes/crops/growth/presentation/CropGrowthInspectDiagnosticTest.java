@@ -31,6 +31,7 @@ import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMul
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.UnsupportedCropYieldPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.seasons.profile.domain.SeasonClimateAdjustment;
@@ -112,7 +113,7 @@ class CropGrowthInspectDiagnosticTest {
                 "Crop growth speed factor: 1.0 (not used by natural growth listener)",
                 "Crop growth chance factor: 1.0",
                 "Harvest quantity factor: 1.0",
-                "Effective wheat growth chance before performance: 0.25",
+                "Season-only wheat growth chance: 0.25",
                 "Performance-adjusted wheat growth chance: 0.25",
                 "May cancel natural growth: yes",
                 "Wheat yield policy: supported",
@@ -171,7 +172,7 @@ class CropGrowthInspectDiagnosticTest {
                 "Crop growth speed factor: 1.0 (not used by natural growth listener)",
                 "Crop growth chance factor: 1.0",
                 "Harvest quantity factor: 1.0",
-                "Effective carrot growth chance before performance: 0.2",
+                "Season-only carrot growth chance: 0.2",
                 "Performance-adjusted carrot growth chance: 0.2",
                 "May cancel natural growth: yes",
                 "Carrot yield policy: supported",
@@ -230,7 +231,7 @@ class CropGrowthInspectDiagnosticTest {
                 "Crop growth speed factor: 1.0 (not used by natural growth listener)",
                 "Crop growth chance factor: 1.0",
                 "Harvest quantity factor: 1.0",
-                "Effective wheat growth chance before performance: 1.0",
+                "Season-only wheat growth chance: 1.0",
                 "Performance-adjusted wheat growth chance: 1.0",
                 "May cancel natural growth: no",
                 "Wheat yield policy: supported",
@@ -289,7 +290,7 @@ class CropGrowthInspectDiagnosticTest {
                 "Crop growth speed factor: 1.0 (not used by natural growth listener)",
                 "Crop growth chance factor: 1.0",
                 "Harvest quantity factor: 1.0",
-                "Effective wheat growth chance before performance: 0.75",
+                "Season-only wheat growth chance: 0.75",
                 "Performance-adjusted wheat growth chance: 0.75",
                 "May cancel natural growth: yes",
                 "Wheat yield policy: supported",
@@ -310,7 +311,10 @@ class CropGrowthInspectDiagnosticTest {
                 FOREST,
                 profileFor(FOREST, 0.4, 0.6, 0.8)
             ),
-            (biomeId, cropKind) -> policyFor(0.5),
+            (biomeId, cropKind) -> policyFor(
+                0.75,
+                Map.of(SPRING, new CropGrowthSeasonalFactor(2.0))
+            ),
             new RecordingCurrentSeasonQuery(SPRING),
             seasonId -> new SeasonProfile(
                 seasonId,
@@ -354,7 +358,7 @@ class CropGrowthInspectDiagnosticTest {
         );
         assertTrue(
             sender.messages.contains(
-                "Performance-adjusted wheat growth chance: 0.42083333333333334"
+                "Performance-adjusted wheat growth chance: 1.0"
             )
         );
         assertTrue(
@@ -400,7 +404,9 @@ class CropGrowthInspectDiagnosticTest {
                 "Current biome: minecraft:dripstone_caves",
                 "DynamicBiomes profile: unsupported",
                 "Wheat growth policy: unsupported",
-                "May cancel natural growth: no (vanilla fallback)"
+                "May cancel natural growth: no (vanilla fallback)",
+                "Wheat yield policy: unsupported",
+                "Yield adjustment: no (vanilla fallback)"
             ),
             sender.messages
         );
@@ -409,7 +415,7 @@ class CropGrowthInspectDiagnosticTest {
     }
 
     @Test
-    void reportsUnsupportedPolicyAsVanillaFallback() {
+    void reportsVanillaFallbackWithoutSeasonOrPerformanceWhenBothCropRulesAreMissing() {
         RecordingSender sender = new RecordingSender();
         RecordingCurrentSeasonQuery currentSeasonQuery =
             new RecordingCurrentSeasonQuery(WINTER);
@@ -421,7 +427,19 @@ class CropGrowthInspectDiagnosticTest {
                     "Missing wheat growth policy for biome: " + biomeId.value()
                 );
             },
-            currentSeasonQuery
+            currentSeasonQuery,
+            seasonId -> {
+                throw new AssertionError("No season profile is needed without crop rules");
+            },
+            position -> {
+                throw new AssertionError("No environmental state is needed without crop rules");
+            },
+            cropKind -> {
+                throw new AssertionError("No performance profile is needed without crop rules");
+            },
+            biomeId -> {
+                throw new UnsupportedCropYieldPolicyException("Missing yield policy");
+            }
         );
 
         boolean handled = diagnostic.inspect(
@@ -435,11 +453,34 @@ class CropGrowthInspectDiagnosticTest {
                 "Current biome: minecraft:forest",
                 "DynamicBiomes profile: supported",
                 "Wheat growth policy: unsupported",
-                "May cancel natural growth: no (vanilla fallback)"
+                "May cancel natural growth: no (vanilla fallback)",
+                "Wheat yield policy: unsupported",
+                "Yield adjustment: no (vanilla fallback)"
             ),
             sender.messages
         );
         assertEquals(0, currentSeasonQuery.queryCount);
+    }
+
+    @Test
+    void reportsConfiguredYieldWhenGrowthHasNoPolicy() {
+        RecordingSender sender = new RecordingSender();
+        RecordingCurrentSeasonQuery currentSeasonQuery = new RecordingCurrentSeasonQuery(SPRING);
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
+            position -> new BiomeContext(FOREST, profileFor(FOREST)),
+            (biomeId, cropKind) -> {
+                throw new UnsupportedCropGrowthPolicyException("Missing growth policy");
+            },
+            currentSeasonQuery
+        );
+
+        assertTrue(diagnostic.inspect(sender.commandSender(), block(Material.WHEAT)));
+
+        assertTrue(sender.messages.contains("May cancel natural growth: no (vanilla fallback)"));
+        assertTrue(sender.messages.contains("Current season: minecraft:spring"));
+        assertTrue(sender.messages.contains("Wheat yield policy: supported"));
+        assertTrue(sender.messages.contains("Effective wheat yield multiplier range: 1.0—1.0"));
+        assertEquals(1, currentSeasonQuery.queryCount);
     }
 
     @Test

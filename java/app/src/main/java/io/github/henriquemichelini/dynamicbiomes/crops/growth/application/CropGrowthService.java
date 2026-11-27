@@ -10,6 +10,7 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthP
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceResult;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import java.util.function.BiFunction;
@@ -43,18 +44,14 @@ public final class CropGrowthService {
                 biomeContext.biomeId(),
                 cropKind
             );
-            CropGrowthChance effectiveChance = policy.effectiveChanceFor(
-                currentSeasonQuery.currentSeason()
-            );
+            SeasonId currentSeason = currentSeasonQuery.currentSeason();
             CropPerformanceResult cropPerformance = cropPerformanceQuery.apply(
                 position,
                 cropKind
             );
-            CropGrowthChance performanceAdjustedChance = new CropGrowthChance(
-                Math.min(
-                    1.0,
-                    effectiveChance.value() * cropPerformance.growthChanceFactor()
-                )
+            CropGrowthChance performanceAdjustedChance = policy.effectiveChanceFor(
+                currentSeason,
+                cropPerformance.growthChanceFactor()
             );
 
             return policy.decide(performanceAdjustedChance);

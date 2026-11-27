@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -38,7 +39,7 @@ public final class YamlCropGrowthPolicyProvider
         this.policyFile = policyFile;
         this.variationSource = variationSource;
         this.root = loadRoot();
-        validateSupportedCropKeys(root);
+        validatePolicyKeys(root);
     }
 
     @Override
@@ -70,20 +71,21 @@ public final class YamlCropGrowthPolicyProvider
         );
     }
 
-    private static void validateSupportedCropKeys(Map<?, ?> root) {
+    private static void validatePolicyKeys(Map<?, ?> root) {
         Map<?, ?> biomes = requiredMap(root, BIOMES_KEY, "crop growth policy root.biomes");
+        rejectUnknownKeys(root, Set.of(BIOMES_KEY), "crop growth policy root");
         for (Map.Entry<?, ?> biomeEntry : biomes.entrySet()) {
             BiomeId configuredBiomeId = new BiomeId(
                 requiredKey(biomeEntry.getKey(), "biome policy key")
             );
-            Map<?, ?> policy = requiredMapValue(
-                biomeEntry.getValue(),
-                "policy '" + configuredBiomeId.value() + "'"
-            );
-            rejectUnsupportedCropKeys(
-                policy,
-                "policy '" + configuredBiomeId.value() + "'"
-            );
+            String policyPath = "policy '" + configuredBiomeId.value() + "'";
+            Map<?, ?> policy = requiredMapValue(biomeEntry.getValue(), policyPath);
+            rejectUnsupportedCropKeys(policy, policyPath);
+            for (Map.Entry<?, ?> cropEntry : policy.entrySet()) {
+                String cropPath = policyPath + "." + cropEntry.getKey();
+                Map<?, ?> cropPolicy = requiredMapValue(cropEntry.getValue(), cropPath);
+                rejectUnknownKeys(cropPolicy, Set.of(GROWTH_CHANCE_KEY, SEASONAL_FACTORS_KEY), cropPath);
+            }
         }
     }
 
@@ -217,6 +219,14 @@ public final class YamlCropGrowthPolicyProvider
             );
         }
         return map;
+    }
+
+    private static void rejectUnknownKeys(Map<?, ?> fields, Set<String> supportedKeys, String path) {
+        for (Object key : fields.keySet()) {
+            if (!(key instanceof String name) || !supportedKeys.contains(name)) {
+                throw new IllegalArgumentException("Unknown key in " + path + ": " + key);
+            }
+        }
     }
 
     private static String requiredKey(Object key, String description) {
