@@ -5,6 +5,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginRepo
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,10 @@ public final class OreOriginTrackingService {
 
     public void clearTrackedOrigin(BlockPosition position) {
         repository.removeByPosition(position);
+    }
+
+    public void clearTrackedOrigins(Collection<BlockPosition> positions) {
+        repository.applyChanges(positions, List.of());
     }
 
     public void moveTrackedOrigin(BlockPosition from, BlockPosition to) {

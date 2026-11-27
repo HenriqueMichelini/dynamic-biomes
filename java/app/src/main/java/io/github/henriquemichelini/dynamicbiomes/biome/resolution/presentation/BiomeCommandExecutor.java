@@ -2,6 +2,7 @@ package io.github.henriquemichelini.dynamicbiomes.biome.resolution.presentation;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.dynamics.domain.EcologicalRegionState;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
+import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
@@ -49,6 +50,7 @@ public final class BiomeCommandExecutor implements CommandExecutor {
         try {
             BiomeContext context = biomeResolver.resolve(positionOf(player));
             sendStatus(sender, context.biomeId().value(), "supported");
+            sendProfile(sender, context.profile());
             context.ecologicalState().ifPresent(state -> sendEcologicalState(sender, state));
         } catch (UnsupportedBiomeException exception) {
             String biomeId = exception
@@ -81,6 +83,16 @@ public final class BiomeCommandExecutor implements CommandExecutor {
     ) {
         sender.sendMessage("Current biome: " + biomeId);
         sender.sendMessage("DynamicBiomes profile: " + profileStatus);
+    }
+
+    private static void sendProfile(CommandSender sender, BiomeProfile profile) {
+        sender.sendMessage(
+            "Biome temperature: " + profile.climate().temperature().normalized()
+        );
+        sender.sendMessage(
+            "Biome humidity: " + profile.climate().humidity().normalized()
+        );
+        sender.sendMessage("Biome soil fertility: " + profile.fertility().normalized());
     }
 
     private static void sendEcologicalState(

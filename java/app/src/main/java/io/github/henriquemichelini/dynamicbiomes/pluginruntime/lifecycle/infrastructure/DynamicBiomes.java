@@ -36,6 +36,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.drops.presentation.OreInspe
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOreMovementListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOrePlaceListener;
+import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOreRemovalListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.YamlOreOriginRepository;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.CachedCurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.SeasonAdvancementService;
@@ -224,8 +225,8 @@ public final class DynamicBiomes extends JavaPlugin {
 
         List<Listener> listeners = List.of(
             new PaperOrePlaceListener(originTracking),
-            new PaperOreBreakListener(
-                oreDropService,
+            new PaperOreBreakListener(oreDropService),
+            new PaperOreRemovalListener(
                 originTracking,
                 task -> getServer().getScheduler().runTask(this, task)
             ),

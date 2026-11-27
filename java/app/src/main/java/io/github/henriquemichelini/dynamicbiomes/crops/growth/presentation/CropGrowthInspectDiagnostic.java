@@ -100,6 +100,7 @@ public final class CropGrowthInspectDiagnostic {
             sender.sendMessage(
                 "May cancel natural growth: no (vanilla fallback)"
             );
+            reportYieldFallback(sender, cropKind);
             return true;
         }
 
@@ -188,8 +189,7 @@ public final class CropGrowthInspectDiagnostic {
                     yieldRule.get()
                 );
             } else {
-                sender.sendMessage(displayName + " yield policy: unsupported");
-                sender.sendMessage("Yield adjustment: no (vanilla fallback)");
+                reportYieldFallback(sender, cropKind);
             }
         } catch (UnsupportedCropGrowthPolicyException exception) {
             sender.sendMessage(
@@ -211,6 +211,7 @@ public final class CropGrowthInspectDiagnostic {
     ) {
         Optional<CropYieldCropRule> yieldRule = yieldRuleFor(biomeId, cropKind);
         if (yieldRule.isEmpty()) {
+            reportYieldFallback(sender, cropKind);
             return;
         }
         SeasonId currentSeason = currentSeasonQuery.currentSeason();
@@ -228,6 +229,11 @@ public final class CropGrowthInspectDiagnostic {
             cropPerformance.harvestQuantityFactor(),
             yieldRule.get()
         );
+    }
+
+    private static void reportYieldFallback(CommandSender sender, CropKind cropKind) {
+        sender.sendMessage(displayName(cropKind) + " yield policy: unsupported");
+        sender.sendMessage("Yield adjustment: no (vanilla fallback)");
     }
 
     private Optional<CropYieldCropRule> yieldRuleFor(BiomeId biomeId, CropKind cropKind) {

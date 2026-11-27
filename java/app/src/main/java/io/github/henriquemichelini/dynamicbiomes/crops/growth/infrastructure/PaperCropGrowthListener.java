@@ -1,7 +1,6 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGrowthService;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthDecision;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.infrastructure.PaperCropMaterialMapper;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
@@ -36,26 +35,22 @@ public final class PaperCropGrowthListener implements Listener {
             return;
         }
 
+        BlockState proposedState = event.getNewState();
+        // Paper reports both random ticks and bone meal via BlockGrowEvent.
+        // Natural crop ticks propose exactly one stage on the same material.
+        if (!(block.getBlockData() instanceof Ageable current &&
+            proposedState.getBlockData() instanceof Ageable proposed &&
+            current.getMaterial() == proposed.getMaterial() &&
+            proposed.getAge() - current.getAge() == 1)) {
+            return;
+        }
+
         BlockPosition position = new BlockPosition(
             new WorldReference(block.getWorld().getUID()),
             block.getX(),
             block.getY(),
             block.getZ()
         );
-
-        BlockState proposedState = event.getNewState();
-        // Paper reports both random ticks and bonemeal via BlockGrowEvent.
-        // Natural crop ticks propose exactly one stage on the same material.
-        if (!(block.getBlockData() instanceof Ageable current &&
-            proposedState.getBlockData() instanceof Ageable proposed &&
-            current.getMaterial() == proposed.getMaterial() &&
-            proposed.getAge() - current.getAge() == 1)) {
-            if (cropGrowthService.decideNaturalGrowth(position, cropKind) == CropGrowthDecision.CANCEL_GROWTH) {
-                event.setCancelled(true);
-            }
-            return;
-        }
-
         int currentAge = current.getAge();
         int stages = cropGrowthService.naturalGrowthStages(
             position,

@@ -150,6 +150,43 @@ class YamlCropGrowthPolicyProviderTest {
     }
 
     @Test
+    void rejectsMisspelledBiomeOverrideKeyAlongsideGlobalDefaults() throws IOException {
+        Path policyFile = writePolicy("""
+            crops:
+              wheat:
+                growth-chance: 1.0
+            biomse:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 0.0
+            """);
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
+        );
+        assertTrue(exception.getMessage().contains("biomse"));
+    }
+
+    @Test
+    void rejectsMisspelledOptionalSeasonalFactorsInBiomeOverrides() throws IOException {
+        Path policyFile = writePolicy("""
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 0.5
+                  sesonal-factors:
+                    minecraft:winter: 0.0
+            """);
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
+        );
+        assertTrue(exception.getMessage().contains("sesonal-factors"));
+    }
+
+    @Test
     void rejectsInvalidValuesForAnUnusedLegacyRuleWhenLoading() throws IOException {
         Path policyFile = writePolicy("""
             crops:

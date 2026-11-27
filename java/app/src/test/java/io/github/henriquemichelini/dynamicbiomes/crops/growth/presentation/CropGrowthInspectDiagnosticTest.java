@@ -409,7 +409,9 @@ class CropGrowthInspectDiagnosticTest {
                 "Current biome: minecraft:dripstone_caves",
                 "DynamicBiomes profile: unsupported",
                 "Wheat growth policy: unsupported",
-                "May cancel natural growth: no (vanilla fallback)"
+                "May cancel natural growth: no (vanilla fallback)",
+                "Wheat yield policy: unsupported",
+                "Yield adjustment: no (vanilla fallback)"
             ),
             sender.messages
         );
@@ -454,7 +456,9 @@ class CropGrowthInspectDiagnosticTest {
                 "Current biome: minecraft:forest",
                 "DynamicBiomes profile: supported",
                 "Wheat growth policy: unsupported",
-                "May cancel natural growth: no (vanilla fallback)"
+                "May cancel natural growth: no (vanilla fallback)",
+                "Wheat yield policy: unsupported",
+                "Yield adjustment: no (vanilla fallback)"
             ),
             sender.messages
         );

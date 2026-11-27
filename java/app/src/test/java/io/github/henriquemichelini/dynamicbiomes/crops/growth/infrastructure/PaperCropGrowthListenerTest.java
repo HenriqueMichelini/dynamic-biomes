@@ -234,10 +234,10 @@ class PaperCropGrowthListenerTest {
     }
 
     @Test
-    void keepsExistingChanceBehaviorForAMultipleStageAdvance() {
+    void preservesAMultipleStageAdvanceAtZeroGrowthChance() {
         PaperCropGrowthListener listener = listenerWithPolicy(
-            policy(1.0, () -> {
-                throw new AssertionError("Variation is unnecessary at full chance");
+            policy(0.0, () -> {
+                throw new AssertionError("Variation is unnecessary at zero chance");
             }),
             0.0
         );
@@ -247,6 +247,19 @@ class PaperCropGrowthListenerTest {
 
         assertFalse(event.isCancelled());
         assertEquals(5, proposedAge(event));
+    }
+
+    @Test
+    void skipsGrowthPolicyForAMultipleStageAdvance() {
+        PaperCropGrowthListener listener = listenerWithResolver(position -> {
+            throw new AssertionError("Service must not resolve biome for multistage growth");
+        });
+        BlockGrowEvent event = eventFor(Material.WHEAT, 0, 4, 7);
+
+        listener.onBlockGrow(event);
+
+        assertFalse(event.isCancelled());
+        assertEquals(4, proposedAge(event));
     }
 
     @Test

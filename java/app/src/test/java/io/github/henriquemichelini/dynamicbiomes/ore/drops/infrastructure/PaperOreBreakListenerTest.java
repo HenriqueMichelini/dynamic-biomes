@@ -1,7 +1,6 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -46,7 +45,6 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
-import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
@@ -60,10 +58,8 @@ class PaperOreBreakListenerTest {
     private static final OreKind DIAMOND_ORE = new OreKind("minecraft:diamond_ore");
 
     private final RecordingOriginRepository repository = new RecordingOriginRepository();
-    private final List<Runnable> nextTick = new ArrayList<>();
     private final List<Notification> notifications = new ArrayList<>();
     private BlockPosition resolvedPosition;
-    private Material currentBlock = Material.AIR;
 
     @Test
     void adjustsOnlyActualOreDropsAndReportsFinalIncrease() {
@@ -186,21 +182,15 @@ class PaperOreBreakListenerTest {
         PaperOreBreakListener listener = listener(2.0);
         listener.onBlockDropItems(dropEvent(Material.IRON_ORE));
         listener.onBlockDropItems(dropEvent(Material.STONE, item(Material.COBBLESTONE, 1)));
-        currentBlock = Material.STONE;
-        listener.onBlockBreak(new BlockBreakEvent(block(), player()));
 
         assertNull(resolvedPosition);
         assertTrue(notifications.isEmpty());
-        assertTrue(nextTick.isEmpty());
     }
 
     @Test
-    void playerPlacedOriginRemainsIneligibleUntilAfterActualDrops() {
+    void leavesPlayerPlacedOriginAndDropsUnchanged() {
         repository.save(new OreOrigin(POSITION, OreOriginType.PLAYER_PLACED));
         PaperOreBreakListener listener = listener(2.0);
-        currentBlock = Material.DIAMOND_ORE;
-        listener.onBlockBreak(new BlockBreakEvent(block(), player()));
-        currentBlock = Material.AIR;
 
         BlockDropItemEvent event = dropEvent(Material.DIAMOND_ORE, item(Material.DIAMOND, 1));
         listener.onBlockDropItems(event);
@@ -210,10 +200,6 @@ class PaperOreBreakListenerTest {
         assertNull(resolvedPosition);
         assertTrue(notifications.isEmpty());
         assertTrue(repository.findByPosition(POSITION).isPresent());
-
-        nextTick.getFirst().run();
-
-        assertTrue(repository.findByPosition(POSITION).isEmpty());
     }
 
     @Test
@@ -233,33 +219,19 @@ class PaperOreBreakListenerTest {
     }
 
     @Test
-    void suppressedItemDropStillCleansOriginAfterConfirmedBreak() {
-        repository.save(new OreOrigin(POSITION, OreOriginType.PLAYER_PLACED));
+    void leavesAlreadyCancelledDropsUntouched() {
         PaperOreBreakListener listener = listener(2.0);
-        currentBlock = Material.IRON_ORE;
-        BlockBreakEvent event = new BlockBreakEvent(block(), player());
-        event.setDropItems(false);
+        Item oreDrop = item(Material.RAW_IRON, 1);
+        ItemStack originalStack = oreDrop.getItemStack();
+        BlockDropItemEvent event = dropEvent(Material.IRON_ORE, oreDrop);
+        event.setCancelled(true);
 
-        listener.onBlockBreak(event);
-        currentBlock = Material.AIR;
-        nextTick.getFirst().run();
+        listener.onBlockDropItems(event);
+        listener.onBlockDropItemsFinished(event);
 
-        assertTrue(repository.findByPosition(POSITION).isEmpty());
+        assertSame(originalStack, oreDrop.getItemStack());
         assertNull(resolvedPosition);
-        assertFalse(event.isDropItems());
-    }
-
-    @Test
-    void scheduledCleanupKeepsOriginWhenOreIsStillPresent() {
-        OreOrigin origin = new OreOrigin(POSITION, OreOriginType.PLAYER_PLACED);
-        repository.save(origin);
-        PaperOreBreakListener listener = listener(2.0);
-        currentBlock = Material.IRON_ORE;
-
-        listener.onBlockBreak(new BlockBreakEvent(block(), player()));
-        nextTick.getFirst().run();
-
-        assertEquals(Optional.of(origin), repository.findByPosition(POSITION));
+        assertTrue(notifications.isEmpty());
     }
 
     private PaperOreBreakListener listener(double multiplier) {
@@ -278,8 +250,6 @@ class PaperOreBreakListenerTest {
         );
         return new PaperOreBreakListener(
             service,
-            originTracking,
-            nextTick::add,
             new PaperVanillaDropScanner(),
             new PaperOreDropDeltaNotifier((player, message, color, tone) ->
                 notifications.add(new Notification(message, color, tone)))
@@ -323,7 +293,7 @@ class PaperOreBreakListenerTest {
             Block.class.getClassLoader(),
             new Class<?>[] { Block.class },
             (proxy, method, arguments) -> switch (method.getName()) {
-                case "getType" -> currentBlock;
+                case "getType" -> Material.AIR;
                 case "getWorld" -> world;
                 case "getX" -> POSITION.x();
                 case "getY" -> POSITION.y();

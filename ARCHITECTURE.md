@@ -291,6 +291,7 @@ io.github.henriquemichelini.dynamicbiomes/
 │   │   └── infrastructure/
 │   │       ├── PaperOrePlaceListener.java
 │   │       ├── PaperOreMovementListener.java
+│   │       ├── PaperOreRemovalListener.java
 │   │       └── YamlOreOriginRepository.java
 │   └── drops/
 │       ├── domain/
@@ -429,7 +430,7 @@ Dynamic state must not contain ore, crop, or animal rule results.
 ### 8.3 Ore Origin Separate from Ore Drops
 
 - `ore/origin` owns origin state and origin persistence (`OreOrigin`, `OreOriginRepository`).
-- `PaperOrePlaceListener` lives in `ore/origin/infrastructure`.
+- Paper listeners for ore placement, movement, and removal live in `ore/origin/infrastructure`.
 - `ore/drops` consumes ore origin data but does not own origin tracking.
 - `OreOrigin` uses pure domain types only; no Bukkit imports.
 
@@ -609,8 +610,9 @@ Add `presentation/` only when needed. Do not create empty layer packages preempt
 `DynamicBiomes` copies missing bundled configuration files on startup. Providers
 validate configuration into typed views before Paper registers runtime listeners
 and commands. Read-only commands expose the current season (`/db season`), the
-biome and ecological observation at the player's position (`/db biome`), and
-targeted ore and crop diagnostics (`/db inspect`).
+configured biome temperature, humidity, and soil fertility and available sky
+observation at the player's position (`/db biome`), and targeted ore and crop
+diagnostics (`/db inspect`).
 
 `/db reload` requires `dynamicbiomes.admin.reload`. It validates a complete
 candidate configuration before replacing the active listeners, command handlers,
@@ -647,8 +649,10 @@ Touch drops preserve the vanilla result.
 
 Origin tracking records placed ore and persists origin changes atomically.
 Pistons move origin entries as a batch in the direction reported by Paper.
-After a tracked break, the next server tick clears the entry if there is no
-supported ore at the position. Ore inspection delegates to
+`PaperOreRemovalListener` clears a tracked entry after an accepted player
+break if no supported ore remains at the position on the next tick. For
+accepted destructive block and entity explosions, it clears tracked ore
+entries in the final blast list in one write. Ore inspection delegates to
 `OreInspectionService` for biome policy and origin lookup. The Paper diagnostic
 renders that result without rolling a multiplier.
 
@@ -657,8 +661,9 @@ renders that result without rolling a multiplier.
 The Paper adapters support wheat, carrots, potatoes, and beetroot. The growth
 and yield files can supply crop-wide rules under `crops`. Legacy biome-specific
 rules remain valid and a configured rule for a biome and crop takes precedence
-over the crop-wide rule. Growth and yield each preserve the vanilla result
-when the biome or applicable policy is unsupported.
+over the crop-wide rule. The providers reject unknown configuration fields.
+Growth and yield each preserve the vanilla result when the biome or applicable
+policy is unsupported.
 
 `CropPerformanceService` scores crop-owned preferences from `crop-profiles.yml`
 against a crop environmental state. Humidity and temperature are the biome
@@ -667,20 +672,22 @@ clamped to 0–1. Soil fertility comes from the biome profile. Wind speed, rain
 strength, and solar incidence take neutral values. Missing crop preference
 profiles use neutral performance factors.
 
-Growth applies the configured chance and crop season factor, caps that result
-at one, and applies the performance growth chance factor with a final cap at
-one. A surviving same-crop, single-stage growth proposal then uses the
-performance growth speed factor to determine how many ages to advance.
+For same-crop, single-stage proposals, growth applies the configured chance
+and crop season factor, caps that result at one, and applies the performance
+growth chance factor with a final cap at one. A surviving proposal then uses
+the performance growth speed factor to determine how many ages to advance.
 Probabilistic rounding allows fractional factors, and the crop's remaining ages
 bound the result. Paper's crop growth event does not identify the cause, so
-bone meal that proposes one stage can also pass through the speed rule.
+bone meal that proposes one stage can also pass through the chance and speed
+rules. Multistage bone-meal proposals use vanilla behavior.
 
 Harvest yield multiplies captured vanilla produce by the selected policy
 multiplier, optional crop yield season factor, and performance harvest
 quantity factor. The quantity calculator rounds probabilistically. The
 harvest listener keeps captured seeds and other non-produce drops in the
 event. Crop inspection reports the inputs and deterministic factors without
-rolling growth or yield.
+rolling growth or yield. It reports the vanilla fallback separately for each
+unsupported growth or yield policy.
 
 ### 18.5 Trees and Animals
 

@@ -9,15 +9,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.jar.JarFile;
+import org.bukkit.ExplosionResult;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.plugin.Plugin;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
@@ -152,6 +162,60 @@ class DynamicBiomesPluginTest {
     }
 
     @Test
+    void destructiveExplosionClearsOnlyTheOriginsInItsFinalBlockList() throws IOException {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+        UUID worldId = UUID.fromString("fdab89dd-8aac-4be0-9c26-8752ae6ce85e");
+        World world = paperEventProxy(World.class, Map.of("getUID", worldId));
+        Block explodedOre = paperEventProxy(Block.class, Map.of(
+            "getType", Material.IRON_ORE, "getWorld", world, "getX", 10, "getY", 64, "getZ", -20
+        ));
+        Path origins = plugin.getDataFolder().toPath().resolve("ore-origins.yml");
+        String originalOrigins = """
+            origins:
+              - world: %1$s
+                x: 10
+                y: 64
+                z: -20
+                type: PLAYER_PLACED
+              - world: %1$s
+                x: 11
+                y: 64
+                z: -20
+                type: PLAYER_PLACED
+            """.formatted(worldId);
+        Files.writeString(origins, originalOrigins);
+        Entity entity = paperEventProxy(Entity.class, Map.of());
+        Location location = new Location(world, 10, 64, -20);
+        var cancelled = new EntityExplodeEvent(
+            entity, location, List.of(explodedOre), 0.0f, ExplosionResult.DESTROY
+        );
+        cancelled.setCancelled(true);
+        var triggerOnly = new EntityExplodeEvent(
+            entity, location, List.of(explodedOre), 0.0f, ExplosionResult.TRIGGER_BLOCK
+        );
+        server.getPluginManager().callEvent(cancelled);
+        server.getPluginManager().callEvent(triggerOnly);
+        assertEquals(originalOrigins, Files.readString(origins));
+
+        server.getPluginManager().callEvent(new EntityExplodeEvent(
+            entity, location, List.of(explodedOre), 0.0f, ExplosionResult.DESTROY_WITH_DECAY
+        ));
+
+        String persistedOrigins = Files.readString(origins);
+        assertFalse(persistedOrigins.contains("x: 10"));
+        assertTrue(persistedOrigins.contains("x: 11"));
+    }
+
+    private static <T> T paperEventProxy(Class<T> type, Map<String, Object> returnValues) {
+        return type.cast(Proxy.newProxyInstance(
+            type.getClassLoader(),
+            new Class<?>[] { type },
+            (proxy, method, arguments) -> returnValues.get(method.getName())
+        ));
+    }
+
+    @Test
     void registersAndExecutesTheCurrentSeasonCommand() {
         Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
         server.getPluginManager().enablePlugin(plugin);
@@ -237,6 +301,36 @@ class DynamicBiomesPluginTest {
         assertEquals(activeTasks, seasonAdvancementTasks());
         server.getScheduler().performTicks(5);
         assertEquals("Current season: minecraft:summer", currentSeason());
+    }
+
+    @Test
+    void misspelledCropGrowthOverridesRejectReloadAndKeepTheActiveListeners() throws IOException {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+        Path cropGrowth = plugin.getDataFolder().toPath().resolve("crop-growth.yml");
+        String configuration = """
+            crops:
+              wheat:
+                growth-chance: 1.0
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 0.0
+            """;
+        Files.writeString(cropGrowth, configuration);
+        assertEquals(
+            "DynamicBiomes configuration reloaded.",
+            server.executeConsole("dynamicbiomes", "reload").getSender().nextMessage()
+        );
+        List<Listener> activeListeners = listenersFor(plugin);
+
+        Files.writeString(cropGrowth, configuration.replace("biomes:", "biomse:"));
+
+        assertEquals(
+            "DynamicBiomes reload failed. See the server log for details.",
+            server.executeConsole("dynamicbiomes", "reload").getSender().nextMessage()
+        );
+        assertEquals(activeListeners, listenersFor(plugin));
     }
 
     @Test
