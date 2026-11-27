@@ -4,10 +4,10 @@ import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonStat
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.Optional;
 import org.yaml.snakeyaml.DumperOptions;
@@ -51,16 +51,29 @@ public final class YamlSeasonStateRepository implements SeasonStateRepository {
 
     @Override
     public void saveCurrentSeason(SeasonId seasonId) {
-        Map<String, Object> root = new LinkedHashMap<>();
-        root.put(CURRENT_SEASON_KEY, seasonId.value());
+        String state = yaml().dump(Map.of(CURRENT_SEASON_KEY, seasonId.value()));
 
         try {
-            Path parent = repositoryFile.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
+            Path target = repositoryFile.toAbsolutePath();
+            if (Files.isSymbolicLink(target)) {
+                target = target.toRealPath();
             }
-            try (Writer writer = Files.newBufferedWriter(repositoryFile)) {
-                yaml().dump(root, writer);
+            Path parent = target.getParent();
+            Files.createDirectories(parent);
+            Path temporaryFile = Files.createTempFile(parent, ".season-state-", ".tmp");
+            try {
+                Files.writeString(temporaryFile, state, StandardOpenOption.WRITE, StandardOpenOption.SYNC);
+                Files.move(
+                    temporaryFile, target,
+                    StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING
+                );
+            } catch (IOException exception) {
+                try {
+                    Files.deleteIfExists(temporaryFile);
+                } catch (IOException cleanupFailure) {
+                    exception.addSuppressed(cleanupFailure);
+                }
+                throw exception;
             }
         } catch (IOException exception) {
             throw new IllegalStateException(

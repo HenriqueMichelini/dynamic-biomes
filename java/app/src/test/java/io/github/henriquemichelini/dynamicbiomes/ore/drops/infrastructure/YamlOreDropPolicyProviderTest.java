@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.UnsupportedOreDropConfigurationException;
 import io.github.henriquemichelini.dynamicbiomes.ore.identity.domain.OreKind;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
@@ -83,6 +84,65 @@ class YamlOreDropPolicyProviderTest {
         assertEquals(
             new OreDropMultiplierRange(1.0, 1.2),
             policy.multiplierRangeFor(IRON_ORE)
+        );
+    }
+
+    @Test
+    void loadsAnIndependentSnapshotOfAllPolicies() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            minecraft:forest:
+              ores:
+                minecraft:iron_ore:
+                  min: 1.0
+                  max: 1.2
+            minecraft:desert:
+              ores:
+                minecraft:iron_ore:
+                  min: 0.8
+                  max: 1.0
+            """
+        );
+        YamlOreDropPolicyProvider provider = new YamlOreDropPolicyProvider(policyFile);
+        OreDropPolicyProvider snapshot = provider.load();
+
+        Files.delete(policyFile);
+
+        assertEquals(
+            new OreDropMultiplierRange(1.0, 1.2),
+            snapshot.policyFor(FOREST).multiplierRangeFor(IRON_ORE)
+        );
+        assertEquals(
+            new OreDropMultiplierRange(0.8, 1.0),
+            snapshot.policyFor(new BiomeId("minecraft:desert")).multiplierRangeFor(IRON_ORE)
+        );
+        assertThrows(
+            UnsupportedOreDropConfigurationException.class,
+            () -> snapshot.policyFor(new BiomeId("minecraft:ocean"))
+        );
+        assertThrows(IllegalArgumentException.class, () -> provider.policyFor(FOREST));
+    }
+
+    @Test
+    void eagerLoadValidatesEveryBiomePolicy() throws IOException {
+        Path policyFile = writePolicy(
+            """
+            minecraft:forest:
+              ores:
+                minecraft:iron_ore:
+                  min: 1.0
+                  max: 1.2
+            minecraft:desert:
+              ores:
+                minecraft:iron_ore:
+                  min: 1.0
+                  max: 0.8
+            """
+        );
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlOreDropPolicyProvider(policyFile).load()
         );
     }
 

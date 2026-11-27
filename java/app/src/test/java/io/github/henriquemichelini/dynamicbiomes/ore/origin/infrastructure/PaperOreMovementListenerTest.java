@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
@@ -10,6 +11,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +117,26 @@ class PaperOreMovementListenerTest {
     }
 
     @Test
+    void pistonPushingAdjacentOresPreservesTheOriginOfEachBlock() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        BlockPosition next = new BlockPosition(SOURCE.world(), SOURCE.x(), SOURCE.y(), SOURCE.z() - 1);
+        BlockPosition last = new BlockPosition(SOURCE.world(), SOURCE.x(), SOURCE.y(), SOURCE.z() - 2);
+        repository.save(new OreOrigin(SOURCE, OreOriginType.PLAYER_PLACED));
+        repository.save(new OreOrigin(next, OreOriginType.NATURAL));
+        BlockPistonExtendEvent event = new BlockPistonExtendEvent(
+            pistonBlock(),
+            List.of(movedBlock(Material.IRON_ORE, SOURCE), movedBlock(Material.DIAMOND_ORE, next)),
+            BlockFace.NORTH
+        );
+
+        listener(repository).onPistonExtend(event);
+
+        assertTrue(repository.findByPosition(SOURCE).isEmpty());
+        assertEquals(Optional.of(new OreOrigin(next, OreOriginType.PLAYER_PLACED)), repository.findByPosition(next));
+        assertEquals(Optional.of(new OreOrigin(last, OreOriginType.NATURAL)), repository.findByPosition(last));
+    }
+
+    @Test
     void pistonExtendIgnoresNonOreBlocks() {
         InMemoryOreOriginRepository repository =
             new InMemoryOreOriginRepository();
@@ -142,7 +164,7 @@ class PaperOreMovementListenerTest {
     }
 
     @Test
-    void pistonRetractMovesTrackedPlayerPlacedOre() {
+    void pistonRetractUsesTheMovementDirectionReportedByPaper() {
         InMemoryOreOriginRepository repository =
             new InMemoryOreOriginRepository();
         repository.save(new OreOrigin(SOURCE, OreOriginType.PLAYER_PLACED));
@@ -157,7 +179,7 @@ class PaperOreMovementListenerTest {
         BlockPistonRetractEvent event = new BlockPistonRetractEvent(
             pistonBlock(),
             List.of(movedBlock(Material.IRON_ORE, SOURCE)),
-            BlockFace.NORTH
+            BlockFace.SOUTH
         );
         listener.onPistonRetract(event);
 
@@ -166,6 +188,24 @@ class PaperOreMovementListenerTest {
             new OreOrigin(destination, OreOriginType.PLAYER_PLACED),
             repository.findByPosition(destination).orElseThrow()
         );
+    }
+
+    @Test
+    void cancelsMovementWhenTheMovedOriginsCannotBePersisted() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        OreOrigin origin = new OreOrigin(SOURCE, OreOriginType.PLAYER_PLACED);
+        repository.save(origin);
+        repository.failWrites = true;
+        BlockPistonExtendEvent event = new BlockPistonExtendEvent(
+            pistonBlock(),
+            List.of(movedBlock(Material.IRON_ORE, SOURCE)),
+            BlockFace.NORTH
+        );
+
+        assertThrows(IllegalStateException.class, () -> listener(repository).onPistonExtend(event));
+
+        assertTrue(event.isCancelled());
+        assertEquals(Optional.of(origin), repository.findByPosition(SOURCE));
     }
 
     private static PaperOreMovementListener listener(
@@ -216,6 +256,7 @@ class PaperOreMovementListenerTest {
     {
 
         private final Map<BlockPosition, OreOrigin> origins = new HashMap<>();
+        private boolean failWrites;
 
         @Override
         public void save(OreOrigin origin) {
@@ -230,6 +271,16 @@ class PaperOreMovementListenerTest {
         @Override
         public void removeByPosition(BlockPosition position) {
             origins.remove(position);
+        }
+
+        @Override
+        public void applyChanges(
+            Collection<BlockPosition> removedPositions,
+            Collection<OreOrigin> savedOrigins
+        ) {
+            if (failWrites) throw new IllegalStateException("Origin storage unavailable");
+            removedPositions.forEach(this::removeByPosition);
+            savedOrigins.forEach(this::save);
         }
     }
 }

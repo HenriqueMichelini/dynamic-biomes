@@ -8,4 +8,11 @@ public record CropGrowthChance(double value) {
             );
         }
     }
+
+    public CropGrowthChance multipliedBy(double factor) {
+        if (!Double.isFinite(factor) || factor < 0.0) {
+            throw new IllegalArgumentException("Crop growth chance factor must be finite and not negative");
+        }
+        return new CropGrowthChance(Math.min(1.0, value * factor));
+    }
 }

@@ -1,3 +1,10 @@
+# Seasons in advancement order. Each ID needs a profile in season-profiles.yml.
+calendar:
+  - minecraft:spring
+  - minecraft:summer
+  - minecraft:autumn
+  - minecraft:winter
+
 advancement:
   enabled: false
   initial-delay-ticks: 24000

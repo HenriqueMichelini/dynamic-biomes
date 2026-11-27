@@ -20,8 +20,8 @@ import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPe
 import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceResult;
 import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.NormalizedEnvironmentalValue;
 import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.UnsupportedCropPerformanceProfileException;
+import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldCropRule;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldMultiplierRange;
-import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldPolicyProvider;
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.UnsupportedCropYieldPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.CurrentSeasonQuery;
@@ -147,14 +147,14 @@ public final class CropGrowthInspectDiagnostic {
             CropPerformanceResult cropPerformance = reportPerformanceVariables(
                 sender,
                 position,
-                cropKind
+                cropKind,
+                true
             );
-            CropGrowthChance performanceAdjustedChance = new CropGrowthChance(
-                Math.min(
-                    1.0,
-                    effectiveChance.value() *
-                        cropPerformance.growthChanceFactor()
-                )
+            CropGrowthChance performanceAdjustedChance = effectiveChance.multipliedBy(
+                cropPerformance.growthChanceFactor()
+            );
+            CropGrowthChance advanceChance = performanceAdjustedChance.multipliedBy(
+                Math.min(1.0, cropPerformance.growthSpeedFactor())
             );
             sender.sendMessage(
                 "Effective " +
@@ -169,16 +169,28 @@ public final class CropGrowthInspectDiagnostic {
                     performanceAdjustedChance.value()
             );
             sender.sendMessage(
+                "Effective " +
+                    lowerDisplayName +
+                    " chance to advance at least one stage: " +
+                    advanceChance.value()
+            );
+            sender.sendMessage(
                 "May cancel natural growth: " +
-                    (performanceAdjustedChance.value() < 1.0 ? "yes" : "no")
+                    (advanceChance.value() < 1.0 ? "yes" : "no")
             );
-            reportYieldVariables(
-                sender,
-                biomeContext.biomeId(),
-                cropKind,
-                currentSeason,
-                cropPerformance.harvestQuantityFactor()
-            );
+            Optional<CropYieldCropRule> yieldRule = yieldRuleFor(biomeContext.biomeId(), cropKind);
+            if (yieldRule.isPresent()) {
+                reportYieldVariables(
+                    sender,
+                    cropKind,
+                    currentSeason,
+                    cropPerformance.harvestQuantityFactor(),
+                    yieldRule.get()
+                );
+            } else {
+                sender.sendMessage(displayName + " yield policy: unsupported");
+                sender.sendMessage("Yield adjustment: no (vanilla fallback)");
+            }
         } catch (UnsupportedCropGrowthPolicyException exception) {
             sender.sendMessage(
                 displayName(cropKind) + " growth policy: unsupported"
@@ -186,8 +198,44 @@ public final class CropGrowthInspectDiagnostic {
             sender.sendMessage(
                 "May cancel natural growth: no (vanilla fallback)"
             );
+            reportYieldWithoutGrowth(sender, position, biomeContext.biomeId(), cropKind);
         }
         return true;
+    }
+
+    private void reportYieldWithoutGrowth(
+        CommandSender sender,
+        BlockPosition position,
+        BiomeId biomeId,
+        CropKind cropKind
+    ) {
+        Optional<CropYieldCropRule> yieldRule = yieldRuleFor(biomeId, cropKind);
+        if (yieldRule.isEmpty()) {
+            return;
+        }
+        SeasonId currentSeason = currentSeasonQuery.currentSeason();
+        sender.sendMessage("Current season: " + currentSeason.value());
+        CropPerformanceResult cropPerformance = reportPerformanceVariables(
+            sender,
+            position,
+            cropKind,
+            false
+        );
+        reportYieldVariables(
+            sender,
+            cropKind,
+            currentSeason,
+            cropPerformance.harvestQuantityFactor(),
+            yieldRule.get()
+        );
+    }
+
+    private Optional<CropYieldCropRule> yieldRuleFor(BiomeId biomeId, CropKind cropKind) {
+        try {
+            return Optional.of(cropYieldPolicyProvider.policyFor(biomeId).ruleFor(cropKind));
+        } catch (UnsupportedCropYieldPolicyException exception) {
+            return Optional.empty();
+        }
     }
 
     private void reportBiomeVariables(
@@ -230,7 +278,8 @@ public final class CropGrowthInspectDiagnostic {
     private CropPerformanceResult reportPerformanceVariables(
         CommandSender sender,
         BlockPosition position,
-        CropKind cropKind
+        CropKind cropKind,
+        boolean includeGrowthFactors
     ) {
         CropEnvironmentalState environmentalState =
             environmentalStateComposer.compose(position);
@@ -279,77 +328,65 @@ public final class CropGrowthInspectDiagnostic {
                     performanceProfile,
                     environmentalState
                 );
-            reportPerformanceResult(sender, performance);
+            reportPerformanceResult(sender, performance, includeGrowthFactors);
             return performance;
         } catch (UnsupportedCropPerformanceProfileException exception) {
             sender.sendMessage(
                 "Crop performance profile: unsupported (neutral fallback)"
             );
-            reportPerformanceResult(sender, NEUTRAL_PERFORMANCE);
+            reportPerformanceResult(sender, NEUTRAL_PERFORMANCE, includeGrowthFactors);
             return NEUTRAL_PERFORMANCE;
         }
     }
 
-    private void reportYieldVariables(
+    private static void reportYieldVariables(
         CommandSender sender,
-        BiomeId biomeId,
         CropKind cropKind,
         SeasonId currentSeason,
-        double harvestQuantityFactor
+        double harvestQuantityFactor,
+        CropYieldCropRule yieldRule
     ) {
         String displayName = displayName(cropKind);
         String lowerDisplayName = lowerDisplayName(cropKind);
-        try {
-            CropYieldPolicy yieldPolicy = cropYieldPolicyProvider.policyFor(
-                biomeId
-            );
-            CropYieldMultiplierRange multiplierRange =
-                yieldPolicy.multiplierRangeFor(cropKind);
-            double seasonalFactor = yieldPolicy.seasonalFactorFor(
-                cropKind,
-                currentSeason
-            );
-            double effectiveMinimum =
-                multiplierRange.minimum() *
-                seasonalFactor *
-                harvestQuantityFactor;
-            double effectiveMaximum =
-                multiplierRange.maximum() *
-                seasonalFactor *
-                harvestQuantityFactor;
+        CropYieldMultiplierRange multiplierRange = yieldRule.multiplierRange();
+        double seasonalFactor = yieldRule.seasonalFactorFor(currentSeason);
+        double effectiveMinimum =
+            multiplierRange.minimum() *
+            seasonalFactor *
+            harvestQuantityFactor;
+        double effectiveMaximum =
+            multiplierRange.maximum() *
+            seasonalFactor *
+            harvestQuantityFactor;
 
-            sender.sendMessage(displayName + " yield policy: supported");
-            sender.sendMessage(
-                "Configured " +
-                    lowerDisplayName +
-                    " yield multiplier range: " +
-                    multiplierRange.minimum() +
-                    "—" +
-                    multiplierRange.maximum()
-            );
-            sender.sendMessage(
-                "Seasonal " +
-                    lowerDisplayName +
-                    " yield factor: " +
-                    seasonalFactor
-            );
-            sender.sendMessage(
-                "Effective " +
-                    lowerDisplayName +
-                    " yield multiplier range: " +
-                    effectiveMinimum +
-                    "—" +
-                    effectiveMaximum
-            );
-            sender.sendMessage(
-                "Runtime " +
-                    lowerDisplayName +
-                    " yield quantity: vanilla produce quantity * selected multiplier, with probabilistic rounding for fractional results"
-            );
-        } catch (UnsupportedCropYieldPolicyException exception) {
-            sender.sendMessage(displayName + " yield policy: unsupported");
-            sender.sendMessage("Yield adjustment: no (vanilla fallback)");
-        }
+        sender.sendMessage(displayName + " yield policy: supported");
+        sender.sendMessage(
+            "Configured " +
+                lowerDisplayName +
+                " yield multiplier range: " +
+                multiplierRange.minimum() +
+                "—" +
+                multiplierRange.maximum()
+        );
+        sender.sendMessage(
+            "Seasonal " +
+                lowerDisplayName +
+                " yield factor: " +
+                seasonalFactor
+        );
+        sender.sendMessage(
+            "Effective " +
+                lowerDisplayName +
+                " yield multiplier range: " +
+                effectiveMinimum +
+                "—" +
+                effectiveMaximum
+        );
+        sender.sendMessage(
+            "Runtime " +
+                lowerDisplayName +
+                " yield quantity: vanilla produce quantity * selected multiplier, with probabilistic rounding for fractional results"
+        );
     }
 
     private static void reportEnvironmentalPreference(
@@ -370,7 +407,8 @@ public final class CropGrowthInspectDiagnostic {
 
     private static void reportPerformanceResult(
         CommandSender sender,
-        CropPerformanceResult performance
+        CropPerformanceResult performance,
+        boolean includeGrowthFactors
     ) {
         sender.sendMessage(
             "Crop performance overall score: " +
@@ -378,14 +416,16 @@ public final class CropGrowthInspectDiagnostic {
                     ? performance.overallScore().getAsDouble()
                     : "neutral fallback")
         );
-        sender.sendMessage(
-            "Crop growth speed factor: " +
-                performance.growthSpeedFactor() +
-                " (not used by natural growth listener)"
-        );
-        sender.sendMessage(
-            "Crop growth chance factor: " + performance.growthChanceFactor()
-        );
+        if (includeGrowthFactors) {
+            sender.sendMessage(
+                "Crop growth speed factor: " +
+                    performance.growthSpeedFactor() +
+                    " (age-stage multiplier after the chance check)"
+            );
+            sender.sendMessage(
+                "Crop growth chance factor: " + performance.growthChanceFactor()
+            );
+        }
         sender.sendMessage(
             "Harvest quantity factor: " + performance.harvestQuantityFactor()
         );

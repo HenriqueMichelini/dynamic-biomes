@@ -52,8 +52,7 @@ public final class CropGrowthPolicy {
     public CropGrowthChance effectiveChanceFor(@NonNull SeasonId seasonId) {
         CropGrowthSeasonalFactor seasonalFactor = seasonalFactors.get(seasonId);
         double factor = seasonalFactor == null ? 1.0 : seasonalFactor.factor();
-        double effectiveChance = Math.min(1.0, configuredChance().value() * factor);
-        return new CropGrowthChance(effectiveChance);
+        return configuredChance().multipliedBy(factor);
     }
 
     public Optional<CropGrowthSeasonalFactor> seasonalFactorFor(
@@ -64,6 +63,22 @@ public final class CropGrowthPolicy {
 
     public CropGrowthDecision decide(@NonNull SeasonId seasonId) {
         return decide(effectiveChanceFor(seasonId));
+    }
+
+    public int stagesForAllowedGrowth(int remainingStages, double speedFactor) {
+        if (remainingStages < 1) {
+            throw new IllegalArgumentException("Crop growth requires at least one remaining stage");
+        }
+        if (!Double.isFinite(speedFactor) || speedFactor < 0.0) {
+            throw new IllegalArgumentException("Crop growth speed factor must be finite and not negative");
+        }
+
+        double expectedStages = Math.min(remainingStages, speedFactor);
+        int wholeStages = (int) expectedStages;
+        CropGrowthChance extraStageChance = new CropGrowthChance(expectedStages - wholeStages);
+        return decide(extraStageChance) == CropGrowthDecision.ALLOW_GROWTH
+            ? wholeStages + 1
+            : wholeStages;
     }
 
     public CropGrowthDecision decide(@NonNull CropGrowthChance chance) {

@@ -18,7 +18,7 @@ public final class SeasonInitializationService {
         Optional<SeasonId> currentSeason = repository.findCurrentSeason();
         if (currentSeason.isPresent()) {
             SeasonId season = currentSeason.get();
-            if (!calendar.seasons().contains(season)) {
+            if (!calendar.contains(season)) {
                 throw new IllegalStateException(
                     "Persisted current season is not in configured calendar: " + season.value()
                 );

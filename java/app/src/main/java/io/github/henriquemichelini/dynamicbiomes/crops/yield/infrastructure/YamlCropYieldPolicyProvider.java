@@ -29,29 +29,44 @@ public final class YamlCropYieldPolicyProvider
     private static final String MAX_KEY = "max";
     private static final String SEASONAL_FACTORS_KEY = "seasonal-factors";
 
-    private final Path policyFile;
+    private final Map<CropKind, CropYieldCropRule> defaultRules;
     private final Map<BiomeId, CropYieldPolicy> policies;
 
     public YamlCropYieldPolicyProvider(Path policyFile) {
-        this.policyFile = policyFile;
-        this.policies = parsePolicies(loadRoot());
+        Map<?, ?> root = loadRoot(policyFile);
+        this.defaultRules = root.containsKey(CROPS_KEY)
+            ? parseRules(
+                requiredMap(root, CROPS_KEY, "crop yield policy root.crops"),
+                "crop yield policy root.crops"
+            )
+            : Map.of();
+        this.policies = parseBiomePolicies(root, defaultRules);
     }
 
     @Override
     public CropYieldPolicy policyFor(BiomeId biomeId) {
         CropYieldPolicy policy = policies.get(biomeId);
-        if (policy == null) {
+        if (policy != null) {
+            return policy;
+        }
+        if (defaultRules.isEmpty()) {
             throw new UnsupportedCropYieldPolicyException(
                 "Missing crop yield policy for biome: " + biomeId.value()
             );
         }
-        return policy;
+        return new CropYieldPolicy(biomeId, defaultRules);
     }
 
-    private static Map<BiomeId, CropYieldPolicy> parsePolicies(Map<?, ?> root) {
+    private static Map<BiomeId, CropYieldPolicy> parseBiomePolicies(
+        Map<?, ?> root,
+        Map<CropKind, CropYieldCropRule> defaultRules
+    ) {
         Map<BiomeId, CropYieldPolicy> policies = new LinkedHashMap<>();
 
         for (Map.Entry<?, ?> biomeEntry : root.entrySet()) {
+            if (CROPS_KEY.equals(biomeEntry.getKey())) {
+                continue;
+            }
             String biomeKey = requiredKey(
                 biomeEntry.getKey(),
                 "crop yield policy root biome key"
@@ -67,23 +82,15 @@ public final class YamlCropYieldPolicyProvider
                 CROPS_KEY,
                 biomePath + ".crops"
             );
-            rejectUnsupportedCropKeys(crops, biomePath + ".crops");
-            CropYieldPolicy previous = policies.put(
-                biomeId,
-                parsePolicy(biomeId, crops, biomePath + ".crops")
-            );
-            if (previous != null) {
-                throw new IllegalArgumentException(
-                    "Duplicate crop yield policy for biome: " + biomeId.value()
-                );
-            }
+            Map<CropKind, CropYieldCropRule> rules = new LinkedHashMap<>(defaultRules);
+            rules.putAll(parseRules(crops, biomePath + ".crops"));
+            policies.put(biomeId, new CropYieldPolicy(biomeId, rules));
         }
 
         return Map.copyOf(policies);
     }
 
-    private static CropYieldPolicy parsePolicy(
-        BiomeId biomeId,
+    private static Map<CropKind, CropYieldCropRule> parseRules(
         Map<?, ?> crops,
         String policyPath
     ) {
@@ -113,7 +120,7 @@ public final class YamlCropYieldPolicyProvider
             }
         }
 
-        return new CropYieldPolicy(biomeId, rules);
+        return Map.copyOf(rules);
     }
 
     private static CropYieldMultiplierRange parseMultiplierRange(
@@ -178,25 +185,7 @@ public final class YamlCropYieldPolicyProvider
         return result;
     }
 
-    private static void rejectUnsupportedCropKeys(
-        Map<?, ?> policy,
-        String policyPath
-    ) {
-        for (Object key : policy.keySet()) {
-            if (!isSupportedCropKey(key)) {
-                throw new IllegalArgumentException(
-                    "Unsupported crop yield policy key in " + policyPath + ": " + key
-                );
-            }
-        }
-    }
-
-    private static boolean isSupportedCropKey(Object key) {
-        return key instanceof String stringKey &&
-            CropKind.fromPolicyKey(stringKey).isPresent();
-    }
-
-    private Map<?, ?> loadRoot() {
+    private static Map<?, ?> loadRoot(Path policyFile) {
         LoaderOptions loaderOptions = new LoaderOptions();
         loaderOptions.setAllowDuplicateKeys(false);
         Yaml yaml = new Yaml(new SafeConstructor(loaderOptions));

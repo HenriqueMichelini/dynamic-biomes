@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
+import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfileProvider;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Fertility;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
@@ -38,6 +39,40 @@ class YamlBiomeProfileProviderTest {
             ),
             profile
         );
+    }
+
+    @Test
+    void loadsAReusableSnapshotThatIsIndependentOfLaterFileChanges() throws IOException {
+        Path profileFile = writeProfiles(validProfiles());
+        YamlBiomeProfileProvider provider = new YamlBiomeProfileProvider(profileFile);
+        BiomeProfileProvider snapshot = provider.load();
+
+        writeProfiles(profileWithClimate("humidity", 0.50));
+
+        assertEquals(new Humidity(0.40), snapshot.profileFor(PLAINS).climate().humidity());
+        assertEquals(new Humidity(0.50), provider.load().profileFor(PLAINS).climate().humidity());
+        assertNull(snapshot.profileFor(new BiomeId("minecraft:desert")));
+    }
+
+    @Test
+    void validatesAllProfilesWhenLoadingTheSnapshot() throws IOException {
+        Path profileFile = writeProfiles(
+            validProfiles() + """
+              minecraft:desert:
+                climate:
+                  humidity: 1.50
+                  temperature: 0.50
+                fertility: 0.50
+            """
+        );
+        YamlBiomeProfileProvider provider = new YamlBiomeProfileProvider(profileFile);
+
+        assertEquals(PLAINS, provider.profileFor(PLAINS).biomeId());
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class, provider::load
+        );
+        assertTrue(exception.getMessage().contains(profileFile.toString()));
+        assertTrue(exception.getMessage().contains("minecraft:desert"));
     }
 
     @Test

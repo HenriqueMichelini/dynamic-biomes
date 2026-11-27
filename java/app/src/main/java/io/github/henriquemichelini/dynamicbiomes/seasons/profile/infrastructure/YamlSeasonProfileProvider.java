@@ -25,6 +25,10 @@ public final class YamlSeasonProfileProvider implements SeasonProfileProvider {
 
     @Override
     public SeasonProfile profileFor(SeasonId seasonId) {
+        return load().profileFor(seasonId);
+    }
+
+    public SeasonProfileProvider load() {
         Map<?, ?> root = loadRoot();
         Map<?, ?> configuredProfiles = requiredMap(root, "profiles", "season profiles");
         Map<SeasonId, SeasonProfile> profiles = new LinkedHashMap<>();
@@ -44,13 +48,16 @@ public final class YamlSeasonProfileProvider implements SeasonProfileProvider {
             }
         }
 
-        SeasonProfile profile = profiles.get(seasonId);
-        if (profile == null) {
-            throw new IllegalArgumentException(
-                "Missing season profile: " + seasonId.value()
-            );
-        }
-        return profile;
+        Map<SeasonId, SeasonProfile> snapshot = Map.copyOf(profiles);
+        return seasonId -> {
+            SeasonProfile profile = snapshot.get(seasonId);
+            if (profile == null) {
+                throw new IllegalArgumentException(
+                    "Missing season profile: " + seasonId.value()
+                );
+            }
+            return profile;
+        };
     }
 
     private static SeasonProfile parseProfile(SeasonId seasonId, Object profileValue) {

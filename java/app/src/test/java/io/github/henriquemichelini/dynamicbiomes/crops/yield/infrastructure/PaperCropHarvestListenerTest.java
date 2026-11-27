@@ -1,8 +1,8 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.yield.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
@@ -22,24 +22,29 @@ import io.github.henriquemichelini.dynamicbiomes.crops.yield.domain.CropYieldQua
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
-import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 class PaperCropHarvestListenerTest {
@@ -54,79 +59,81 @@ class PaperCropHarvestListenerTest {
     );
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
     private static final SeasonId SUMMER = new SeasonId("minecraft:summer");
-    private final List<ItemStack> droppedItems = new ArrayList<>();
     private final RecordingActionBarNotifier notifier = new RecordingActionBarNotifier();
     private BlockPosition resolvedPosition;
 
     @Test
     void ignoresUnsupportedMaterials() {
         PaperCropHarvestListener listener = listener(2.0);
-        BlockBreakEvent event = eventFor(Material.STONE, true, List.of());
+        BlockDropItemEvent event = eventFor(Material.STONE, true, List.of());
 
-        listener.onBlockBreak(event);
+        listener.onBlockDrop(event);
+        listener.reportYieldDelta(event);
 
-        assertTrue(event.isDropItems());
-        assertEquals(List.of(), droppedItems);
+        assertEquals(List.of(), event.getItems());
         assertEquals(List.of(), notifier.notifications);
-        assertEquals(null, resolvedPosition);
+        assertNull(resolvedPosition);
     }
 
     @Test
     void ignoresImmatureCrops() {
         PaperCropHarvestListener listener = listener(2.0);
-        BlockBreakEvent event = eventFor(
+        BlockDropItemEvent event = eventFor(
             Material.WHEAT,
             false,
             List.of(new FakeItemStack(Material.WHEAT, 1))
         );
 
-        listener.onBlockBreak(event);
+        listener.onBlockDrop(event);
+        listener.reportYieldDelta(event);
 
-        assertTrue(event.isDropItems());
-        assertEquals(List.of(), droppedItems);
+        assertEquals(List.of(1), droppedAmounts(event));
         assertEquals(List.of(), notifier.notifications);
-        assertEquals(null, resolvedPosition);
+        assertNull(resolvedPosition);
     }
 
     @Test
     void ignoresZeroVanillaProduceQuantity() {
         PaperCropHarvestListener listener = listener(2.0);
-        BlockBreakEvent event = eventFor(
+        BlockDropItemEvent event = eventFor(
             Material.WHEAT,
             true,
             List.of(new FakeItemStack(Material.WHEAT_SEEDS, 2))
         );
 
-        listener.onBlockBreak(event);
+        listener.onBlockDrop(event);
+        listener.reportYieldDelta(event);
 
-        assertTrue(event.isDropItems());
-        assertEquals(List.of(), droppedItems);
+        assertEquals(List.of(2), droppedAmounts(event));
         assertEquals(List.of(), notifier.notifications);
-        assertEquals(null, resolvedPosition);
+        assertNull(resolvedPosition);
     }
 
     @Test
-    void adjustsMatureProduceDropsForPlayerBreaks() {
+    void doublesTheAmountPaperRolledAndPreservesTheEntities() {
         PaperCropHarvestListener listener = listener(2.0);
-        BlockBreakEvent event = eventFor(
+        BlockDropItemEvent event = eventFor(
             Material.WHEAT,
             true,
             List.of(
-                new FakeItemStack(Material.WHEAT, 1),
+                new FakeItemStack(Material.WHEAT, 3),
                 new FakeItemStack(Material.WHEAT_SEEDS, 2)
             )
         );
+        Item originalProduce = event.getItems().getFirst();
+        Item originalSeeds = event.getItems().getLast();
 
-        listener.onBlockBreak(event);
+        listener.onBlockDrop(event);
+        listener.reportYieldDelta(event);
 
-        assertFalse(event.isDropItems());
         assertEquals(POSITION, resolvedPosition);
-        assertEquals(List.of(Material.WHEAT_SEEDS, Material.WHEAT), droppedTypes());
-        assertEquals(List.of(2, 2), droppedAmounts());
+        assertSame(originalProduce, event.getItems().getFirst());
+        assertSame(originalSeeds, event.getItems().getLast());
+        assertEquals(List.of(6, 2), droppedAmounts(event));
         assertEquals(
             List.of(
                 new ActionBarNotification(
-                    "+1 wheat extra!",
+                    "+3 wheat extra!",
                     TextColor.color(0x90EE90),
                     CropYieldDeltaTone.POSITIVE
                 )
@@ -138,7 +145,7 @@ class PaperCropHarvestListenerTest {
     @Test
     void preservesSeedsWhenProduceQuantityBecomesZero() {
         PaperCropHarvestListener listener = listener(0.0);
-        BlockBreakEvent event = eventFor(
+        BlockDropItemEvent event = eventFor(
             Material.BEETROOTS,
             true,
             List.of(
@@ -146,13 +153,14 @@ class PaperCropHarvestListenerTest {
                 new FakeItemStack(Material.BEETROOT_SEEDS, 3)
             )
         );
+        Item originalSeeds = event.getItems().getLast();
 
-        listener.onBlockBreak(event);
+        listener.onBlockDrop(event);
+        listener.reportYieldDelta(event);
 
-        assertFalse(event.isDropItems());
         assertEquals(POSITION, resolvedPosition);
-        assertEquals(List.of(Material.BEETROOT_SEEDS), droppedTypes());
-        assertEquals(List.of(3), droppedAmounts());
+        assertSame(originalSeeds, event.getItems().getFirst());
+        assertEquals(List.of(3), droppedAmounts(event));
         assertEquals(
             List.of(
                 new ActionBarNotification(
@@ -166,9 +174,52 @@ class PaperCropHarvestListenerTest {
     }
 
     @Test
+    void keepsExtraStackWithinPaperDropEventUntilItCompletes() {
+        PaperCropHarvestListener listener = listener(3.0);
+        BlockDropItemEvent event = eventFor(
+            Material.BEETROOTS,
+            true,
+            List.of(new FakeItemStack(Material.BEETROOT, 32))
+        );
+        Item original = event.getItems().getFirst();
+        Vector velocity = new Vector(0.03, 0.10, 0.02);
+        original.setVelocity(velocity);
+        original.setPickupDelay(17);
+
+        listener.onBlockDrop(event);
+
+        assertSame(original, event.getItems().getFirst());
+        assertEquals(List.of(64, 32), droppedAmounts(event));
+        assertEquals(velocity, event.getItems().getLast().getVelocity());
+        assertEquals(17, event.getItems().getLast().getPickupDelay());
+        assertEquals(List.of(), notifier.notifications);
+    }
+
+    @Test
+    void reducesProduceAcrossMultipleEntitiesWithoutTouchingInterleavedDrops() {
+        PaperCropHarvestListener listener = listener(0.25);
+        BlockDropItemEvent event = eventFor(
+            Material.BEETROOTS,
+            true,
+            List.of(
+                new FakeItemStack(Material.BEETROOT, 4),
+                new FakeItemStack(Material.POISONOUS_POTATO, 1),
+                new FakeItemStack(Material.BEETROOT, 4)
+            )
+        );
+        Item secondDrop = event.getItems().get(1);
+
+        listener.onBlockDrop(event);
+        listener.reportYieldDelta(event);
+
+        assertSame(secondDrop, event.getItems().getLast());
+        assertEquals(List.of(2, 1), droppedAmounts(event));
+    }
+
+    @Test
     void doesNotSendActionBarWhenAdjustedQuantityMatchesVanillaQuantity() {
         PaperCropHarvestListener listener = listener(1.0);
-        BlockBreakEvent event = eventFor(
+        BlockDropItemEvent event = eventFor(
             Material.WHEAT,
             true,
             List.of(
@@ -177,30 +228,46 @@ class PaperCropHarvestListenerTest {
             )
         );
 
-        listener.onBlockBreak(event);
+        listener.onBlockDrop(event);
+        listener.reportYieldDelta(event);
 
-        assertTrue(event.isDropItems());
         assertEquals(POSITION, resolvedPosition);
-        assertEquals(List.of(), droppedItems);
+        assertEquals(List.of(1, 2), droppedAmounts(event));
         assertEquals(List.of(), notifier.notifications);
     }
 
     @Test
-    void doesNotSendActionBarForCancelledEvents() {
+    void doesNotAdjustOrSendActionBarForAlreadyCancelledEvents() {
         PaperCropHarvestListener listener = listener(2.0);
-        BlockBreakEvent event = eventFor(
+        BlockDropItemEvent event = eventFor(
             Material.WHEAT,
             true,
             List.of(new FakeItemStack(Material.WHEAT, 1))
         );
         event.setCancelled(true);
 
-        listener.onBlockBreak(event);
+        listener.onBlockDrop(event);
+        listener.reportYieldDelta(event);
 
-        assertTrue(event.isDropItems());
-        assertEquals(List.of(), droppedItems);
+        assertEquals(List.of(1), droppedAmounts(event));
         assertEquals(List.of(), notifier.notifications);
-        assertEquals(null, resolvedPosition);
+        assertNull(resolvedPosition);
+    }
+
+    @Test
+    void doesNotSendActionBarWhenAnotherHandlerCancelsTheDrops() {
+        PaperCropHarvestListener listener = listener(2.0);
+        BlockDropItemEvent event = eventFor(
+            Material.WHEAT,
+            true,
+            List.of(new FakeItemStack(Material.WHEAT, 1))
+        );
+
+        listener.onBlockDrop(event);
+        event.setCancelled(true);
+        listener.reportYieldDelta(event);
+
+        assertEquals(List.of(), notifier.notifications);
     }
 
     private PaperCropHarvestListener listener(double multiplier) {
@@ -242,35 +309,36 @@ class PaperCropHarvestListenerTest {
             new CropYieldMultiplierCalculator(() -> 0.0),
             new CropYieldQuantityCalculator(() -> 0.0)
         );
-        return new PaperCropHarvestListener(
-            service,
-            (world, location, itemStack) -> droppedItems.add(itemStack.clone()),
-            notifier
-        );
+        return new PaperCropHarvestListener(service, notifier);
     }
 
-    private BlockBreakEvent eventFor(
+    private static BlockDropItemEvent eventFor(
         Material material,
         boolean mature,
         List<ItemStack> drops
     ) {
         World world = world();
-        PlayerInventory inventory = proxy(PlayerInventory.class, Map.of());
-        Player player = proxy(Player.class, Map.of("getInventory", inventory));
+        Player player = proxy(Player.class, Map.of());
         Block block = proxy(
             Block.class,
             Map.of(
-                "getType", material,
+                "getType", Material.AIR,
                 "getWorld", world,
                 "getX", POSITION.x(),
                 "getY", POSITION.y(),
-                "getZ", POSITION.z(),
-                "getLocation", new Location(world, POSITION.x(), POSITION.y(), POSITION.z()),
-                "getDrops", drops,
-                "getBlockData", ageable(mature)
+                "getZ", POSITION.z()
             )
         );
-        return new BlockBreakEvent(block, player);
+        BlockState harvestedState = proxy(
+            BlockState.class,
+            Map.of("getType", material, "getBlockData", ageable(mature))
+        );
+        Location location = new Location(world, POSITION.x(), POSITION.y(), POSITION.z());
+        List<Item> capturedItems = new ArrayList<>();
+        for (ItemStack drop : drops) {
+            capturedItems.add(item(location, drop));
+        }
+        return new BlockDropItemEvent(block, harvestedState, player, capturedItems);
     }
 
     private static BlockData ageable(boolean mature) {
@@ -283,25 +351,65 @@ class PaperCropHarvestListenerTest {
         );
     }
 
-    @SuppressWarnings("unchecked")
     private static <T> T proxy(Class<T> type, Map<String, Object> returnValues) {
-        return (T) Proxy.newProxyInstance(
+        return proxy(type, (proxy, method, arguments) -> {
+            if (!returnValues.containsKey(method.getName())) {
+                throw new AssertionError("Unexpected " + type.getSimpleName() + " operation: " + method.getName());
+            }
+            return returnValues.get(method.getName());
+        });
+    }
+
+    private static <T> T proxy(Class<T> type, InvocationHandler handler) {
+        return type.cast(Proxy.newProxyInstance(
             type.getClassLoader(),
             new Class<?>[] { type },
-            (proxy, method, arguments) -> returnValues.get(method.getName())
-        );
+            handler
+        ));
     }
 
     private static World world() {
-        return proxy(World.class, Map.of("getUID", WORLD_ID));
+        return proxy(World.class, (proxy, method, arguments) -> switch (method.getName()) {
+            case "getUID" -> WORLD_ID;
+            case "createEntity" -> {
+                assertEquals(Item.class, arguments[1]);
+                yield item((Location) arguments[0], null);
+            }
+            default -> throw new AssertionError("Unexpected world operation: " + method.getName());
+        });
     }
 
-    private List<Material> droppedTypes() {
-        return droppedItems.stream().map(ItemStack::getType).toList();
+    private static Item item(Location location, ItemStack originalStack) {
+        AtomicReference<ItemStack> stack = new AtomicReference<>(originalStack);
+        AtomicReference<Vector> velocity = new AtomicReference<>(new Vector());
+        AtomicInteger pickupDelay = new AtomicInteger();
+        return proxy(Item.class, (proxy, method, arguments) -> switch (method.getName()) {
+            case "getLocation" -> location;
+            case "getWorld" -> location.getWorld();
+            case "getItemStack" -> stack.get().clone();
+            case "getVelocity" -> velocity.get().clone();
+            case "getPickupDelay" -> pickupDelay.get();
+            case "setItemStack" -> {
+                stack.set((ItemStack) arguments[0]);
+                yield null;
+            }
+            case "setVelocity" -> {
+                velocity.set(((Vector) arguments[0]).clone());
+                yield null;
+            }
+            case "setPickupDelay" -> {
+                pickupDelay.set((int) arguments[0]);
+                yield null;
+            }
+            default -> throw new AssertionError("Unexpected item operation: " + method.getName());
+        });
     }
 
-    private List<Integer> droppedAmounts() {
-        return droppedItems.stream().map(ItemStack::getAmount).toList();
+    private static List<Integer> droppedAmounts(BlockDropItemEvent event) {
+        return event.getItems().stream()
+            .map(Item::getItemStack)
+            .map(ItemStack::getAmount)
+            .toList();
     }
 
     private static final class RecordingActionBarNotifier

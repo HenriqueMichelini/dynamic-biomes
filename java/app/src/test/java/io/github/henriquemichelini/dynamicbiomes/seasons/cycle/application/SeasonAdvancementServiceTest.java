@@ -104,6 +104,48 @@ class SeasonAdvancementServiceTest {
         assertEquals(monsoon, currentSeasonQuery.currentSeason());
     }
 
+    @Test
+    void setsSeasonAndContinuesFromItOnNextAdvancement() {
+        RecordingSeasonStateRepository repository = new RecordingSeasonStateRepository(SPRING);
+        CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(SPRING);
+        SeasonAdvancementService service = new SeasonAdvancementService(
+            CALENDAR, repository, currentSeasonQuery
+        );
+
+        assertEquals(WINTER, service.setCurrentSeason(WINTER));
+        assertEquals(WINTER, repository.savedSeason);
+        assertEquals(WINTER, currentSeasonQuery.currentSeason());
+        assertEquals(SPRING, service.advance());
+    }
+
+    @Test
+    void refusesToSetASeasonOutsideTheCalendar() {
+        RecordingSeasonStateRepository repository = new RecordingSeasonStateRepository(SPRING);
+        CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(SPRING);
+        SeasonAdvancementService service = new SeasonAdvancementService(
+            CALENDAR, repository, currentSeasonQuery
+        );
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> service.setCurrentSeason(new SeasonId("minecraft:monsoon"))
+        );
+        assertEquals(SPRING, repository.findCurrentSeason().orElseThrow());
+        assertEquals(SPRING, currentSeasonQuery.currentSeason());
+    }
+
+    @Test
+    void leavesCurrentSeasonInPlaceWhenSettingItFailsToPersist() {
+        FailingSeasonStateRepository repository = new FailingSeasonStateRepository(SPRING);
+        CachedCurrentSeasonQuery currentSeasonQuery = new CachedCurrentSeasonQuery(SPRING);
+        SeasonAdvancementService service = new SeasonAdvancementService(
+            CALENDAR, repository, currentSeasonQuery
+        );
+
+        assertThrows(IllegalStateException.class, () -> service.setCurrentSeason(WINTER));
+        assertEquals(SPRING, currentSeasonQuery.currentSeason());
+    }
+
     private static final class RecordingSeasonStateRepository
         implements SeasonStateRepository {
         private SeasonId currentSeason;
