@@ -25,7 +25,7 @@ Use `/dynamicbiomes` or its shorter alias `/db`.
 | Command | Behavior |
 | --- | --- |
 | `/db season` | Shows the current season. Works from the console. |
-| `/db biome` | Shows the biome profile and available regional sky observation at the player's position. |
+| `/db biome` | Shows configured biome temperature, humidity, and soil fertility, along with available regional sky observation at the player's position. |
 | `/db inspect` | Shows the targeted crop's growth and yield factors or ore's drop policy and recorded origin. |
 | `/db season set minecraft:winter` | Sets and persists a configured season. Requires `dynamicbiomes.admin.season`. |
 | `/db reload` | Applies edited configuration. Requires `dynamicbiomes.admin.reload`. A failed reload keeps the current configuration active. |
@@ -37,6 +37,7 @@ commands require a player. Inspect also requires looking at a supported block.
 
 DynamicBiomes copies missing defaults to `plugins/dynamic-biomes/` on startup. Existing
 files keep their settings. Edit the feature's YAML and run `/db reload`.
+Unrecognized settings in `crop-growth.yml` or `crop-yields.yml` fail validation.
 
 | File | Settings |
 | --- | --- |

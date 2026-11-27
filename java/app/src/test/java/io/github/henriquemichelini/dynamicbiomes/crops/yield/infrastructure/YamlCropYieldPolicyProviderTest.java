@@ -149,6 +149,24 @@ class YamlCropYieldPolicyProviderTest {
     }
 
     @Test
+    void rejectsMisspelledOptionalSeasonalFactors() {
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> providerFor("""
+                minecraft:forest:
+                  crops:
+                    wheat:
+                      multiplier:
+                        min: 1.0
+                        max: 1.0
+                      sesonal-factors:
+                        minecraft:spring: 0.5
+                """)
+        );
+        assertTrue(exception.getMessage().contains("sesonal-factors"));
+    }
+
+    @Test
     void missingBiomePolicyThrowsUnsupportedPolicy() throws Exception {
         YamlCropYieldPolicyProvider provider = providerFor("""
             minecraft:forest:

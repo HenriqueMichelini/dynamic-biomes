@@ -54,7 +54,10 @@ class BiomeCommandExecutorTest {
         assertEquals(
             List.of(
                 "Current biome: minecraft:forest",
-                "DynamicBiomes profile: supported"
+                "DynamicBiomes profile: supported",
+                "Biome temperature: 0.6",
+                "Biome humidity: 0.4",
+                "Biome soil fertility: 0.8"
             ),
             sender.messages
         );
@@ -80,6 +83,9 @@ class BiomeCommandExecutorTest {
             List.of(
                 "Current biome: minecraft:forest",
                 "DynamicBiomes profile: supported",
+                "Biome temperature: 0.6",
+                "Biome humidity: 0.4",
+                "Biome soil fertility: 0.8",
                 "Ecological region: 1, -1",
                 "World weather: storm",
                 "World day phase: night"
@@ -144,8 +150,8 @@ class BiomeCommandExecutorTest {
     private static BiomeProfile profileFor(BiomeId biomeId) {
         return new BiomeProfile(
             biomeId,
-            new ClimateProfile(new Humidity(0.5), new Temperature(0.5)),
-            new Fertility(0.5)
+            new ClimateProfile(new Humidity(0.4), new Temperature(0.6)),
+            new Fertility(0.8)
         );
     }
 

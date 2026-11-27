@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -39,6 +40,7 @@ public final class YamlCropGrowthPolicyProvider
         if (!root.containsKey(CROPS_KEY) && !root.containsKey(BIOMES_KEY)) {
             throw new IllegalArgumentException("Crop growth policy must define crops or biomes");
         }
+        rejectUnknownKeys(root, Set.of(CROPS_KEY, BIOMES_KEY), "crop growth policy root");
         this.defaults = root.containsKey(CROPS_KEY)
             ? parseCropPolicies(
                 requiredMap(root, CROPS_KEY, "crop growth policy root.crops"),
@@ -99,6 +101,7 @@ public final class YamlCropGrowthPolicyProvider
             );
             String cropPath = policyPath + "." + cropKey;
             Map<?, ?> cropPolicy = requiredMapValue(entry.getValue(), cropPath);
+            rejectUnknownKeys(cropPolicy, Set.of(GROWTH_CHANCE_KEY, SEASONAL_FACTORS_KEY), cropPath);
             CropGrowthChance chance = new CropGrowthChance(
                 requiredNumberValue(
                     cropPolicy.get(GROWTH_CHANCE_KEY),
@@ -196,6 +199,14 @@ public final class YamlCropGrowthPolicyProvider
             );
         }
         return map;
+    }
+
+    private static void rejectUnknownKeys(Map<?, ?> fields, Set<String> supportedKeys, String path) {
+        for (Object key : fields.keySet()) {
+            if (!(key instanceof String name) || !supportedKeys.contains(name)) {
+                throw new IllegalArgumentException("Unknown key in " + path + ": " + key);
+            }
+        }
     }
 
     private static String requiredKey(Object key, String description) {
