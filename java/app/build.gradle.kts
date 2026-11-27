@@ -97,6 +97,7 @@ tasks.register<Delete>("cleanDockerPlugin") {
     group = "docker"
     description = "Removes old Dynamic Biomes plugin jars from the Docker Paper server plugins directory."
 
+    mustRunAfter(tasks.jar)
     delete(
         fileTree(paperPluginsDirectory) {
             include("$pluginArchiveName-*.jar")
@@ -139,5 +140,8 @@ tasks.register<Exec>("restartPaperDocker") {
     dependsOn("copyPluginToDocker")
 
     workingDir = dockerDirectory
-    commandLine("docker", "compose", "-f", dockerComposeFile.absolutePath, "restart", "paper")
+    commandLine(
+        "docker", "compose", "-f", dockerComposeFile.absolutePath,
+        "up", "-d", "--force-recreate", "paper"
+    )
 }
