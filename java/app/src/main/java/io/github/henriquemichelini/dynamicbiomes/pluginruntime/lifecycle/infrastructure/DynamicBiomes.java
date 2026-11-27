@@ -38,6 +38,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.Paper
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOrePlaceListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.PaperOreRemovalListener;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure.YamlOreOriginRepository;
+import io.github.henriquemichelini.dynamicbiomes.ore.origin.presentation.OreOriginDiagnosticsCommandExecutor;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.CachedCurrentSeasonQuery;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.SeasonAdvancementService;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.application.SeasonInitializationService;
@@ -81,6 +82,7 @@ public final class DynamicBiomes extends JavaPlugin {
     );
 
     private SeasonStateRepository seasonStateRepository;
+    private YamlOreOriginRepository oreOriginRepository;
     private OreOriginTrackingService originTracking;
     private CachedCurrentSeasonQuery currentSeasonQuery;
     private List<Listener> activeListeners = List.of();
@@ -95,9 +97,8 @@ public final class DynamicBiomes extends JavaPlugin {
             }
         }
         seasonStateRepository = new YamlSeasonStateRepository(dataPath.resolve("season-state.yml"));
-        originTracking = new OreOriginTrackingService(
-            new YamlOreOriginRepository(dataPath.resolve("ore-origins.yml"))
-        );
+        oreOriginRepository = new YamlOreOriginRepository(dataPath.resolve("ore-origins.yml"));
+        originTracking = new OreOriginTrackingService(oreOriginRepository);
         install(buildRuntime(dataPath));
         getLogger().info("Dynamic Biomes enabled.");
     }
@@ -220,6 +221,7 @@ public final class DynamicBiomes extends JavaPlugin {
                     )::inspect
                 )
             ),
+            new OreOriginDiagnosticsCommandExecutor(oreOriginRepository::diagnostics),
             this::reloadConfiguration
         );
 

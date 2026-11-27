@@ -12,13 +12,16 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
+import java.util.function.LongSupplier;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -30,10 +33,30 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
     private static final String ORIGINS_KEY = "origins";
 
     private final Path repositoryFile;
+    private final LongSupplier nanoTime;
+    private final long windowStartedNanos;
+    private final OreOriginWriteHistogram writeHistogram = new OreOriginWriteHistogram();
     private Map<BlockPosition, OreOrigin> origins;
 
     public YamlOreOriginRepository(Path repositoryFile) {
+        this(repositoryFile, System::nanoTime);
+    }
+
+    YamlOreOriginRepository(Path repositoryFile, LongSupplier nanoTime) {
         this.repositoryFile = repositoryFile;
+        this.nanoTime = nanoTime;
+        this.windowStartedNanos = nanoTime.getAsLong();
+    }
+
+    /** Returns a snapshot of write timings and any already-loaded origin count. */
+    public synchronized Diagnostics diagnostics() {
+        return new Diagnostics(
+            Duration.ofNanos(nanoTime.getAsLong() - windowStartedNanos),
+            writeHistogram.successes(),
+            writeHistogram.failures(),
+            writeHistogram.p95UpperBound(),
+            origins == null ? OptionalInt.empty() : OptionalInt.of(origins.size())
+        );
     }
 
     @Override
@@ -63,8 +86,27 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
         Map<BlockPosition, OreOrigin> updated = new LinkedHashMap<>(origins);
         removedPositions.forEach(updated::remove);
         savedOrigins.forEach(origin -> updated.put(origin.position(), origin));
-        writeOrigins(updated);
+        long startedNanos = nanoTime.getAsLong();
+        boolean successful = false;
+        try {
+            writeOrigins(updated);
+            successful = true;
+        } finally {
+            writeHistogram.record(nanoTime.getAsLong() - startedNanos, successful);
+        }
         origins = updated;
+    }
+
+    public record Diagnostics(
+        Duration window,
+        long writeSuccesses,
+        long writeFailures,
+        Optional<Duration> p95UpperBound,
+        OptionalInt trackedOrigins
+    ) {
+        public long writeAttempts() {
+            return writeSuccesses + writeFailures;
+        }
     }
 
     private void ensureLoaded() {

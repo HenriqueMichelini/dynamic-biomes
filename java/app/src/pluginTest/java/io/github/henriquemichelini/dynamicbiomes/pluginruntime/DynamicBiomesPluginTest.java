@@ -27,7 +27,10 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.Plugin;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
@@ -229,6 +232,79 @@ class DynamicBiomesPluginTest {
             "Current season: minecraft:spring",
             result.getSender().nextMessage()
         );
+    }
+
+    @Test
+    void diagnosticsAllowConsoleAndDefaultToOperatorsWithoutLoadingOrigins() throws IOException {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+        Path origins = plugin.getDataFolder().toPath().resolve("ore-origins.yml");
+        Files.writeString(origins, "invalid ore origin data");
+
+        CommandResult result = server.executeConsole("db", "diagnostics");
+        assertTrue(result.hasSucceeded());
+        var console = result.getSender();
+        assertTrue(console.nextMessage().matches(
+            "Ore-origin write measurement window: [0-9]+\\.[0-9]{3} s since plugin startup"
+        ));
+        assertEquals("Ore-origin writes: 0 attempts, 0 succeeded, 0 failed", console.nextMessage());
+        assertEquals("Approximate p95 write duration: no data (no write attempts)", console.nextMessage());
+        assertEquals("Tracked ore origins: not loaded", console.nextMessage());
+        assertEquals("invalid ore origin data", Files.readString(origins));
+
+        var permission = plugin.getPluginMeta().getPermissions().stream()
+            .filter(entry -> entry.getName().equals("dynamicbiomes.admin.diagnostics"))
+            .findFirst()
+            .orElseThrow();
+        assertEquals(PermissionDefault.OP, permission.getDefault());
+    }
+
+    @Test
+    void diagnosticsKeepObservationsAcrossReloadAndResetOnPluginRestart() {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+        callOrePlacement(10);
+        assertDiagnosticsWithWrites(1);
+
+        assertEquals(
+            "DynamicBiomes configuration reloaded.",
+            server.executeConsole("db", "reload").getSender().nextMessage()
+        );
+        assertDiagnosticsWithWrites(1);
+        callOrePlacement(11);
+        assertDiagnosticsWithWrites(2);
+
+        server.getPluginManager().disablePlugin(plugin);
+        server.getPluginManager().enablePlugin(plugin);
+        var console = server.executeConsole("db", "diagnostics").getSender();
+        assertTrue(console.nextMessage().startsWith("Ore-origin write measurement window:"));
+        assertEquals("Ore-origin writes: 0 attempts, 0 succeeded, 0 failed", console.nextMessage());
+        assertEquals("Approximate p95 write duration: no data (no write attempts)", console.nextMessage());
+        assertEquals("Tracked ore origins: not loaded", console.nextMessage());
+    }
+
+    private void callOrePlacement(int x) {
+        UUID worldId = UUID.fromString("fdab89dd-8aac-4be0-9c26-8752ae6ce85e");
+        World world = paperEventProxy(World.class, Map.of("getUID", worldId));
+        Block ore = paperEventProxy(Block.class, Map.of(
+            "getType", Material.IRON_ORE, "getWorld", world, "getX", x, "getY", 64, "getZ", -20
+        ));
+        server.getPluginManager().callEvent(new BlockPlaceEvent(
+            ore, null, null, null, null, true, EquipmentSlot.HAND
+        ));
+    }
+
+    private void assertDiagnosticsWithWrites(int count) {
+        var console = server.executeConsole("db", "diagnostics").getSender();
+        assertTrue(console.nextMessage().startsWith("Ore-origin write measurement window:"));
+        assertEquals(
+            "Ore-origin writes: %d attempts, %d succeeded, 0 failed".formatted(count, count),
+            console.nextMessage()
+        );
+        assertTrue(console.nextMessage().matches(
+            "Approximate p95 write duration: <= [0-9]+\\.[0-9]{3} ms"
+        ));
+        assertEquals("Tracked ore origins: " + count, console.nextMessage());
     }
 
     @Test

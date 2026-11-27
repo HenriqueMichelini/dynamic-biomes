@@ -27,11 +27,18 @@ Use `/dynamicbiomes` or its shorter alias `/db`.
 | `/db season` | Shows the current season. Works from the console. |
 | `/db biome` | Shows configured biome temperature, humidity, and soil fertility, along with available regional sky observation at the player's position. |
 | `/db inspect` | Shows the targeted crop's growth and yield factors or ore's drop policy and recorded origin. |
+| `/db diagnostics` | Shows ore-origin write counts, failures, approximate p95 duration, and the in-memory origin count when loaded. Works from the console. Requires `dynamicbiomes.admin.diagnostics`. |
 | `/db season set minecraft:winter` | Sets and persists a configured season. Requires `dynamicbiomes.admin.season`. |
 | `/db reload` | Applies edited configuration. Requires `dynamicbiomes.admin.reload`. A failed reload keeps the current configuration active. |
 
-Both administrative permissions default to server operators. Biome and inspect
+Administrative permissions default to server operators. Biome and inspect
 commands require a player. Inspect also requires looking at a supported block.
+
+Diagnostics cover the time since plugin startup. The approximate p95 is an
+upper bound from a fixed histogram of synchronous YAML rewrites, including
+failed attempts. It shows no data until the first write attempt. Reading
+diagnostics uses the repository's in-memory state and leaves unloaded origins
+unloaded. Metrics survive `/db reload` and reset on a full plugin restart.
 
 ## Configuration
 

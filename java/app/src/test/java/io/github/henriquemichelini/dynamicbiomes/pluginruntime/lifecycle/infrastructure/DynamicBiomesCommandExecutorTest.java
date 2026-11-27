@@ -23,6 +23,7 @@ class DynamicBiomesCommandExecutorTest {
             seasonExecutor,
             biomeExecutor,
             inspectExecutor,
+            new RecordingCommandExecutor(),
             () -> true
         );
 
@@ -50,6 +51,7 @@ class DynamicBiomesCommandExecutorTest {
             seasonExecutor,
             biomeExecutor,
             inspectExecutor,
+            new RecordingCommandExecutor(),
             () -> true
         );
 
@@ -77,6 +79,7 @@ class DynamicBiomesCommandExecutorTest {
             seasonExecutor,
             biomeExecutor,
             inspectExecutor,
+            new RecordingCommandExecutor(),
             () -> true
         );
 
@@ -104,6 +107,7 @@ class DynamicBiomesCommandExecutorTest {
             seasonExecutor,
             biomeExecutor,
             inspectExecutor,
+            new RecordingCommandExecutor(),
             () -> true
         );
 
@@ -135,6 +139,7 @@ class DynamicBiomesCommandExecutorTest {
             handler,
             handler,
             handler,
+            handler,
             () -> reloads.incrementAndGet() == 1
         );
 
@@ -154,6 +159,31 @@ class DynamicBiomesCommandExecutorTest {
             ),
             operator.messages
         );
+    }
+
+    @Test
+    void diagnosticsRequireTheirOwnPermissionAndAcceptNoExtraArguments() {
+        RecordingSender reloadAdmin = new RecordingSender();
+        reloadAdmin.mayReload = true;
+        RecordingSender diagnosticsAdmin = new RecordingSender();
+        diagnosticsAdmin.mayDiagnose = true;
+        RecordingCommandExecutor handler = new RecordingCommandExecutor();
+        RecordingCommandExecutor diagnostics = new RecordingCommandExecutor();
+        DynamicBiomesCommandExecutor command = new DynamicBiomesCommandExecutor(
+            handler, handler, handler, diagnostics, () -> true
+        );
+
+        command.onCommand(reloadAdmin.commandSender(), null, "db", new String[] { "diagnostics" });
+        command.onCommand(diagnosticsAdmin.commandSender(), null, "db", new String[] { "diagnostics", "extra" });
+        command.onCommand(diagnosticsAdmin.commandSender(), null, "db", new String[] { "DIAGNOSTICS" });
+
+        assertEquals(1, diagnostics.callCount);
+        assertEquals(0, handler.callCount);
+        assertEquals(
+            List.of("You do not have permission to view DynamicBiomes diagnostics."),
+            reloadAdmin.messages
+        );
+        assertEquals(List.of("Usage: /dynamicbiomes diagnostics"), diagnosticsAdmin.messages);
     }
 
     private static final class RecordingCommandExecutor implements CommandExecutor {
@@ -176,6 +206,7 @@ class DynamicBiomesCommandExecutorTest {
     private static final class RecordingSender {
         private final List<String> messages = new ArrayList<>();
         private boolean mayReload;
+        private boolean mayDiagnose;
 
         CommandSender commandSender() {
             return (CommandSender) Proxy.newProxyInstance(
@@ -183,7 +214,8 @@ class DynamicBiomesCommandExecutorTest {
                 new Class<?>[] { CommandSender.class },
                 (proxy, method, arguments) -> {
                     if (method.getName().equals("hasPermission")) {
-                        return mayReload && "dynamicbiomes.admin.reload".equals(arguments[0]);
+                        return (mayReload && "dynamicbiomes.admin.reload".equals(arguments[0]))
+                            || (mayDiagnose && "dynamicbiomes.admin.diagnostics".equals(arguments[0]));
                     }
                     if (method.getName().equals("sendMessage")) {
                         recordMessages(arguments);
