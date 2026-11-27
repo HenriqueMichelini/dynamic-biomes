@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -26,14 +27,39 @@ public final class YamlBiomeProfileProvider implements BiomeProfileProvider {
 
     @Override
     public BiomeProfile profileFor(BiomeId biomeId) {
-        Map<?, ?> root = loadRoot();
-        Map<?, ?> profiles = requiredMap(root, "profiles", "biome profiles");
+        Map<?, ?> profiles = loadProfiles();
         if (!profiles.containsKey(biomeId.value())) {
             return null;
         }
+        return readProfile(biomeId, profiles.get(biomeId.value()));
+    }
 
+    /** Reads and validates the entire file for reuse without additional file access. */
+    public BiomeProfileProvider load() {
+        Map<BiomeId, BiomeProfile> profiles = new HashMap<>();
+        loadProfiles().forEach((key, value) -> {
+            if (!(key instanceof String name)) {
+                throw new IllegalArgumentException(
+                    "Biome profile ID must be a namespaced string in " + profileFile + ": " + key
+                );
+            }
+            try {
+                BiomeId biomeId = new BiomeId(name);
+                profiles.put(biomeId, readProfile(biomeId, value));
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException(
+                    "Invalid biome profile '" + name + "' in " + profileFile + ": "
+                        + exception.getMessage(),
+                    exception
+                );
+            }
+        });
+        return Map.copyOf(profiles)::get;
+    }
+
+    private static BiomeProfile readProfile(BiomeId biomeId, Object value) {
         Map<?, ?> profile = requiredMapValue(
-            profiles.get(biomeId.value()),
+            value,
             "biome profile '" + biomeId.value() + "'"
         );
         Map<?, ?> climate = requiredMap(
@@ -50,6 +76,10 @@ public final class YamlBiomeProfileProvider implements BiomeProfileProvider {
             ),
             new Fertility(requiredNumber(profile, "fertility", biomeId))
         );
+    }
+
+    private Map<?, ?> loadProfiles() {
+        return requiredMap(loadRoot(), "profiles", "biome profiles");
     }
 
     private Map<?, ?> loadRoot() {

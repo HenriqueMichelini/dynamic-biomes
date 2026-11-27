@@ -1,5 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.biome.resolution.infrastructure;
 
+import io.github.henriquemichelini.dynamicbiomes.biome.dynamics.domain.EcologicalRegionState;
+import io.github.henriquemichelini.dynamicbiomes.biome.dynamics.domain.EcologicalRegionState.SkyWeather;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfileProvider;
@@ -7,6 +9,7 @@ import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeCo
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
+import java.util.Optional;
 import lombok.NonNull;
 import org.bukkit.Server;
 import org.bukkit.World;
@@ -38,10 +41,10 @@ public final class BukkitBiomeResolver implements BiomeResolver {
 
         Biome biome = world.getBiome(position.x(), position.y(), position.z());
         BiomeId biomeId = new BiomeId(biome.getKey().toString());
-        return resolveContext(biomeId);
+        return resolveContext(biomeId, world, position);
     }
 
-    BiomeContext resolveContext(BiomeId biomeId) {
+    BiomeContext resolveContext(BiomeId biomeId, World world, BlockPosition position) {
         BiomeProfile profile = profileProvider.profileFor(biomeId);
 
         if (profile == null) {
@@ -52,6 +55,20 @@ public final class BukkitBiomeResolver implements BiomeResolver {
             );
         }
 
-        return new BiomeContext(biomeId, profile);
+        if (world.getEnvironment() != World.Environment.NORMAL) {
+            return new BiomeContext(biomeId, profile);
+        }
+
+        EcologicalRegionState ecologicalState = EcologicalRegionState.observedAt(
+            position, skyWeather(world), world.getTime()
+        );
+        return new BiomeContext(biomeId, profile, Optional.of(ecologicalState));
+    }
+
+    private static SkyWeather skyWeather(World world) {
+        if (!world.hasStorm()) {
+            return SkyWeather.CLEAR;
+        }
+        return world.isThundering() ? SkyWeather.THUNDER : SkyWeather.STORM;
     }
 }

@@ -28,6 +28,9 @@ class ArchitectureTest {
         "spatial"
     );
     private static final Set<String> PUBLISHED_UPSTREAM_CONTRACTS = Set.of(
+        ROOT + ".biome.dynamics.domain.EcologicalRegionState",
+        ROOT + ".biome.dynamics.domain.EcologicalRegionState$SkyWeather",
+        ROOT + ".biome.dynamics.domain.EcologicalRegionState$DayPhase",
         ROOT + ".biome.identity.domain.BiomeId",
         ROOT + ".biome.resolution.domain.BiomeContext",
         ROOT + ".biome.resolution.domain.BiomeResolver",
