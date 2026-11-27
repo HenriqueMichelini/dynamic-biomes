@@ -17,6 +17,7 @@ import io.github.henriquemichelini.dynamicbiomes.crops.growth.application.CropGr
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.crops.performance.domain.CropPerformanceResult;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
@@ -26,11 +27,14 @@ import java.lang.reflect.Proxy;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.Ageable;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.event.block.BlockGrowEvent;
 import org.junit.jupiter.api.Test;
 
@@ -71,6 +75,7 @@ class PaperCropGrowthListenerTest {
         assertFalse(event.isCancelled());
         assertEquals(POSITION, resolvedPosition);
         assertEquals(CropKind.WHEAT, requestedCropKind);
+        assertEquals(1, proposedAge(event));
     }
 
     @Test
@@ -163,16 +168,115 @@ class PaperCropGrowthListenerTest {
     }
 
     @Test
-    void skipsGrowthPolicyForAMultipleStageAdvance() {
-        PaperCropGrowthListener listener = listenerWithResolver(position -> {
-            throw new AssertionError("Service must not resolve biome for multistage growth");
-        });
-        BlockGrowEvent event = eventFor(Material.WHEAT, 4);
+    void slowsAOneStageAdvanceWhenTheSpeedRollFails() {
+        PaperCropGrowthListener listener = listenerWithPolicy(policy(1.0, () -> 0.5), 0.5);
+        BlockGrowEvent event = eventFor(Material.WHEAT, 2, 3, 7);
+
+        listener.onBlockGrow(event);
+
+        assertTrue(event.isCancelled());
+        assertEquals(3, proposedAge(event));
+    }
+
+    @Test
+    void keepsTheVanillaAdvanceWhenAFractionalSpeedRollSucceeds() {
+        PaperCropGrowthListener listener = listenerWithPolicy(policy(1.0, () -> 0.49), 0.5);
+        BlockGrowEvent event = eventFor(Material.WHEAT, 2, 3, 7);
 
         listener.onBlockGrow(event);
 
         assertFalse(event.isCancelled());
-        assertEquals(4, ((Ageable) event.getNewState().getBlockData()).getAge());
+        assertEquals(3, proposedAge(event));
+    }
+
+    @Test
+    void acceleratesAllowedGrowthThroughTheEventSnapshot() {
+        AtomicInteger rollCount = new AtomicInteger();
+        PaperCropGrowthListener listener = listenerWithPolicy(
+            policy(0.8, () -> rollCount.getAndIncrement() == 0 ? 0.79 : 0.49),
+            2.5
+        );
+        BlockGrowEvent event = eventFor(Material.WHEAT, 2, 3, 7);
+
+        listener.onBlockGrow(event);
+
+        assertFalse(event.isCancelled());
+        assertEquals(5, proposedAge(event));
+        assertEquals(2, ((Ageable) event.getBlock().getBlockData()).getAge());
+        assertEquals(2, rollCount.get());
+    }
+
+    @Test
+    void capsAnArbitrarilyLargeSpeedFactorAtMaturityWithoutRolling() {
+        PaperCropGrowthListener listener = listenerWithPolicy(
+            policy(1.0, () -> {
+                throw new AssertionError("Whole stages do not need a roll");
+            }),
+            Double.MAX_VALUE
+        );
+        BlockGrowEvent event = eventFor(Material.BEETROOTS, 1, 2, 3);
+
+        listener.onBlockGrow(event);
+
+        assertFalse(event.isCancelled());
+        assertEquals(3, proposedAge(event));
+    }
+
+    @Test
+    void preservesTheProposedSnapshotWhenTheChanceGateRejectsGrowth() {
+        PaperCropGrowthListener listener = listenerWithPolicy(policy(0.5, () -> 0.51), 2.5);
+        BlockGrowEvent event = eventFor(Material.WHEAT, 2, 3, 7);
+
+        listener.onBlockGrow(event);
+
+        assertTrue(event.isCancelled());
+        assertEquals(3, proposedAge(event));
+    }
+
+    @Test
+    void preservesAMultipleStageAdvanceAtZeroGrowthChance() {
+        PaperCropGrowthListener listener = listenerWithPolicy(
+            policy(0.0, () -> {
+                throw new AssertionError("Variation is unnecessary at zero chance");
+            }),
+            0.0
+        );
+        BlockGrowEvent event = eventFor(Material.WHEAT, 2, 5, 7);
+
+        listener.onBlockGrow(event);
+
+        assertFalse(event.isCancelled());
+        assertEquals(5, proposedAge(event));
+    }
+
+    @Test
+    void skipsGrowthPolicyForAMultipleStageAdvance() {
+        PaperCropGrowthListener listener = listenerWithResolver(position -> {
+            throw new AssertionError("Service must not resolve biome for multistage growth");
+        });
+        BlockGrowEvent event = eventFor(Material.WHEAT, 0, 4, 7);
+
+        listener.onBlockGrow(event);
+
+        assertFalse(event.isCancelled());
+        assertEquals(4, proposedAge(event));
+    }
+
+    @Test
+    void leavesTheVanillaStageWhenThereIsNoSupportedPolicy() {
+        PaperCropGrowthListener listener = listenerWithResolver(
+            position -> FOREST_CONTEXT,
+            (biomeId, cropKind) -> {
+                throw new UnsupportedCropGrowthPolicyException("Missing crop policy");
+            },
+            0.0
+        );
+        BlockGrowEvent event = eventFor(Material.WHEAT, 2, 3, 7);
+
+        listener.onBlockGrow(event);
+
+        assertFalse(event.isCancelled());
+        assertEquals(3, proposedAge(event));
     }
 
     @Test
@@ -191,6 +295,10 @@ class PaperCropGrowthListenerTest {
     }
 
     private PaperCropGrowthListener listenerWithPolicy(CropGrowthPolicy policy) {
+        return listenerWithPolicy(policy, 1.0);
+    }
+
+    private PaperCropGrowthListener listenerWithPolicy(CropGrowthPolicy policy, double speedFactor) {
         return listenerWithResolver(
             position -> {
                 resolvedPosition = position;
@@ -199,7 +307,8 @@ class PaperCropGrowthListenerTest {
             (biomeId, cropKind) -> {
                 requestedCropKind = cropKind;
                 return policy;
-            }
+            },
+            speedFactor
         );
     }
 
@@ -208,13 +317,15 @@ class PaperCropGrowthListenerTest {
             biomeResolver,
             (biomeId, cropKind) -> {
                 throw new AssertionError("Policy lookup should not be reached");
-            }
+            },
+            1.0
         );
     }
 
     private static PaperCropGrowthListener listenerWithResolver(
         BiomeResolver biomeResolver,
-        CropGrowthPolicyProvider policyProvider
+        CropGrowthPolicyProvider policyProvider,
+        double speedFactor
     ) {
         return new PaperCropGrowthListener(
             new CropGrowthService(
@@ -223,7 +334,7 @@ class PaperCropGrowthListenerTest {
                 () -> SPRING,
                 (position, cropKind) -> new CropPerformanceResult(
                     OptionalDouble.empty(),
-                    1.0,
+                    speedFactor,
                     1.0,
                     1.0
                 )
@@ -247,30 +358,60 @@ class PaperCropGrowthListenerTest {
     }
 
     private static BlockGrowEvent eventFor(Material material) {
-        return eventFor(material, 1);
+        return eventFor(material, 0, 1, 7);
     }
 
-    private static BlockGrowEvent eventFor(Material material, int proposedAge) {
+    private static BlockGrowEvent eventFor(Material material, int age, int proposedAge, int maximumAge) {
         Block block = proxy(
             Block.class,
             Map.of(
                 "getType", material,
-                "getBlockData", ageable(material, 0),
+                "getBlockData", ageable(material, age, maximumAge),
                 "getWorld", world(),
                 "getX", POSITION.x(),
                 "getY", POSITION.y(),
                 "getZ", POSITION.z()
             )
         );
-        BlockState newState = proxy(
-            BlockState.class,
-            Map.of("getBlockData", ageable(material, proposedAge))
+        AtomicReference<BlockData> proposedData = new AtomicReference<>(ageable(material, proposedAge, maximumAge));
+        BlockState newState = (BlockState) Proxy.newProxyInstance(
+            BlockState.class.getClassLoader(),
+            new Class<?>[] { BlockState.class },
+            (proxy, method, arguments) -> switch (method.getName()) {
+                case "getBlockData" -> proposedData.get();
+                case "getType" -> material;
+                case "setBlockData" -> {
+                    proposedData.set((BlockData) arguments[0]);
+                    yield null;
+                }
+                default -> throw new AssertionError("Unexpected snapshot operation: " + method.getName());
+            }
         );
         return new BlockGrowEvent(block, newState);
     }
 
-    private static Ageable ageable(Material material, int age) {
-        return proxy(Ageable.class, Map.of("getMaterial", material, "getAge", age));
+    private static int proposedAge(BlockGrowEvent event) {
+        return ((Ageable) event.getNewState().getBlockData()).getAge();
+    }
+
+    private static Ageable ageable(Material material, int initialAge, int maximumAge) {
+        int[] age = { initialAge };
+        return (Ageable) Proxy.newProxyInstance(
+            Ageable.class.getClassLoader(),
+            new Class<?>[] { Ageable.class },
+            (proxy, method, arguments) -> switch (method.getName()) {
+                case "getMaterial" -> material;
+                case "getAge" -> age[0];
+                case "getMaximumAge" -> maximumAge;
+                case "setAge" -> {
+                    int newAge = (int) arguments[0];
+                    assertTrue(newAge >= 0 && newAge <= maximumAge);
+                    age[0] = newAge;
+                    yield null;
+                }
+                default -> throw new AssertionError("Unexpected crop data operation: " + method.getName());
+            }
+        );
     }
 
     @SuppressWarnings("unchecked")
@@ -278,7 +419,12 @@ class PaperCropGrowthListenerTest {
         return (T) Proxy.newProxyInstance(
             type.getClassLoader(),
             new Class<?>[] { type },
-            (proxy, method, arguments) -> returnValues.get(method.getName())
+            (proxy, method, arguments) -> {
+                if (!returnValues.containsKey(method.getName())) {
+                    throw new AssertionError("Unexpected world operation: " + method.getName());
+                }
+                return returnValues.get(method.getName());
+            }
         );
     }
 

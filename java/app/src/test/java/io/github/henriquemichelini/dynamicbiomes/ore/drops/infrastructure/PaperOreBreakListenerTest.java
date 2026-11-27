@@ -373,7 +373,6 @@ class PaperOreBreakListenerTest {
             removedPositions.forEach(this::removeByPosition);
             savedOrigins.forEach(this::save);
         }
-
     }
 
     private record Notification(String message, TextColor color, OreDropDeltaTone tone) {}

@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.drops.presentation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
@@ -12,6 +13,7 @@ import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperatur
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeContext;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.BiomeResolver;
 import io.github.henriquemichelini.dynamicbiomes.biome.resolution.domain.UnsupportedBiomeException;
+import io.github.henriquemichelini.dynamicbiomes.ore.drops.application.OreInspectionService;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropMultiplierRange;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropOreRule;
 import io.github.henriquemichelini.dynamicbiomes.ore.drops.domain.OreDropPolicy;
@@ -36,10 +38,9 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
-class OreInspectCommandExecutorTest {
+class OreInspectDiagnosticTest {
     private static final UUID WORLD_ID = UUID.fromString(
         "00000000-0000-0000-0000-000000000002"
     );
@@ -57,26 +58,21 @@ class OreInspectCommandExecutorTest {
 
     @Test
     void reportsSupportedNaturalOreDiagnostics() {
-        RecordingSender sender = RecordingSender.playerLookingAt(Material.IRON_ORE);
+        RecordingSender sender = new RecordingSender();
+        Block target = block(Material.IRON_ORE);
         InMemoryOreOriginRepository originRepository =
             new InMemoryOreOriginRepository();
-        OreInspectCommandExecutor command = command(
+        OreInspectDiagnostic command = command(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             biomeId -> policyFor(biomeId, IRON_ORE),
             originRepository
         );
 
-        boolean handled = command.onCommand(
-            sender.commandSender(),
-            null,
-            "dynamicbiomes",
-            new String[] { "inspect" }
-        );
+        boolean handled = command.inspect(sender.commandSender(), target);
 
         assertTrue(handled);
         assertEquals(
             List.of(
-                "Target block: IRON_ORE",
                 "Current biome: minecraft:forest",
                 "DynamicBiomes profile: supported",
                 "Ore drop policy: supported",
@@ -91,28 +87,21 @@ class OreInspectCommandExecutorTest {
 
     @Test
     void reportsPolicySupportForConfiguredNonIronOreDiagnostics() {
-        RecordingSender sender = RecordingSender.playerLookingAt(
-            Material.DEEPSLATE_DIAMOND_ORE
-        );
+        RecordingSender sender = new RecordingSender();
+        Block target = block(Material.DEEPSLATE_DIAMOND_ORE);
         InMemoryOreOriginRepository originRepository =
             new InMemoryOreOriginRepository();
-        OreInspectCommandExecutor command = command(
+        OreInspectDiagnostic command = command(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             biomeId -> policyFor(biomeId, DEEPSLATE_DIAMOND_ORE),
             originRepository
         );
 
-        boolean handled = command.onCommand(
-            sender.commandSender(),
-            null,
-            "dynamicbiomes",
-            new String[] { "inspect" }
-        );
+        boolean handled = command.inspect(sender.commandSender(), target);
 
         assertTrue(handled);
         assertEquals(
             List.of(
-                "Target block: DEEPSLATE_DIAMOND_ORE",
                 "Current biome: minecraft:forest",
                 "DynamicBiomes profile: supported",
                 "Ore drop policy: supported",
@@ -127,30 +116,25 @@ class OreInspectCommandExecutorTest {
 
     @Test
     void reportsPlayerPlacedOreAsIneligible() {
-        RecordingSender sender = RecordingSender.playerLookingAt(Material.IRON_ORE);
+        RecordingSender sender = new RecordingSender();
+        Block target = block(Material.IRON_ORE);
         InMemoryOreOriginRepository originRepository =
             new InMemoryOreOriginRepository();
         originRepository.save(
             new OreOrigin(TARGET_POSITION, OreOriginType.PLAYER_PLACED)
         );
         originRepository.clearMutations();
-        OreInspectCommandExecutor command = command(
+        OreInspectDiagnostic command = command(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             biomeId -> policyFor(biomeId, IRON_ORE),
             originRepository
         );
 
-        boolean handled = command.onCommand(
-            sender.commandSender(),
-            null,
-            "dynamicbiomes",
-            new String[] { "inspect" }
-        );
+        boolean handled = command.inspect(sender.commandSender(), target);
 
         assertTrue(handled);
         assertEquals(
             List.of(
-                "Target block: IRON_ORE",
                 "Current biome: minecraft:forest",
                 "DynamicBiomes profile: supported",
                 "Ore drop policy: supported",
@@ -165,14 +149,15 @@ class OreInspectCommandExecutorTest {
 
     @Test
     void reportsUnsupportedPolicyAsIneligibleWithoutMutatingOriginState() {
-        RecordingSender sender = RecordingSender.playerLookingAt(Material.IRON_ORE);
+        RecordingSender sender = new RecordingSender();
+        Block target = block(Material.IRON_ORE);
         InMemoryOreOriginRepository originRepository =
             new InMemoryOreOriginRepository();
         originRepository.save(
             new OreOrigin(TARGET_POSITION, OreOriginType.PLAYER_PLACED)
         );
         originRepository.clearMutations();
-        OreInspectCommandExecutor command = command(
+        OreInspectDiagnostic command = command(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             biomeId -> {
                 throw new UnsupportedOreDropConfigurationException(
@@ -182,17 +167,11 @@ class OreInspectCommandExecutorTest {
             originRepository
         );
 
-        boolean handled = command.onCommand(
-            sender.commandSender(),
-            null,
-            "dynamicbiomes",
-            new String[] { "inspect" }
-        );
+        boolean handled = command.inspect(sender.commandSender(), target);
 
         assertTrue(handled);
         assertEquals(
             List.of(
-                "Target block: IRON_ORE",
                 "Current biome: minecraft:forest",
                 "DynamicBiomes profile: supported",
                 "Ore drop policy: unsupported",
@@ -207,26 +186,21 @@ class OreInspectCommandExecutorTest {
 
     @Test
     void reportsUnsupportedOreRuleAsIneligibleWithoutMutatingOriginState() {
-        RecordingSender sender = RecordingSender.playerLookingAt(Material.IRON_ORE);
+        RecordingSender sender = new RecordingSender();
+        Block target = block(Material.IRON_ORE);
         InMemoryOreOriginRepository originRepository =
             new InMemoryOreOriginRepository();
-        OreInspectCommandExecutor command = command(
+        OreInspectDiagnostic command = command(
             position -> new BiomeContext(FOREST, profileFor(FOREST)),
             biomeId -> policyFor(biomeId, DEEPSLATE_DIAMOND_ORE),
             originRepository
         );
 
-        boolean handled = command.onCommand(
-            sender.commandSender(),
-            null,
-            "dynamicbiomes",
-            new String[] { "inspect" }
-        );
+        boolean handled = command.inspect(sender.commandSender(), target);
 
         assertTrue(handled);
         assertEquals(
             List.of(
-                "Target block: IRON_ORE",
                 "Current biome: minecraft:forest",
                 "DynamicBiomes profile: supported",
                 "Ore drop policy: unsupported",
@@ -241,13 +215,14 @@ class OreInspectCommandExecutorTest {
 
     @Test
     void reportsUnsupportedBiomeWithoutCheckingPolicy() {
-        RecordingSender sender = RecordingSender.playerLookingAt(Material.IRON_ORE);
+        RecordingSender sender = new RecordingSender();
+        Block target = block(Material.IRON_ORE);
         CountingOreDropPolicyProvider policyProvider =
             new CountingOreDropPolicyProvider();
         InMemoryOreOriginRepository originRepository =
             new InMemoryOreOriginRepository();
         BiomeId biomeId = new BiomeId("minecraft:dripstone_caves");
-        OreInspectCommandExecutor command = command(
+        OreInspectDiagnostic command = command(
             position -> {
                 throw new UnsupportedBiomeException(
                     biomeId,
@@ -258,17 +233,11 @@ class OreInspectCommandExecutorTest {
             originRepository
         );
 
-        boolean handled = command.onCommand(
-            sender.commandSender(),
-            null,
-            "dynamicbiomes",
-            new String[] { "inspect" }
-        );
+        boolean handled = command.inspect(sender.commandSender(), target);
 
         assertTrue(handled);
         assertEquals(
             List.of(
-                "Target block: IRON_ORE",
                 "Current biome: minecraft:dripstone_caves",
                 "DynamicBiomes profile: unsupported",
                 "Ore drop policy: skipped",
@@ -284,72 +253,36 @@ class OreInspectCommandExecutorTest {
 
     @Test
     void reportsNonOreTargetWithoutResolvingBiome() {
-        RecordingSender sender = RecordingSender.playerLookingAt(Material.STONE);
+        RecordingSender sender = new RecordingSender();
+        Block target = block(Material.STONE);
         CountingBiomeResolver biomeResolver = new CountingBiomeResolver();
         CountingOreDropPolicyProvider policyProvider =
             new CountingOreDropPolicyProvider();
-        OreInspectCommandExecutor command = command(
+        OreInspectDiagnostic command = command(
             biomeResolver,
             policyProvider,
             new InMemoryOreOriginRepository()
         );
 
-        boolean handled = command.onCommand(
-            sender.commandSender(),
-            null,
-            "dynamicbiomes",
-            new String[] { "inspect" }
-        );
+        boolean handled = command.inspect(sender.commandSender(), target);
 
-        assertTrue(handled);
-        assertEquals(
-            List.of(
-                "Target block: STONE",
-                "Inspection: not an inspected ore"
-            ),
-            sender.messages
-        );
+        assertFalse(handled);
+        assertTrue(sender.messages.isEmpty());
         assertEquals(0, biomeResolver.resolveCount);
         assertEquals(0, policyProvider.readCount);
     }
 
-    @Test
-    void rejectsConsoleSendersWithoutInspecting() {
-        RecordingSender sender = RecordingSender.console();
-        CountingBiomeResolver biomeResolver = new CountingBiomeResolver();
-        CountingOreDropPolicyProvider policyProvider =
-            new CountingOreDropPolicyProvider();
-        OreInspectCommandExecutor command = command(
-            biomeResolver,
-            policyProvider,
-            new InMemoryOreOriginRepository()
-        );
-
-        boolean handled = command.onCommand(
-            sender.commandSender(),
-            null,
-            "dynamicbiomes",
-            new String[] { "inspect" }
-        );
-
-        assertTrue(handled);
-        assertEquals(
-            List.of("This command can only be used by a player."),
-            sender.messages
-        );
-        assertEquals(0, biomeResolver.resolveCount);
-        assertEquals(0, policyProvider.readCount);
-    }
-
-    private static OreInspectCommandExecutor command(
+    private static OreInspectDiagnostic command(
         BiomeResolver biomeResolver,
         OreDropPolicyProvider policyProvider,
         InMemoryOreOriginRepository originRepository
     ) {
-        return new OreInspectCommandExecutor(
-            biomeResolver,
-            policyProvider,
-            new OreOriginTrackingService(originRepository)
+        return new OreInspectDiagnostic(
+            new OreInspectionService(
+                biomeResolver,
+                policyProvider,
+                new OreOriginTrackingService(originRepository)
+            )
         );
     }
 
@@ -437,47 +370,18 @@ class OreInspectCommandExecutorTest {
 
     private static final class RecordingSender {
         private final List<String> messages = new ArrayList<>();
-        private CommandSender commandSender;
 
-        private RecordingSender() {}
-
-        private static RecordingSender playerLookingAt(Material material) {
-            RecordingSender sender = new RecordingSender();
-            Block block = block(material);
-            Player player = (Player) Proxy.newProxyInstance(
-                Player.class.getClassLoader(),
-                new Class<?>[] { Player.class },
-                (proxy, method, arguments) -> {
-                    if (method.getName().equals("sendMessage")) {
-                        sender.recordMessages(arguments);
-                    }
-                    if (method.getName().equals("getTargetBlockExact")) {
-                        return block;
-                    }
-                    return defaultValue(method.getReturnType());
-                }
-            );
-            sender.commandSender = player;
-            return sender;
-        }
-
-        private static RecordingSender console() {
-            RecordingSender sender = new RecordingSender();
-            sender.commandSender = (CommandSender) Proxy.newProxyInstance(
+        CommandSender commandSender() {
+            return (CommandSender) Proxy.newProxyInstance(
                 CommandSender.class.getClassLoader(),
                 new Class<?>[] { CommandSender.class },
                 (proxy, method, arguments) -> {
                     if (method.getName().equals("sendMessage")) {
-                        sender.recordMessages(arguments);
+                        recordMessages(arguments);
                     }
                     return defaultValue(method.getReturnType());
                 }
             );
-            return sender;
-        }
-
-        CommandSender commandSender() {
-            return commandSender;
         }
 
         private void recordMessages(Object[] arguments) {
@@ -492,53 +396,53 @@ class OreInspectCommandExecutorTest {
                 }
             }
         }
+    }
 
-        private static Block block(Material material) {
-            World world = world();
-            return (Block) Proxy.newProxyInstance(
-                Block.class.getClassLoader(),
-                new Class<?>[] { Block.class },
-                (proxy, method, arguments) -> switch (method.getName()) {
-                    case "getType" -> material;
-                    case "getWorld" -> world;
-                    case "getX" -> TARGET_POSITION.x();
-                    case "getY" -> TARGET_POSITION.y();
-                    case "getZ" -> TARGET_POSITION.z();
-                    default -> defaultValue(method.getReturnType());
+    private static Block block(Material material) {
+        World world = world();
+        return (Block) Proxy.newProxyInstance(
+            Block.class.getClassLoader(),
+            new Class<?>[] { Block.class },
+            (proxy, method, arguments) -> switch (method.getName()) {
+                case "getType" -> material;
+                case "getWorld" -> world;
+                case "getX" -> TARGET_POSITION.x();
+                case "getY" -> TARGET_POSITION.y();
+                case "getZ" -> TARGET_POSITION.z();
+                default -> defaultValue(method.getReturnType());
+            }
+        );
+    }
+
+    private static World world() {
+        return (World) Proxy.newProxyInstance(
+            World.class.getClassLoader(),
+            new Class<?>[] { World.class },
+            (proxy, method, arguments) -> {
+                if (method.getName().equals("getUID")) {
+                    return WORLD_ID;
                 }
-            );
-        }
+                return defaultValue(method.getReturnType());
+            }
+        );
+    }
 
-        private static World world() {
-            return (World) Proxy.newProxyInstance(
-                World.class.getClassLoader(),
-                new Class<?>[] { World.class },
-                (proxy, method, arguments) -> {
-                    if (method.getName().equals("getUID")) {
-                        return WORLD_ID;
-                    }
-                    return defaultValue(method.getReturnType());
-                }
-            );
+    private static Object defaultValue(Class<?> returnType) {
+        if (returnType == boolean.class) {
+            return false;
         }
-
-        private static Object defaultValue(Class<?> returnType) {
-            if (returnType == boolean.class) {
-                return false;
-            }
-            if (returnType == int.class) {
-                return 0;
-            }
-            if (returnType == double.class) {
-                return 0.0;
-            }
-            if (returnType == float.class) {
-                return 0.0f;
-            }
-            if (returnType == long.class) {
-                return 0L;
-            }
-            return null;
+        if (returnType == int.class) {
+            return 0;
         }
+        if (returnType == double.class) {
+            return 0.0;
+        }
+        if (returnType == float.class) {
+            return 0.0f;
+        }
+        if (returnType == long.class) {
+            return 0L;
+        }
+        return null;
     }
 }

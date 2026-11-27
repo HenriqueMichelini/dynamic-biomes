@@ -56,9 +56,7 @@ case "$command" in
       shift
       require_no_extra_args "$@"
 
-      run_compose down
       run_gradle restartPaperDocker
-      run_compose up
     else
       require_no_extra_args "$@"
       run_compose restart

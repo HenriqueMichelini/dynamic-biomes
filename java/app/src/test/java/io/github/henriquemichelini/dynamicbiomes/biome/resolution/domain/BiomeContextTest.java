@@ -4,12 +4,19 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import io.github.henriquemichelini.dynamicbiomes.biome.dynamics.domain.EcologicalRegionState;
+import io.github.henriquemichelini.dynamicbiomes.biome.dynamics.domain.EcologicalRegionState.DayPhase;
+import io.github.henriquemichelini.dynamicbiomes.biome.dynamics.domain.EcologicalRegionState.SkyWeather;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Fertility;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Humidity;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.Temperature;
+import io.github.henriquemichelini.dynamicbiomes.spatial.domain.EcologicalRegionId;
+import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class BiomeContextTest {
@@ -22,8 +29,25 @@ class BiomeContextTest {
 
         assertAll(
             () -> assertEquals(PLAINS, context.biomeId()),
-            () -> assertEquals(PLAINS_PROFILE, context.profile())
+            () -> assertEquals(PLAINS_PROFILE, context.profile()),
+            () -> assertEquals(Optional.empty(), context.ecologicalState())
         );
+    }
+
+    @Test
+    void carriesOptionalEcologicalStateAlongsideTheStaticProfile() {
+        EcologicalRegionState observation = new EcologicalRegionState(
+            new EcologicalRegionId(new WorldReference(new UUID(0, 1)), 0, 0),
+            SkyWeather.THUNDER,
+            DayPhase.NIGHT
+        );
+
+        BiomeContext context = new BiomeContext(
+            PLAINS, PLAINS_PROFILE, Optional.of(observation)
+        );
+
+        assertEquals(Optional.of(observation), context.ecologicalState());
+        assertEquals(PLAINS_PROFILE, context.profile());
     }
 
     @Test

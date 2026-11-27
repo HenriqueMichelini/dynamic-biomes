@@ -230,7 +230,7 @@ class CropGrowthServiceTest {
     }
 
     @Test
-    void capsGrowthChanceOnlyAfterApplyingSeasonAndPerformanceFactors() {
+    void capsSeasonAdjustedGrowthChanceBeforeApplyingPerformance() {
         CropGrowthService service = serviceWith(
             policy(
                 0.8,
@@ -242,7 +242,7 @@ class CropGrowthServiceTest {
         );
 
         assertEquals(
-            CropGrowthDecision.ALLOW_GROWTH,
+            CropGrowthDecision.CANCEL_GROWTH,
             service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
         );
     }

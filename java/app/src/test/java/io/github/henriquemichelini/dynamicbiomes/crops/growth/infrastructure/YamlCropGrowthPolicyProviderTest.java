@@ -22,6 +22,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class YamlCropGrowthPolicyProviderTest {
     private static final BiomeId FOREST = new BiomeId("minecraft:forest");
+    private static final BiomeId DESERT = new BiomeId("minecraft:desert");
     private static final SeasonId SUMMER = new SeasonId("minecraft:summer");
     private static final SeasonId WINTER = new SeasonId("minecraft:winter");
 
@@ -110,7 +111,65 @@ class YamlCropGrowthPolicyProviderTest {
     }
 
     @Test
-    void rejectsMisspelledOptionalSeasonalFactorsWhenLoading() throws IOException {
+    void loadsCropDefaultsWithoutBiomePolicies() throws IOException {
+        Path policyFile = writePolicy("""
+            crops:
+              wheat:
+                growth-chance: 0.8
+                seasonal-factors:
+                  minecraft:winter: 0.5
+            """);
+
+        YamlCropGrowthPolicyProvider provider = new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0);
+
+        assertEquals(0.4, provider.policyFor(DESERT, CropKind.WHEAT).effectiveChanceFor(WINTER).value());
+        assertThrows(UnsupportedCropGrowthPolicyException.class, () -> provider.policyFor(DESERT, CropKind.CARROTS));
+    }
+
+    @Test
+    void usesBiomeCropOverridesAndFallsBackByCrop() throws IOException {
+        Path policyFile = writePolicy("""
+            crops:
+              wheat:
+                growth-chance: 0.8
+                seasonal-factors:
+                  minecraft:winter: 0.5
+              carrots:
+                growth-chance: 0.6
+            biomes:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 0.7
+            """);
+
+        YamlCropGrowthPolicyProvider provider = new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0);
+
+        assertEquals(0.7, provider.policyFor(FOREST, CropKind.WHEAT).effectiveChanceFor(WINTER).value());
+        assertEquals(0.6, provider.policyFor(FOREST, CropKind.CARROTS).configuredChance().value());
+        assertEquals(0.4, provider.policyFor(DESERT, CropKind.WHEAT).effectiveChanceFor(WINTER).value());
+    }
+
+    @Test
+    void rejectsMisspelledBiomeOverrideKeyAlongsideGlobalDefaults() throws IOException {
+        Path policyFile = writePolicy("""
+            crops:
+              wheat:
+                growth-chance: 1.0
+            biomse:
+              minecraft:forest:
+                wheat:
+                  growth-chance: 0.0
+            """);
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
+        );
+        assertTrue(exception.getMessage().contains("biomse"));
+    }
+
+    @Test
+    void rejectsMisspelledOptionalSeasonalFactorsInBiomeOverrides() throws IOException {
         Path policyFile = writePolicy("""
             biomes:
               minecraft:forest:
@@ -125,6 +184,35 @@ class YamlCropGrowthPolicyProviderTest {
             () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0)
         );
         assertTrue(exception.getMessage().contains("sesonal-factors"));
+    }
+
+    @Test
+    void rejectsInvalidValuesForAnUnusedLegacyRuleWhenLoading() throws IOException {
+        Path policyFile = writePolicy("""
+            crops:
+              wheat:
+                growth-chance: 1.0
+            biomes:
+              minecraft:forest:
+                carrots:
+                  growth-chance: 1.25
+            """);
+
+        assertThrows(IllegalArgumentException.class, () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0));
+    }
+
+    @Test
+    void rejectsInvalidDefaultNumbersWhenLoading() throws IOException {
+        Path policyFile = writePolicy("""
+            crops:
+              carrots:
+                growth-chance: 0.5
+                seasonal-factors:
+                  minecraft:winter: -0.5
+            biomes: {}
+            """);
+
+        assertThrows(IllegalArgumentException.class, () -> new YamlCropGrowthPolicyProvider(policyFile, () -> 0.0));
     }
 
     @Test

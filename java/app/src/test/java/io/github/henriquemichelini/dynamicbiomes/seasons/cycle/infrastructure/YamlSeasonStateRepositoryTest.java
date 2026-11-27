@@ -9,6 +9,7 @@ import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonI
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -45,6 +46,38 @@ class YamlSeasonStateRepositoryTest {
             SUMMER,
             new YamlSeasonStateRepository(repositoryFile).findCurrentSeason().orElseThrow()
         );
+    }
+
+    @Test
+    void updatesByReplacingTheStateFile() throws IOException {
+        Path repositoryFile = temporaryDirectory.resolve("season-state.yml");
+        YamlSeasonStateRepository repository = new YamlSeasonStateRepository(repositoryFile);
+        repository.saveCurrentSeason(SPRING);
+        Path previousState = Files.createLink(
+            temporaryDirectory.resolve("previous-state.yml"), repositoryFile
+        );
+
+        repository.saveCurrentSeason(SUMMER);
+
+        assertEquals(
+            SPRING,
+            new YamlSeasonStateRepository(previousState).findCurrentSeason().orElseThrow()
+        );
+        assertEquals(SUMMER, repository.findCurrentSeason().orElseThrow());
+    }
+
+    @Test
+    void failedReplacementCleansUpTemporaryState() throws IOException {
+        Path repositoryFile = Files.createDirectory(temporaryDirectory.resolve("season-state.yml"));
+        Path existingContent = Files.writeString(repositoryFile.resolve("keep"), "data");
+        YamlSeasonStateRepository repository = new YamlSeasonStateRepository(repositoryFile);
+
+        assertThrows(IllegalStateException.class, () -> repository.saveCurrentSeason(SUMMER));
+
+        assertEquals("data", Files.readString(existingContent));
+        try (var entries = Files.list(temporaryDirectory)) {
+            assertEquals(List.of(repositoryFile), entries.toList());
+        }
     }
 
     @Test

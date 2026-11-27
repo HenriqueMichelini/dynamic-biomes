@@ -1,0 +1,10 @@
+# Optional seasonal chances for player-fed cow, sheep, pig, and chicken breeding.
+# Each number is the chance that an otherwise successful breeding attempt proceeds.
+# Use a namespaced season ID and a chance from 0.0 (always fails) to 1.0 (vanilla).
+# Unlisted animals and seasons use vanilla behavior.
+# Paper consumes the food before evaluating the breeding result.
+#
+# To enable a rule, replace the empty map below with entries like these:
+# cow:
+#   minecraft:winter: 0.5
+{}

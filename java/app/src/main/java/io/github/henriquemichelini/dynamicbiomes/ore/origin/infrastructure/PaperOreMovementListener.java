@@ -12,6 +12,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockPistonEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 
@@ -24,31 +25,37 @@ public final class PaperOreMovementListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent event) {
-        trackMovement(event.getBlocks(), event.getDirection());
+        trackMovement(event, event.getBlocks());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonRetractEvent event) {
-        // Paper reports the direction travelled by the blocks on a nonempty retraction.
-        trackMovement(event.getBlocks(), event.getDirection());
+        trackMovement(event, event.getBlocks());
     }
 
-    private void trackMovement(List<Block> movedBlocks, BlockFace direction) {
+    private void trackMovement(BlockPistonEvent event, List<Block> movedBlocks) {
+        // For a nonempty movement Paper supplies the direction the blocks travel.
+        BlockFace direction = event.getDirection();
         Map<BlockPosition, BlockPosition> movements = new LinkedHashMap<>();
         for (Block block : movedBlocks) {
-            if (!PaperOreMaterialMapper.isSupportedOre(block.getType())) {
-                continue;
-            }
+            if (!PaperOreMaterialMapper.isSupportedOre(block.getType())) continue;
+
             BlockPosition source = blockPosition(block);
-            BlockPosition destination = new BlockPosition(
+            movements.put(source, new BlockPosition(
                 source.world(),
                 source.x() + direction.getModX(),
                 source.y() + direction.getModY(),
                 source.z() + direction.getModZ()
-            );
-            movements.put(source, destination);
+            ));
         }
-        originTracking.moveTrackedOrigins(movements);
+
+        try {
+            originTracking.moveTrackedOrigins(movements);
+        } catch (RuntimeException failure) {
+            // An ore movement must not proceed without its committed origin update.
+            event.setCancelled(true);
+            throw failure;
+        }
     }
 
     private static BlockPosition blockPosition(Block block) {

@@ -3,6 +3,8 @@ package io.github.henriquemichelini.dynamicbiomes.biome.resolution.presentation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.henriquemichelini.dynamicbiomes.biome.dynamics.domain.EcologicalRegionState;
+import io.github.henriquemichelini.dynamicbiomes.biome.dynamics.domain.EcologicalRegionState.SkyWeather;
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.BiomeProfile;
 import io.github.henriquemichelini.dynamicbiomes.biome.profile.domain.ClimateProfile;
@@ -17,6 +19,7 @@ import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -51,11 +54,44 @@ class BiomeCommandExecutorTest {
         assertEquals(
             List.of(
                 "Current biome: minecraft:forest",
-                "DynamicBiomes profile: supported"
+                "DynamicBiomes profile: supported",
+                "Biome temperature: 0.6",
+                "Biome humidity: 0.4",
+                "Biome soil fertility: 0.8"
             ),
             sender.messages
         );
         assertEquals(new BlockPosition(sender.worldReference(), 10, 64, -3), resolver.position);
+    }
+
+    @Test
+    void reportsRegionAndWorldConditionsWhenAvailable() {
+        RecordingSender sender = RecordingSender.playerAt(128.0, 64.0, -3.0);
+        BiomeId forest = new BiomeId("minecraft:forest");
+        BiomeCommandExecutor command = new BiomeCommandExecutor(
+            position -> new BiomeContext(
+                forest,
+                profileFor(forest),
+                Optional.of(EcologicalRegionState.observedAt(position, SkyWeather.STORM, 13000))
+            )
+        );
+
+        assertTrue(command.onCommand(
+            sender.commandSender(), null, "dynamicbiomes", new String[] { "biome" }
+        ));
+        assertEquals(
+            List.of(
+                "Current biome: minecraft:forest",
+                "DynamicBiomes profile: supported",
+                "Biome temperature: 0.6",
+                "Biome humidity: 0.4",
+                "Biome soil fertility: 0.8",
+                "Ecological region: 1, -1",
+                "World weather: storm",
+                "World day phase: night"
+            ),
+            sender.messages
+        );
     }
 
     @Test
@@ -114,8 +150,8 @@ class BiomeCommandExecutorTest {
     private static BiomeProfile profileFor(BiomeId biomeId) {
         return new BiomeProfile(
             biomeId,
-            new ClimateProfile(new Humidity(0.5), new Temperature(0.5)),
-            new Fertility(0.5)
+            new ClimateProfile(new Humidity(0.4), new Temperature(0.6)),
+            new Fertility(0.8)
         );
     }
 

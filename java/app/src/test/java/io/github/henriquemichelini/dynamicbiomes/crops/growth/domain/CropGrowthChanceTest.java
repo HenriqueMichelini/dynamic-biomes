@@ -26,4 +26,16 @@ class CropGrowthChanceTest {
             () -> assertEquals(1.0, new CropGrowthChance(1.0).value())
         );
     }
+
+    @Test
+    void appliesFiniteNonNegativeFactorsAndCapsTheResult() {
+        CropGrowthChance chance = new CropGrowthChance(0.5);
+
+        assertAll(
+            () -> assertEquals(0.25, chance.multipliedBy(0.5).value()),
+            () -> assertEquals(1.0, chance.multipliedBy(3.0).value()),
+            () -> assertThrows(IllegalArgumentException.class, () -> chance.multipliedBy(-0.1)),
+            () -> assertThrows(IllegalArgumentException.class, () -> chance.multipliedBy(Double.POSITIVE_INFINITY))
+        );
+    }
 }

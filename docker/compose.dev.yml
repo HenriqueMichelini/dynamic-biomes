@@ -6,6 +6,7 @@ services:
       EULA: "TRUE"
       TYPE: "PAPER"
       VERSION: "1.21.4"
+      SERVER_PORT: "25566"
     ports:
       - "25566:25566"
     volumes:

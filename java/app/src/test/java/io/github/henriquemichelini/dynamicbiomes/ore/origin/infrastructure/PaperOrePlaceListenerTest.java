@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
@@ -69,6 +70,29 @@ class PaperOrePlaceListenerTest {
         assertTrue(repository.findByPosition(POSITION).isEmpty());
     }
 
+    @Test
+    void ignoresPlacementWhenThePlayerCannotBuild() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        BlockPlaceEvent event = eventFor(Material.IRON_ORE);
+        event.setBuild(false);
+
+        listener(repository).onBlockPlace(event);
+
+        assertTrue(repository.findByPosition(POSITION).isEmpty());
+    }
+
+    @Test
+    void cancelsOrePlacementWhenItsOriginCannotBePersisted() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        repository.failWrites = true;
+        BlockPlaceEvent event = eventFor(Material.IRON_ORE);
+
+        assertThrows(IllegalStateException.class, () -> listener(repository).onBlockPlace(event));
+
+        assertTrue(event.isCancelled());
+        assertTrue(repository.findByPosition(POSITION).isEmpty());
+    }
+
     private static PaperOrePlaceListener listener(OreOriginRepository repository) {
         return new PaperOrePlaceListener(new OreOriginTrackingService(repository));
     }
@@ -111,9 +135,11 @@ class PaperOrePlaceListenerTest {
     private static final class InMemoryOreOriginRepository
         implements OreOriginRepository {
         private final Map<BlockPosition, OreOrigin> origins = new HashMap<>();
+        private boolean failWrites;
 
         @Override
         public void save(OreOrigin origin) {
+            if (failWrites) throw new IllegalStateException("Origin storage unavailable");
             origins.put(origin.position(), origin);
         }
 

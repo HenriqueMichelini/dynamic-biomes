@@ -1,30 +1,30 @@
-biomes:
-  minecraft:forest:
-    wheat:
-      growth-chance: 0.75
-      seasonal-factors:
-        minecraft:spring: 1.20
-        minecraft:summer: 1.00
-        minecraft:autumn: 0.80
-        minecraft:winter: 0.50
-    carrots:
-      growth-chance: 0.65
-      seasonal-factors:
-        minecraft:spring: 1.10
-        minecraft:summer: 1.00
-        minecraft:autumn: 0.85
-        minecraft:winter: 0.60
-    potatoes:
-      growth-chance: 0.60
-      seasonal-factors:
-        minecraft:spring: 1.10
-        minecraft:summer: 1.00
-        minecraft:autumn: 0.85
-        minecraft:winter: 0.60
-    beetroot:
-      growth-chance: 0.55
-      seasonal-factors:
-        minecraft:spring: 1.05
-        minecraft:summer: 1.00
-        minecraft:autumn: 0.85
-        minecraft:winter: 0.65
+# Crop rules apply to all supported biome profiles. Optional biomes entries override individual crops.
+crops:
+  wheat:
+    growth-chance: 0.75
+    seasonal-factors:
+      minecraft:spring: 1.20
+      minecraft:summer: 1.00
+      minecraft:autumn: 0.80
+      minecraft:winter: 0.50
+  carrots:
+    growth-chance: 0.65
+    seasonal-factors:
+      minecraft:spring: 1.10
+      minecraft:summer: 1.00
+      minecraft:autumn: 0.85
+      minecraft:winter: 0.60
+  potatoes:
+    growth-chance: 0.60
+    seasonal-factors:
+      minecraft:spring: 1.10
+      minecraft:summer: 1.00
+      minecraft:autumn: 0.85
+      minecraft:winter: 0.60
+  beetroot:
+    growth-chance: 0.55
+    seasonal-factors:
+      minecraft:spring: 1.05
+      minecraft:summer: 1.00
+      minecraft:autumn: 0.85
+      minecraft:winter: 0.65

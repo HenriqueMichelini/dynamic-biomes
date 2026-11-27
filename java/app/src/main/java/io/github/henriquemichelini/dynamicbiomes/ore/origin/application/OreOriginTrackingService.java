@@ -24,9 +24,11 @@ public final class OreOriginTrackingService {
     }
 
     public boolean isEligibleForBiomeMultiplier(BlockPosition position) {
-        return repository.findByPosition(position)
-            .map(OreOrigin::isEligibleForBiomeBasedMultiplier)
-            .orElse(true);
+        return originTypeAt(position).isEligibleForBiomeBasedMultiplier();
+    }
+
+    public OreOriginType originTypeAt(BlockPosition position) {
+        return originAt(position).map(OreOrigin::type).orElse(OreOriginType.NATURAL);
     }
 
     public Optional<OreOrigin> originAt(BlockPosition position) {

@@ -93,17 +93,59 @@ class YamlCropYieldPolicyProviderTest {
     }
 
     @Test
-    void missingRootBiomePolicyFails() throws Exception {
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> providerFor("""
-                crops:
-                  wheat:
-                    multiplier:
-                      min: 1.0
-                      max: 1.0
-                """)
-        );
+    void loadsCropDefaultsWithoutBiomePolicies() throws Exception {
+        YamlCropYieldPolicyProvider provider = providerFor("""
+            crops:
+              wheat:
+                multiplier:
+                  min: 0.9
+                  max: 1.1
+                seasonal-factors:
+                  minecraft:spring: 1.2
+            """);
+
+        assertEquals(0.9, provider.policyFor(DESERT).multiplierRangeFor(CropKind.WHEAT).minimum());
+        assertEquals(1.2, provider.policyFor(DESERT).seasonalFactorFor(CropKind.WHEAT, SPRING));
+        assertThrows(UnsupportedCropYieldPolicyException.class, () -> provider.policyFor(DESERT).multiplierRangeFor(CropKind.CARROTS));
+    }
+
+    @Test
+    void usesBiomeCropOverridesAndFallsBackByCrop() throws Exception {
+        YamlCropYieldPolicyProvider provider = providerFor("""
+            crops:
+              wheat:
+                multiplier:
+                  min: 0.9
+                  max: 1.1
+                seasonal-factors:
+                  minecraft:spring: 1.2
+              carrots:
+                multiplier:
+                  min: 0.6
+                  max: 0.8
+            minecraft:forest:
+              crops:
+                wheat:
+                  multiplier:
+                    min: 0.5
+                    max: 0.7
+            """);
+
+        assertEquals(0.5, provider.policyFor(FOREST).multiplierRangeFor(CropKind.WHEAT).minimum());
+        assertEquals(1.0, provider.policyFor(FOREST).seasonalFactorFor(CropKind.WHEAT, SPRING));
+        assertEquals(0.6, provider.policyFor(FOREST).multiplierRangeFor(CropKind.CARROTS).minimum());
+        assertEquals(0.9, provider.policyFor(DESERT).multiplierRangeFor(CropKind.WHEAT).minimum());
+    }
+
+    @Test
+    void rejectsInvalidDefaultNumbersWhenLoading() {
+        assertThrows(IllegalArgumentException.class, () -> providerFor("""
+            crops:
+              wheat:
+                multiplier:
+                  min: 0.9
+                  max: 0.5
+            """));
     }
 
     @Test

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -21,7 +22,8 @@ class DynamicBiomesCommandExecutorTest {
         DynamicBiomesCommandExecutor command = new DynamicBiomesCommandExecutor(
             seasonExecutor,
             biomeExecutor,
-            inspectExecutor
+            inspectExecutor,
+            () -> true
         );
 
         boolean handled = command.onCommand(
@@ -47,7 +49,8 @@ class DynamicBiomesCommandExecutorTest {
         DynamicBiomesCommandExecutor command = new DynamicBiomesCommandExecutor(
             seasonExecutor,
             biomeExecutor,
-            inspectExecutor
+            inspectExecutor,
+            () -> true
         );
 
         boolean handled = command.onCommand(
@@ -73,7 +76,8 @@ class DynamicBiomesCommandExecutorTest {
         DynamicBiomesCommandExecutor command = new DynamicBiomesCommandExecutor(
             seasonExecutor,
             biomeExecutor,
-            inspectExecutor
+            inspectExecutor,
+            () -> true
         );
 
         boolean handled = command.onCommand(
@@ -99,14 +103,15 @@ class DynamicBiomesCommandExecutorTest {
         DynamicBiomesCommandExecutor command = new DynamicBiomesCommandExecutor(
             seasonExecutor,
             biomeExecutor,
-            inspectExecutor
+            inspectExecutor,
+            () -> true
         );
 
         boolean handled = command.onCommand(
             sender.commandSender(),
             null,
             "dynamicbiomes",
-            new String[] { "reload" }
+            new String[] { "help" }
         );
 
         assertTrue(handled);
@@ -117,6 +122,38 @@ class DynamicBiomesCommandExecutorTest {
         assertEquals(0, seasonExecutor.callCount);
         assertEquals(0, biomeExecutor.callCount);
         assertEquals(0, inspectExecutor.callCount);
+    }
+
+    @Test
+    void onlyAuthorizedReloadWithoutExtraArgumentsInvokesTheAction() {
+        RecordingSender player = new RecordingSender();
+        RecordingSender operator = new RecordingSender();
+        operator.mayReload = true;
+        RecordingCommandExecutor handler = new RecordingCommandExecutor();
+        AtomicInteger reloads = new AtomicInteger();
+        DynamicBiomesCommandExecutor command = new DynamicBiomesCommandExecutor(
+            handler,
+            handler,
+            handler,
+            () -> reloads.incrementAndGet() == 1
+        );
+
+        command.onCommand(player.commandSender(), null, "db", new String[] { "reload" });
+        command.onCommand(operator.commandSender(), null, "db", new String[] { "reload", "extra" });
+        command.onCommand(operator.commandSender(), null, "db", new String[] { "RELOAD" });
+        command.onCommand(operator.commandSender(), null, "db", new String[] { "reload" });
+
+        assertEquals(2, reloads.get());
+        assertEquals(0, handler.callCount);
+        assertEquals(List.of("You do not have permission to reload DynamicBiomes."), player.messages);
+        assertEquals(
+            List.of(
+                "Usage: /dynamicbiomes reload",
+                "DynamicBiomes configuration reloaded.",
+                "DynamicBiomes reload failed. See the server log for details."
+            ),
+            operator.messages
+        );
     }
 
     private static final class RecordingCommandExecutor implements CommandExecutor {
@@ -138,12 +175,16 @@ class DynamicBiomesCommandExecutorTest {
 
     private static final class RecordingSender {
         private final List<String> messages = new ArrayList<>();
+        private boolean mayReload;
 
         CommandSender commandSender() {
             return (CommandSender) Proxy.newProxyInstance(
                 CommandSender.class.getClassLoader(),
                 new Class<?>[] { CommandSender.class },
                 (proxy, method, arguments) -> {
+                    if (method.getName().equals("hasPermission")) {
+                        return mayReload && "dynamicbiomes.admin.reload".equals(arguments[0]);
+                    }
                     if (method.getName().equals("sendMessage")) {
                         recordMessages(arguments);
                     }

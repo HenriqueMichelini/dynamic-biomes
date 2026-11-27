@@ -156,7 +156,10 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
                     yaml().dump(root, writer);
                 }
                 Files.move(
-                    staged, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING
+                    staged,
+                    target,
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING
                 );
                 committed = true;
             } finally {
@@ -172,6 +175,7 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
 
     private static Yaml yaml() {
         LoaderOptions loaderOptions = new LoaderOptions();
+        loaderOptions.setAllowDuplicateKeys(false);
         DumperOptions options = new DumperOptions();
         options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
         return new Yaml(

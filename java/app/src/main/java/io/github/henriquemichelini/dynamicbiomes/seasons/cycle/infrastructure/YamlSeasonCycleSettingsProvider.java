@@ -1,10 +1,14 @@
 package io.github.henriquemichelini.dynamicbiomes.seasons.cycle.infrastructure;
 
+import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCalendar;
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCycleSettings;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -12,6 +16,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.yaml.snakeyaml.error.YAMLException;
 
 public final class YamlSeasonCycleSettingsProvider {
+    private static final String CALENDAR_KEY = "calendar";
     private static final String ADVANCEMENT_KEY = "advancement";
     private static final String ENABLED_KEY = "enabled";
     private static final String INITIAL_DELAY_KEY = "initial-delay-ticks";
@@ -35,7 +40,8 @@ public final class YamlSeasonCycleSettingsProvider {
             return new SeasonCycleSettings(
                 requiredBoolean(advancement, ENABLED_KEY),
                 requiredLong(advancement, INITIAL_DELAY_KEY),
-                requiredLong(advancement, INTERVAL_KEY)
+                requiredLong(advancement, INTERVAL_KEY),
+                calendar(root)
             );
         } catch (IOException exception) {
             throw new IllegalStateException(
@@ -48,6 +54,23 @@ public final class YamlSeasonCycleSettingsProvider {
                 exception
             );
         }
+    }
+
+    private static SeasonCalendar calendar(Map<?, ?> root) {
+        if (!root.containsKey(CALENDAR_KEY)) {
+            return SeasonCalendar.standard();
+        }
+        if (!(root.get(CALENDAR_KEY) instanceof List<?> entries)) {
+            throw invalid(CALENDAR_KEY + " must be a sequence of season identifiers");
+        }
+        List<SeasonId> seasons = new ArrayList<>(entries.size());
+        for (Object entry : entries) {
+            if (!(entry instanceof String value)) {
+                throw invalid(CALENDAR_KEY + " entries must be season identifier strings");
+            }
+            seasons.add(new SeasonId(value));
+        }
+        return new SeasonCalendar(seasons);
     }
 
     private static Map<?, ?> requiredMap(Object value, String context) {

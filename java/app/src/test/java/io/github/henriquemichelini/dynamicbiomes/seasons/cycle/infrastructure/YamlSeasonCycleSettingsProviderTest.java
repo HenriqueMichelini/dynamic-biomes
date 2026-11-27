@@ -6,13 +6,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.seasons.cycle.domain.SeasonCycleSettings;
+import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class YamlSeasonCycleSettingsProviderTest {
 
@@ -37,6 +40,12 @@ class YamlSeasonCycleSettingsProviderTest {
         assertFalse(settings.enabled());
         assertEquals(24000L, settings.initialDelayTicks());
         assertEquals(24000L, settings.intervalTicks());
+        assertEquals(List.of(
+            new SeasonId("minecraft:spring"),
+            new SeasonId("minecraft:summer"),
+            new SeasonId("minecraft:autumn"),
+            new SeasonId("minecraft:winter")
+        ), settings.calendar().seasons());
     }
 
     @Test
@@ -169,13 +178,53 @@ class YamlSeasonCycleSettingsProviderTest {
         );
     }
 
+    @Test
+    void usesTheCalendarOrderFromTheFile() throws IOException {
+        Path settingsFile = writeFile(
+            """
+            calendar:
+              - custom:dry
+              - custom:rainy
+            advancement:
+              enabled: true
+              initial-delay-ticks: 0
+              interval-ticks: 4294967296
+            """
+        );
+
+        SeasonCycleSettings settings = new YamlSeasonCycleSettingsProvider(settingsFile).settings();
+
+        assertEquals(4294967296L, settings.intervalTicks());
+        assertEquals(List.of(new SeasonId("custom:dry"), new SeasonId("custom:rainy")),
+            settings.calendar().seasons());
+        assertEquals(new SeasonId("custom:dry"), settings.calendar().nextAfter(new SeasonId("custom:rainy")));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"[]", "{}", "null", "[9]", "[spring]", "[custom:dry, custom:dry]"})
+    void rejectsInvalidExplicitCalendars(String calendar) throws IOException {
+        Path settingsFile = writeFile(
+            """
+            calendar: %s
+            advancement:
+              enabled: false
+              initial-delay-ticks: 0
+              interval-ticks: 1
+            """.formatted(calendar)
+        );
+
+        assertThrows(IllegalArgumentException.class,
+            () -> new YamlSeasonCycleSettingsProvider(settingsFile).settings());
+    }
+
     @ParameterizedTest
     @CsvSource({
         "0.9, 1, initial-delay-ticks",
-        "0, 1.9, interval-ticks",
+        "0, 1.5, interval-ticks",
+        "0, -0.5, interval-ticks",
         "0, 18446744073709551617, interval-ticks"
     })
-    void rejectsFractionalAndOutOfRangeTicks(String delay, String interval, String key)
+    void rejectsNonintegralOrOutOfRangeTickValues(String delay, String interval, String key)
         throws IOException {
         Path settingsFile = writeFile(
             """
@@ -186,11 +235,8 @@ class YamlSeasonCycleSettingsProviderTest {
             """.formatted(delay, interval)
         );
 
-        IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> new YamlSeasonCycleSettingsProvider(settingsFile).settings()
-        );
-
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+            () -> new YamlSeasonCycleSettingsProvider(settingsFile).settings());
         assertTrue(exception.getMessage().contains("advancement." + key + " must be a long integer"));
     }
 

@@ -12,9 +12,12 @@ import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.yaml.snakeyaml.error.YAMLException;
 
 class YamlOreOriginRepositoryTest {
     private static final BlockPosition POSITION = new BlockPosition(
@@ -55,6 +58,23 @@ class YamlOreOriginRepositoryTest {
         repository.removeByPosition(POSITION);
 
         assertTrue(new YamlOreOriginRepository(repositoryFile).findByPosition(POSITION).isEmpty());
+    }
+
+    @Test
+    void appliesMovementAsARepositoryUpdate() {
+        Path repositoryFile = temporaryDirectory.resolve("ore-origins.yml");
+        YamlOreOriginRepository repository = new YamlOreOriginRepository(repositoryFile);
+        BlockPosition destination = new BlockPosition(POSITION.world(), POSITION.x() + 1, POSITION.y(), POSITION.z());
+        OreOrigin movedOrigin = new OreOrigin(destination, OreOriginType.PLAYER_PLACED);
+        repository.save(PLAYER_PLACED_ORIGIN);
+
+        repository.applyChanges(List.of(POSITION, destination), List.of(movedOrigin));
+
+        YamlOreOriginRepository reopened = new YamlOreOriginRepository(repositoryFile);
+        assertTrue(repository.findByPosition(POSITION).isEmpty());
+        assertTrue(reopened.findByPosition(POSITION).isEmpty());
+        assertEquals(Optional.of(movedOrigin), repository.findByPosition(destination));
+        assertEquals(Optional.of(movedOrigin), reopened.findByPosition(destination));
     }
 
     @Test
@@ -99,7 +119,7 @@ class YamlOreOriginRepositoryTest {
     }
 
     @Test
-    void invalidPersistedDataFailsClearly() throws IOException {
+    void invalidPersistedDataStillFailsAfterReadingAValidEntry() throws IOException {
         Path repositoryFile = temporaryDirectory.resolve("ore-origins.yml");
         Files.writeString(
             repositoryFile,
@@ -126,5 +146,40 @@ class YamlOreOriginRepositoryTest {
 
         assertTrue(exception.getMessage().contains("world"));
         assertThrows(IllegalArgumentException.class, () -> repository.findByPosition(POSITION));
+        BlockPosition validPosition = new BlockPosition(POSITION.world(), 11, 64, -20);
+        assertThrows(IllegalArgumentException.class, () -> repository.findByPosition(validPosition));
+    }
+
+    @Test
+    void rejectsDuplicateOriginYamlKeys() throws IOException {
+        Path repositoryFile = temporaryDirectory.resolve("ore-origins.yml");
+        Files.writeString(repositoryFile, """
+            origins:
+              - world: fdab89dd-8aac-4be0-9c26-8752ae6ce85e
+                x: 10
+                y: 64
+                z: -20
+                type: PLAYER_PLACED
+                type: NATURAL
+            """);
+
+        YamlOreOriginRepository repository = new YamlOreOriginRepository(repositoryFile);
+
+        assertThrows(YAMLException.class, () -> repository.findByPosition(POSITION));
+    }
+
+    @Test
+    void failedWritesKeepTheLastPersistedOriginInMemory() throws IOException {
+        Path repositoryFile = temporaryDirectory.resolve("ore-origins.yml");
+        YamlOreOriginRepository repository = new YamlOreOriginRepository(repositoryFile);
+        repository.save(PLAYER_PLACED_ORIGIN);
+        Files.move(repositoryFile, temporaryDirectory.resolve("previous-origins.yml"));
+        Files.createDirectory(repositoryFile);
+
+        OreOrigin naturalOrigin = new OreOrigin(POSITION, OreOriginType.NATURAL);
+        assertThrows(IllegalStateException.class, () -> repository.save(naturalOrigin));
+        assertEquals(PLAYER_PLACED_ORIGIN, repository.findByPosition(POSITION).orElseThrow());
+        assertThrows(IllegalStateException.class, () -> repository.removeByPosition(POSITION));
+        assertEquals(PLAYER_PLACED_ORIGIN, repository.findByPosition(POSITION).orElseThrow());
     }
 }
