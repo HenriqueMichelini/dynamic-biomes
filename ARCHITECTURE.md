@@ -288,11 +288,14 @@ io.github.henriquemichelini.dynamicbiomes/
 │   │   │   └── OreOriginType.java
 │   │   ├── application/
 │   │   │   └── OreOriginTrackingService.java
-│   │   └── infrastructure/
-│   │       ├── PaperOrePlaceListener.java
-│   │       ├── PaperOreMovementListener.java
-│   │       ├── PaperOreRemovalListener.java
-│   │       └── YamlOreOriginRepository.java
+│   │   ├── infrastructure/
+│   │   │   ├── PaperOrePlaceListener.java
+│   │   │   ├── PaperOreMovementListener.java
+│   │   │   ├── PaperOreRemovalListener.java
+│   │   │   ├── OreOriginWriteHistogram.java
+│   │   │   └── YamlOreOriginRepository.java
+│   │   └── presentation/
+│   │       └── OreOriginDiagnosticsCommandExecutor.java
 │   └── drops/
 │       ├── domain/
 │       │   ├── OreDropMultiplierCalculator.java
@@ -635,6 +638,11 @@ configured biome temperature, humidity, and soil fertility and available sky
 observation at the player's position (`/db biome`), and targeted ore and crop
 diagnostics (`/db inspect`).
 
+`/db diagnostics` requires `dynamicbiomes.admin.diagnostics`, which defaults to
+operators. The root command routes to the ore-origin presentation adapter,
+which renders a snapshot of in-memory persistence metrics. Reading the
+snapshot leaves the repository's lazy loading intact.
+
 `/db reload` requires `dynamicbiomes.admin.reload`. It validates a complete
 candidate configuration before replacing the active listeners, command handlers,
 and season schedule on the server thread. A failed reload leaves the active
@@ -678,6 +686,13 @@ accepted destructive block and entity explosions, it clears tracked ore
 entries in the final blast list in one write. Ore inspection delegates to
 `OreInspectionService` for biome policy and origin lookup. The Paper diagnostic
 renders that result without rolling a multiplier.
+
+The YAML ore-origin adapter uses a monotonic clock to time each synchronous
+rewrite, including serialization and the atomic file replacement. It counts
+successful and failed attempts in a fixed-size in-memory histogram. Reads and
+updates that skip a rewrite contribute no samples. The measurement window
+begins with repository creation at plugin startup and continues across
+`/db reload`. A full plugin restart starts a new window.
 
 ### 18.4 Crops
 

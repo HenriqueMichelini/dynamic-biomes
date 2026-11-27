@@ -5,9 +5,12 @@ api-version: "1.21"
 commands:
   dynamicbiomes:
     description: Shows DynamicBiomes information and runs administration commands
-    usage: /dynamicbiomes <season|biome|inspect|reload>
+    usage: /dynamicbiomes <season|biome|inspect|diagnostics|reload>
     aliases: [db]
 permissions:
+  dynamicbiomes.admin.diagnostics:
+    description: Shows DynamicBiomes diagnostics
+    default: op
   dynamicbiomes.admin.reload:
     description: Reloads DynamicBiomes configuration
     default: op

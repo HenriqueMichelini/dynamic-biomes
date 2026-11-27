@@ -14,9 +14,12 @@ import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.yaml.snakeyaml.error.YAMLException;
@@ -35,6 +38,54 @@ class YamlOreOriginRepositoryTest {
 
     @TempDir
     Path temporaryDirectory;
+
+    @Test
+    void diagnosticsAreReadOnlyAndTimeEachActualWriteAttemptOnce() throws IOException {
+        Path repositoryFile = temporaryDirectory.resolve("ore-origins.yml");
+        Files.writeString(repositoryFile, "origins: invalid");
+        AtomicLong time = new AtomicLong();
+        YamlOreOriginRepository repository = new YamlOreOriginRepository(
+            repositoryFile, () -> time.getAndAdd(3_000_000L)
+        );
+
+        var initial = repository.diagnostics();
+        assertEquals(Duration.ofMillis(3), initial.window());
+        assertEquals(0, initial.writeAttempts());
+        assertEquals(Optional.empty(), initial.p95UpperBound());
+        assertEquals(OptionalInt.empty(), initial.trackedOrigins());
+        assertThrows(IllegalArgumentException.class, () -> repository.findByPosition(POSITION));
+        assertEquals(0, repository.diagnostics().writeAttempts());
+        Files.delete(repositoryFile);
+
+        repository.removeByPosition(POSITION);
+        assertTrue(repository.findByPosition(POSITION).isEmpty());
+        assertFalse(Files.exists(repositoryFile));
+        var loaded = repository.diagnostics();
+        assertEquals(0, loaded.writeAttempts());
+        assertEquals(OptionalInt.of(0), loaded.trackedOrigins());
+
+        repository.save(PLAYER_PLACED_ORIGIN);
+        var written = repository.diagnostics();
+        assertEquals(1, written.writeAttempts());
+        assertEquals(1, written.writeSuccesses());
+        assertEquals(0, written.writeFailures());
+        assertEquals(Optional.of(Duration.ofMillis(3)), written.p95UpperBound());
+        assertEquals(OptionalInt.of(1), written.trackedOrigins());
+
+        Files.move(repositoryFile, temporaryDirectory.resolve("previous-origins.yml"));
+        Files.createDirectory(repositoryFile);
+        OreOriginPersistenceException failure = assertThrows(
+            OreOriginPersistenceException.class, () -> repository.removeByPosition(POSITION)
+        );
+        assertInstanceOf(IOException.class, failure.getCause());
+        assertEquals(Optional.of(PLAYER_PLACED_ORIGIN), repository.findByPosition(POSITION));
+        var failed = repository.diagnostics();
+        assertEquals(2, failed.writeAttempts());
+        assertEquals(1, failed.writeSuccesses());
+        assertEquals(1, failed.writeFailures());
+        assertEquals(Optional.of(Duration.ofMillis(3)), failed.p95UpperBound());
+        assertEquals(OptionalInt.of(1), failed.trackedOrigins());
+    }
 
     @Test
     void savesPlayerPlacedOriginAndLoadsItFromNewRepositoryInstance() throws IOException {
