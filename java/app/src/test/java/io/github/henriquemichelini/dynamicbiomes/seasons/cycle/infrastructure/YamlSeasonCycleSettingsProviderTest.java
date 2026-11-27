@@ -14,6 +14,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class YamlSeasonCycleSettingsProviderTest {
@@ -217,20 +218,26 @@ class YamlSeasonCycleSettingsProviderTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"1.5", "-0.5", "18446744073709551617"})
-    void rejectsNonintegralOrOutOfRangeTickValues(String ticks) throws IOException {
+    @CsvSource({
+        "0.9, 1, initial-delay-ticks",
+        "0, 1.5, interval-ticks",
+        "0, -0.5, interval-ticks",
+        "0, 18446744073709551617, interval-ticks"
+    })
+    void rejectsNonintegralOrOutOfRangeTickValues(String delay, String interval, String key)
+        throws IOException {
         Path settingsFile = writeFile(
             """
             advancement:
               enabled: true
-              initial-delay-ticks: 0
+              initial-delay-ticks: %s
               interval-ticks: %s
-            """.formatted(ticks)
+            """.formatted(delay, interval)
         );
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
             () -> new YamlSeasonCycleSettingsProvider(settingsFile).settings());
-        assertTrue(exception.getMessage().contains("advancement.interval-ticks must be a long integer"));
+        assertTrue(exception.getMessage().contains("advancement." + key + " must be a long integer"));
     }
 
     private Path writeFile(String content) throws IOException {

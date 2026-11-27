@@ -119,12 +119,17 @@ class YamlOreOriginRepositoryTest {
     }
 
     @Test
-    void invalidPersistedDataFailsClearly() throws IOException {
+    void invalidPersistedDataStillFailsAfterReadingAValidEntry() throws IOException {
         Path repositoryFile = temporaryDirectory.resolve("ore-origins.yml");
         Files.writeString(
             repositoryFile,
             """
             origins:
+              - world: fdab89dd-8aac-4be0-9c26-8752ae6ce85e
+                x: 11
+                y: 64
+                z: -20
+                type: PLAYER_PLACED
               - world: not-a-uuid
                 x: 10
                 y: 64
@@ -141,6 +146,8 @@ class YamlOreOriginRepositoryTest {
 
         assertTrue(exception.getMessage().contains("world"));
         assertThrows(IllegalArgumentException.class, () -> repository.findByPosition(POSITION));
+        BlockPosition validPosition = new BlockPosition(POSITION.world(), 11, 64, -20);
+        assertThrows(IllegalArgumentException.class, () -> repository.findByPosition(validPosition));
     }
 
     @Test

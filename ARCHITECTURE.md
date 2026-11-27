@@ -631,7 +631,9 @@ regions in the same world. They do not represent local precipitation, sky
 exposure, or changes to soil fertility.
 
 `season-cycle.yml` defines an ordered calendar and optional tick-based
-advancement. With no calendar entry it uses spring, summer, autumn, then winter.
+advancement. The initial delay and interval are whole tick counts within the
+signed 64-bit range. With no calendar entry it uses spring, summer, autumn,
+then winter.
 Each configured season must have a matching entry in `season-profiles.yml`.
 Startup restores the persisted season or initializes the first calendar entry.
 A reload that excludes the current season is rejected. Administrators with

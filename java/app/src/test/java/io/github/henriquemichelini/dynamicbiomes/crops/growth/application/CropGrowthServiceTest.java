@@ -230,6 +230,24 @@ class CropGrowthServiceTest {
     }
 
     @Test
+    void capsSeasonAdjustedGrowthChanceBeforeApplyingPerformance() {
+        CropGrowthService service = serviceWith(
+            policy(
+                0.8,
+                Map.of(SPRING, new CropGrowthSeasonalFactor(2.0)),
+                () -> 0.65
+            ),
+            SPRING,
+            new RecordingPerformanceQuery(0.5)
+        );
+
+        assertEquals(
+            CropGrowthDecision.CANCEL_GROWTH,
+            service.decideNaturalGrowth(POSITION, CropKind.WHEAT)
+        );
+    }
+
+    @Test
     void missingCropPerformanceProfilePreservesCurrentDynamicBiomesGrowthBehavior() {
         CropGrowthService service = serviceWith(
             policy(0.5, () -> 0.5),

@@ -147,6 +147,8 @@ Additional rules:
 
 ## Verification Commands
 
+Use the checked-in Gradle wrapper under `java/` with Java 21.
+
 Run after each implementation:
 
 ```bash
