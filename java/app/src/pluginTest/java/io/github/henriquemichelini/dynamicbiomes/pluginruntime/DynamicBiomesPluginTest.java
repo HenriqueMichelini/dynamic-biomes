@@ -17,6 +17,7 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.jar.JarFile;
 import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
@@ -83,9 +84,13 @@ class DynamicBiomesPluginTest {
             assertNotNull(pluginJar.getEntry("plugin.yml"));
             assertNotNull(pluginJar.getEntry("ore-drops.yml"));
             assertNotNull(pluginJar.getEntry("crop-growth.yml"));
+            assertNotNull(pluginJar.getEntry("crop-yields.yml"));
+            assertNotNull(pluginJar.getEntry("crop-profiles.yml"));
             assertNotNull(pluginJar.getEntry("biome-profiles.yml"));
             assertNotNull(pluginJar.getEntry("season-profiles.yml"));
             assertNotNull(pluginJar.getEntry("season-cycle.yml"));
+            assertNotNull(pluginJar.getEntry("tree-growth.yml"));
+            assertNotNull(pluginJar.getEntry("animal-breeding.yml"));
             assertNull(pluginJar.getEntry("biomes.yml"));
             assertEquals(System.getProperty("dynamicBiomes.pluginVersion"), plugin.getPluginMeta().getVersion());
             assertEquals(
@@ -104,9 +109,13 @@ class DynamicBiomesPluginTest {
 
         assertTrue(Files.exists(dataFolder.resolve("ore-drops.yml")));
         assertTrue(Files.exists(dataFolder.resolve("crop-growth.yml")));
+        assertTrue(Files.exists(dataFolder.resolve("crop-yields.yml")));
+        assertTrue(Files.exists(dataFolder.resolve("crop-profiles.yml")));
         assertTrue(Files.exists(dataFolder.resolve("biome-profiles.yml")));
         assertTrue(Files.exists(dataFolder.resolve("season-profiles.yml")));
         assertTrue(Files.exists(dataFolder.resolve("season-cycle.yml")));
+        assertTrue(Files.exists(dataFolder.resolve("tree-growth.yml")));
+        assertTrue(Files.exists(dataFolder.resolve("animal-breeding.yml")));
     }
 
     @Test
@@ -131,6 +140,15 @@ class DynamicBiomesPluginTest {
         assertTrue(listenerClassNames.contains(
             "io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure.PaperCropGrowthListener"
         ));
+        assertTrue(listenerClassNames.contains(
+            "io.github.henriquemichelini.dynamicbiomes.crops.yield.infrastructure.PaperCropHarvestListener"
+        ));
+        assertTrue(listenerClassNames.contains(
+            "io.github.henriquemichelini.dynamicbiomes.trees.growth.infrastructure.PaperTreeGrowthListener"
+        ));
+        assertTrue(listenerClassNames.contains(
+            "io.github.henriquemichelini.dynamicbiomes.animals.breeding.infrastructure.PaperAnimalBreedingListener"
+        ));
     }
 
     @Test
@@ -147,6 +165,128 @@ class DynamicBiomesPluginTest {
             "Current season: minecraft:spring",
             result.getSender().nextMessage()
         );
+    }
+
+    @Test
+    void reloadAppliesNewScheduleWithoutResettingTheCurrentSeason() throws IOException {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+        Path cycle = plugin.getDataFolder().toPath().resolve("season-cycle.yml");
+        Files.writeString(cycle, """
+            advancement:
+              enabled: true
+              initial-delay-ticks: 5
+              interval-ticks: 7
+            """);
+        CommandResult setSeason = server.executeConsole("dynamicbiomes", "season", "set", "minecraft:autumn");
+        assertTrue(setSeason.hasSucceeded());
+        assertEquals("Current season: minecraft:autumn", setSeason.getSender().nextMessage());
+
+        CommandResult reload = server.executeConsole("dynamicbiomes", "reload");
+
+        assertEquals("DynamicBiomes configuration reloaded.", reload.getSender().nextMessage());
+        assertEquals("Current season: minecraft:autumn", currentSeason());
+        assertEquals(1, seasonAdvancementTasks().size());
+        server.getScheduler().performTicks(5);
+        assertEquals("Current season: minecraft:winter", currentSeason());
+
+        Files.writeString(cycle, """
+            advancement:
+              enabled: false
+              initial-delay-ticks: 5
+              interval-ticks: 7
+            """);
+        assertEquals(
+            "DynamicBiomes configuration reloaded.",
+            server.executeConsole("dynamicbiomes", "reload").getSender().nextMessage()
+        );
+        server.getScheduler().performTicks(14);
+        assertEquals("Current season: minecraft:winter", currentSeason());
+    }
+
+    @Test
+    void badConfigurationLeavesTheActiveListenersAndScheduleInPlace() throws IOException {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        Path dataFolder = plugin.getDataFolder().toPath();
+        Files.createDirectories(dataFolder);
+        Files.writeString(dataFolder.resolve("season-cycle.yml"), """
+            advancement:
+              enabled: true
+              initial-delay-ticks: 5
+              interval-ticks: 7
+            """);
+        server.getPluginManager().enablePlugin(plugin);
+        List<Listener> activeListeners = listenersFor(plugin);
+        List<RepeatingTask> activeTasks = seasonAdvancementTasks();
+        Files.writeString(dataFolder.resolve("biome-profiles.yml"), """
+            profiles:
+              minecraft:forest:
+                climate:
+                  humidity: not-a-number
+                  temperature: 0.5
+                fertility: 0.5
+            """);
+
+        CommandResult reload = server.executeConsole("dynamicbiomes", "reload");
+
+        assertEquals(
+            "DynamicBiomes reload failed. See the server log for details.",
+            reload.getSender().nextMessage()
+        );
+        assertEquals(activeListeners, listenersFor(plugin));
+        assertEquals(activeTasks, seasonAdvancementTasks());
+        server.getScheduler().performTicks(5);
+        assertEquals("Current season: minecraft:summer", currentSeason());
+    }
+
+    @Test
+    void validatesCalendarAndSeasonProfilesTogetherOnReload() throws IOException {
+        Plugin plugin = MockBukkit.loadJar(System.getProperty("dynamicBiomes.pluginJar"));
+        server.getPluginManager().enablePlugin(plugin);
+        Path dataFolder = plugin.getDataFolder().toPath();
+        Files.writeString(dataFolder.resolve("season-cycle.yml"), """
+            calendar: [minecraft:spring, test:monsoon]
+            advancement:
+              enabled: false
+              initial-delay-ticks: 5
+              interval-ticks: 7
+            """);
+
+        assertEquals(
+            "DynamicBiomes reload failed. See the server log for details.",
+            server.executeConsole("dynamicbiomes", "reload").getSender().nextMessage()
+        );
+        assertEquals("Current season: minecraft:spring", currentSeason());
+
+        Path profiles = dataFolder.resolve("season-profiles.yml");
+        Files.writeString(profiles, Files.readString(profiles) + """
+              test:monsoon:
+                climate-adjustment:
+                  temperature: 0.1
+                  humidity: 0.2
+            """);
+        assertEquals(
+            "DynamicBiomes configuration reloaded.",
+            server.executeConsole("dynamicbiomes", "reload").getSender().nextMessage()
+        );
+        assertEquals(
+            "Current season: test:monsoon",
+            server.executeConsole("dynamicbiomes", "season", "set", "test:monsoon").getSender().nextMessage()
+        );
+        assertTrue(Files.readString(dataFolder.resolve("season-state.yml")).contains("test:monsoon"));
+
+        Files.writeString(dataFolder.resolve("season-cycle.yml"), """
+            calendar: [minecraft:spring, minecraft:summer]
+            advancement:
+              enabled: false
+              initial-delay-ticks: 5
+              interval-ticks: 7
+            """);
+        assertEquals(
+            "DynamicBiomes reload failed. See the server log for details.",
+            server.executeConsole("dynamicbiomes", "reload").getSender().nextMessage()
+        );
+        assertEquals("Current season: test:monsoon", currentSeason());
     }
 
     @Test
@@ -263,6 +403,25 @@ class DynamicBiomesPluginTest {
                 exception
             );
         }
+    }
+
+    private String currentSeason() {
+        return server.executeConsole("dynamicbiomes", "season").getSender().nextMessage();
+    }
+
+    private List<RepeatingTask> seasonAdvancementTasks() {
+        return scheduledTasks().stream()
+            .filter(RepeatingTask.class::isInstance)
+            .map(RepeatingTask.class::cast)
+            .filter(task -> SEASON_ADVANCEMENT_TASK_CLASS_NAME.equals(task.getRunnable().getClass().getName()))
+            .toList();
+    }
+
+    private static List<Listener> listenersFor(Plugin plugin) {
+        return HandlerList.getRegisteredListeners(plugin).stream()
+            .map(registeredListener -> registeredListener.getListener())
+            .distinct()
+            .toList();
     }
 
     private static final class MessageRecordingHandler extends Handler {

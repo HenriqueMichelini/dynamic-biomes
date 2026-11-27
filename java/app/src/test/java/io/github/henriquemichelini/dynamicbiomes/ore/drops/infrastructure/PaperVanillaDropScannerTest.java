@@ -2,11 +2,12 @@ package io.github.henriquemichelini.dynamicbiomes.ore.drops.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Proxy;
 import java.util.List;
 import org.bukkit.Material;
+import org.bukkit.entity.Item;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
 
@@ -15,78 +16,59 @@ class PaperVanillaDropScannerTest {
     private final PaperVanillaDropScanner scanner = new PaperVanillaDropScanner();
 
     @Test
-    void detectsWhenVanillaDropsContainOriginalOreBlock() {
+    void detectsOriginalOreBlockEvenWhenOtherItemsWouldDrop() {
         PaperVanillaDropScan scan = scanner.scan(
-            List.of(new FakeItemStack(Material.IRON_ORE)),
+            List.of(drop(Material.RAW_IRON, 2), drop(Material.IRON_ORE, 1)),
             Material.IRON_ORE
         );
 
-        assertFalse(scan.empty());
         assertTrue(scan.wouldDropOriginalBlock());
-        assertEquals(1, scan.quantity());
     }
 
     @Test
-    void sumsVanillaDropQuantityAndKeepsRepresentativeDropCopy() {
-        FakeItemStack firstDrop = new FakeItemStack(Material.RAW_IRON, 2);
+    void sumsOnlyExpectedOreProductAndKeepsItsEntities() {
+        Item firstOreDrop = drop(Material.RAW_IRON, 2);
+        Item secondOreDrop = drop(Material.RAW_IRON, 3);
 
         PaperVanillaDropScan scan = scanner.scan(
-            List.of(firstDrop, new FakeItemStack(Material.RAW_IRON, 3)),
-            Material.IRON_ORE
+            List.of(firstOreDrop, drop(Material.TORCH, 4), secondOreDrop),
+            Material.DEEPSLATE_IRON_ORE
         );
 
-        ItemStack representativeDrop = scan.representativeDrop().orElseThrow();
-
-        assertFalse(scan.empty());
         assertFalse(scan.wouldDropOriginalBlock());
         assertEquals(5, scan.quantity());
-        assertEquals(Material.RAW_IRON, representativeDrop.getType());
-        assertEquals(2, representativeDrop.getAmount());
-        assertNotSame(firstDrop, representativeDrop);
+        assertEquals(List.of(firstOreDrop, secondOreDrop), scan.oreItems());
     }
 
     @Test
-    void reportsNoRepresentativeDropForEmptyVanillaDrops() {
+    void emptyCapturedDropsHaveZeroQuantity() {
         PaperVanillaDropScan scan = scanner.scan(List.of(), Material.IRON_ORE);
 
-        assertTrue(scan.empty());
         assertFalse(scan.wouldDropOriginalBlock());
         assertEquals(0, scan.quantity());
-        assertTrue(scan.representativeDrop().isEmpty());
+        assertTrue(scan.oreItems().isEmpty());
     }
 
-    private static final class FakeItemStack extends ItemStack {
-        private final Material type;
-        private int amount;
+    private static Item drop(Material material, int amount) {
+        ItemStack stack = new ItemStack() {
+            @Override
+            public Material getType() {
+                return material;
+            }
 
-        FakeItemStack(Material type) {
-            this(type, 1);
-        }
-
-        FakeItemStack(Material type, int amount) {
-            super();
-            this.type = type;
-            this.amount = amount;
-        }
-
-        @Override
-        public Material getType() {
-            return type;
-        }
-
-        @Override
-        public int getAmount() {
-            return amount;
-        }
-
-        @Override
-        public void setAmount(int amount) {
-            this.amount = amount;
-        }
-
-        @Override
-        public ItemStack clone() {
-            return new FakeItemStack(type, amount);
-        }
+            @Override
+            public int getAmount() {
+                return amount;
+            }
+        };
+        return (Item) Proxy.newProxyInstance(
+            Item.class.getClassLoader(),
+            new Class<?>[] { Item.class },
+            (proxy, method, arguments) -> {
+                if (method.getName().equals("getItemStack")) return stack;
+                if (method.getName().equals("equals")) return proxy == arguments[0];
+                return null;
+            }
+        );
     }
 }

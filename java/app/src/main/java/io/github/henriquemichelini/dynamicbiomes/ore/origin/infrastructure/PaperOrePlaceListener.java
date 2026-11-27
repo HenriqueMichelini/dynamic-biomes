@@ -6,6 +6,7 @@ import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 
@@ -16,20 +17,25 @@ public final class PaperOrePlaceListener implements Listener {
         this.originTracking = originTracking;
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         Block block = event.getBlockPlaced();
-        if (!PaperOreMaterialMapper.isSupportedOre(block.getType())) {
+        if (!event.canBuild() || !PaperOreMaterialMapper.isSupportedOre(block.getType())) {
             return;
         }
 
-        originTracking.recordPlayerPlacedOre(
-            new BlockPosition(
-                new WorldReference(block.getWorld().getUID()),
-                block.getX(),
-                block.getY(),
-                block.getZ()
-            )
+        BlockPosition position = new BlockPosition(
+            new WorldReference(block.getWorld().getUID()),
+            block.getX(),
+            block.getY(),
+            block.getZ()
         );
+        try {
+            originTracking.recordPlayerPlacedOre(position);
+        } catch (RuntimeException failure) {
+            // An ore placement must not proceed without its committed origin.
+            event.setCancelled(true);
+            throw failure;
+        }
     }
 }

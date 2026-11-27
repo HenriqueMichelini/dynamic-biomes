@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.origin.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.application.OreOriginTrackingService;
@@ -10,6 +11,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import java.lang.reflect.Proxy;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -68,6 +70,29 @@ class PaperOrePlaceListenerTest {
         assertTrue(repository.findByPosition(POSITION).isEmpty());
     }
 
+    @Test
+    void ignoresPlacementWhenThePlayerCannotBuild() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        BlockPlaceEvent event = eventFor(Material.IRON_ORE);
+        event.setBuild(false);
+
+        listener(repository).onBlockPlace(event);
+
+        assertTrue(repository.findByPosition(POSITION).isEmpty());
+    }
+
+    @Test
+    void cancelsOrePlacementWhenItsOriginCannotBePersisted() {
+        InMemoryOreOriginRepository repository = new InMemoryOreOriginRepository();
+        repository.failWrites = true;
+        BlockPlaceEvent event = eventFor(Material.IRON_ORE);
+
+        assertThrows(IllegalStateException.class, () -> listener(repository).onBlockPlace(event));
+
+        assertTrue(event.isCancelled());
+        assertTrue(repository.findByPosition(POSITION).isEmpty());
+    }
+
     private static PaperOrePlaceListener listener(OreOriginRepository repository) {
         return new PaperOrePlaceListener(new OreOriginTrackingService(repository));
     }
@@ -110,9 +135,11 @@ class PaperOrePlaceListenerTest {
     private static final class InMemoryOreOriginRepository
         implements OreOriginRepository {
         private final Map<BlockPosition, OreOrigin> origins = new HashMap<>();
+        private boolean failWrites;
 
         @Override
         public void save(OreOrigin origin) {
+            if (failWrites) throw new IllegalStateException("Origin storage unavailable");
             origins.put(origin.position(), origin);
         }
 
@@ -124,6 +151,15 @@ class PaperOrePlaceListenerTest {
         @Override
         public void removeByPosition(BlockPosition position) {
             origins.remove(position);
+        }
+
+        @Override
+        public void applyChanges(
+            Collection<BlockPosition> removedPositions,
+            Collection<OreOrigin> savedOrigins
+        ) {
+            removedPositions.forEach(this::removeByPosition);
+            savedOrigins.forEach(this::save);
         }
     }
 }

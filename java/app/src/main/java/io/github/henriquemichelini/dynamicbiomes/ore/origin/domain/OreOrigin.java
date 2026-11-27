@@ -11,6 +11,6 @@ public record OreOrigin(
     }
 
     public boolean isEligibleForBiomeBasedMultiplier() {
-        return type == OreOriginType.NATURAL;
+        return type.isEligibleForBiomeBasedMultiplier();
     }
 }

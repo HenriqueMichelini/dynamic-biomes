@@ -4,7 +4,12 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOrigin;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginRepository;
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public final class OreOriginTrackingService {
     private final OreOriginRepository repository;
@@ -18,9 +23,11 @@ public final class OreOriginTrackingService {
     }
 
     public boolean isEligibleForBiomeMultiplier(BlockPosition position) {
-        return repository.findByPosition(position)
-            .map(OreOrigin::isEligibleForBiomeBasedMultiplier)
-            .orElse(true);
+        return originTypeAt(position).isEligibleForBiomeBasedMultiplier();
+    }
+
+    public OreOriginType originTypeAt(BlockPosition position) {
+        return originAt(position).map(OreOrigin::type).orElse(OreOriginType.NATURAL);
     }
 
     public Optional<OreOrigin> originAt(BlockPosition position) {
@@ -32,9 +39,19 @@ public final class OreOriginTrackingService {
     }
 
     public void moveTrackedOrigin(BlockPosition from, BlockPosition to) {
-        repository.findByPosition(from).ifPresent(origin -> {
-            repository.removeByPosition(from);
-            repository.save(new OreOrigin(to, origin.type()));
-        });
+        moveTrackedOrigins(Map.of(from, to));
+    }
+
+    public void moveTrackedOrigins(Map<BlockPosition, BlockPosition> movements) {
+        if (movements.isEmpty()) return;
+
+        Set<BlockPosition> affectedPositions = new HashSet<>(movements.keySet());
+        affectedPositions.addAll(movements.values());
+
+        List<OreOrigin> transferredOrigins = new ArrayList<>();
+        movements.forEach((source, destination) -> originAt(source).ifPresent(origin ->
+            transferredOrigins.add(new OreOrigin(destination, origin.type()))
+        ));
+        repository.applyChanges(affectedPositions, transferredOrigins);
     }
 }

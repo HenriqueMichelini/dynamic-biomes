@@ -1,6 +1,7 @@
 package io.github.henriquemichelini.dynamicbiomes.ore.origin.domain;
 
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface OreOriginRepository {
@@ -9,4 +10,6 @@ public interface OreOriginRepository {
     Optional<OreOrigin> findByPosition(BlockPosition position);
 
     void removeByPosition(BlockPosition position);
+
+    void applyChanges(Collection<BlockPosition> removedPositions, Collection<OreOrigin> savedOrigins);
 }

@@ -10,6 +10,7 @@ import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginRepo
 import io.github.henriquemichelini.dynamicbiomes.ore.origin.domain.OreOriginType;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -209,6 +210,15 @@ class OreOriginTrackingServiceTest {
         @Override
         public void removeByPosition(BlockPosition position) {
             origins.remove(position);
+        }
+
+        @Override
+        public void applyChanges(
+            Collection<BlockPosition> removedPositions,
+            Collection<OreOrigin> savedOrigins
+        ) {
+            removedPositions.forEach(this::removeByPosition);
+            savedOrigins.forEach(this::save);
         }
     }
 }

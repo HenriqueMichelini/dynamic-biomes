@@ -36,6 +36,10 @@ public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
 
     @Override
     public OreDropPolicy policyFor(BiomeId biomeId) {
+        return load().policyFor(biomeId);
+    }
+
+    public OreDropPolicyProvider load() {
         Map<?, ?> root = loadRoot();
         Map<BiomeId, OreDropPolicy> policies = new LinkedHashMap<>();
 
@@ -55,6 +59,14 @@ public final class YamlOreDropPolicyProvider implements OreDropPolicyProvider {
             }
         }
 
+        Map<BiomeId, OreDropPolicy> snapshot = Map.copyOf(policies);
+        return biomeId -> policyFrom(snapshot, biomeId);
+    }
+
+    private static OreDropPolicy policyFrom(
+        Map<BiomeId, OreDropPolicy> policies,
+        BiomeId biomeId
+    ) {
         OreDropPolicy policy = policies.get(biomeId);
         if (policy == null) {
             throw new UnsupportedOreDropConfigurationException(

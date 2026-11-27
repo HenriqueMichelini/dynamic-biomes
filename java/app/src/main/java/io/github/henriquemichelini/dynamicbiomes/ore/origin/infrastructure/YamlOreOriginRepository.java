@@ -10,7 +10,9 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,23 +37,33 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
 
     @Override
     public void save(OreOrigin origin) {
-        ensureLoaded();
-        origins.put(origin.position(), origin);
-        writeOrigins();
+        applyChanges(List.of(), List.of(origin));
     }
 
     @Override
-    public Optional<OreOrigin> findByPosition(BlockPosition position) {
+    public synchronized Optional<OreOrigin> findByPosition(BlockPosition position) {
         ensureLoaded();
         return Optional.ofNullable(origins.get(position));
     }
 
     @Override
     public void removeByPosition(BlockPosition position) {
+        applyChanges(List.of(position), List.of());
+    }
+
+    @Override
+    public synchronized void applyChanges(
+        Collection<BlockPosition> removedPositions,
+        Collection<OreOrigin> savedOrigins
+    ) {
         ensureLoaded();
-        if (origins.remove(position) != null) {
-            writeOrigins();
-        }
+        if (savedOrigins.isEmpty() && removedPositions.stream().noneMatch(origins::containsKey)) return;
+
+        Map<BlockPosition, OreOrigin> updated = new LinkedHashMap<>(origins);
+        removedPositions.forEach(updated::remove);
+        savedOrigins.forEach(origin -> updated.put(origin.position(), origin));
+        writeOrigins(updated);
+        origins = updated;
     }
 
     private void ensureLoaded() {
@@ -64,18 +76,17 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
             return;
         }
 
+        Map<BlockPosition, OreOrigin> loadedOrigins = new LinkedHashMap<>();
         try (Reader reader = Files.newBufferedReader(repositoryFile)) {
             Object loaded = yaml().load(reader);
             Map<?, ?> root = requiredMap(loaded, "repository root");
             List<?> entries = requiredList(root.get(ORIGINS_KEY), ORIGINS_KEY);
-            origins = new LinkedHashMap<>();
-
             for (int index = 0; index < entries.size(); index++) {
                 OreOrigin origin = parseOrigin(
                     requiredMap(entries.get(index), "origins[" + index + "]"),
                     index
                 );
-                if (origins.put(origin.position(), origin) != null) {
+                if (loadedOrigins.put(origin.position(), origin) != null) {
                     throw invalid(
                         "duplicate position at origins[" + index + "]"
                     );
@@ -87,6 +98,7 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
                 exception
             );
         }
+        origins = loadedOrigins;
     }
 
     private OreOrigin parseOrigin(Map<?, ?> entry, int index) {
@@ -118,9 +130,9 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
         return new OreOrigin(position, type);
     }
 
-    private void writeOrigins() {
+    private void writeOrigins(Map<BlockPosition, OreOrigin> updated) {
         List<Map<String, Object>> entries = new ArrayList<>();
-        for (OreOrigin origin : origins.values()) {
+        for (OreOrigin origin : updated.values()) {
             BlockPosition position = origin.position();
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("world", position.world().id().toString());
@@ -134,12 +146,24 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put(ORIGINS_KEY, entries);
         try {
-            Path parent = repositoryFile.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            try (Writer writer = Files.newBufferedWriter(repositoryFile)) {
-                yaml().dump(root, writer);
+            Path target = repositoryFile.toAbsolutePath();
+            Path parent = target.getParent();
+            Files.createDirectories(parent);
+            Path staged = Files.createTempFile(parent, ".ore-origins-", ".tmp");
+            boolean committed = false;
+            try {
+                try (Writer writer = Files.newBufferedWriter(staged)) {
+                    yaml().dump(root, writer);
+                }
+                Files.move(
+                    staged,
+                    target,
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING
+                );
+                committed = true;
+            } finally {
+                if (!committed) Files.deleteIfExists(staged);
             }
         } catch (IOException exception) {
             throw new IllegalStateException(
@@ -151,6 +175,7 @@ public final class YamlOreOriginRepository implements OreOriginRepository {
 
     private static Yaml yaml() {
         LoaderOptions loaderOptions = new LoaderOptions();
+        loaderOptions.setAllowDuplicateKeys(false);
         DumperOptions options = new DumperOptions();
         options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
         return new Yaml(
