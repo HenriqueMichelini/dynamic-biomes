@@ -109,11 +109,12 @@ class CropGrowthInspectDiagnosticTest {
                 "Crop environmental solar incidence: actual=0.5, preferred=0.5",
                 "Crop environmental soil fertility: actual=0.5, preferred=0.5",
                 "Crop performance overall score: 1.0",
-                "Crop growth speed factor: 1.0 (not used by natural growth listener)",
+                "Crop growth speed factor: 1.0 (age-stage multiplier after the chance check)",
                 "Crop growth chance factor: 1.0",
                 "Harvest quantity factor: 1.0",
                 "Effective wheat growth chance before performance: 0.25",
                 "Performance-adjusted wheat growth chance: 0.25",
+                "Effective wheat chance to advance at least one stage: 0.25",
                 "May cancel natural growth: yes",
                 "Wheat yield policy: supported",
                 "Configured wheat yield multiplier range: 1.0—1.0",
@@ -168,11 +169,12 @@ class CropGrowthInspectDiagnosticTest {
                 "Crop environmental solar incidence: actual=0.5, preferred=0.5",
                 "Crop environmental soil fertility: actual=0.5, preferred=0.5",
                 "Crop performance overall score: 1.0",
-                "Crop growth speed factor: 1.0 (not used by natural growth listener)",
+                "Crop growth speed factor: 1.0 (age-stage multiplier after the chance check)",
                 "Crop growth chance factor: 1.0",
                 "Harvest quantity factor: 1.0",
                 "Effective carrot growth chance before performance: 0.2",
                 "Performance-adjusted carrot growth chance: 0.2",
+                "Effective carrot chance to advance at least one stage: 0.2",
                 "May cancel natural growth: yes",
                 "Carrot yield policy: supported",
                 "Configured carrot yield multiplier range: 1.0—1.0",
@@ -227,11 +229,12 @@ class CropGrowthInspectDiagnosticTest {
                 "Crop environmental solar incidence: actual=0.5, preferred=0.5",
                 "Crop environmental soil fertility: actual=0.5, preferred=0.5",
                 "Crop performance overall score: 1.0",
-                "Crop growth speed factor: 1.0 (not used by natural growth listener)",
+                "Crop growth speed factor: 1.0 (age-stage multiplier after the chance check)",
                 "Crop growth chance factor: 1.0",
                 "Harvest quantity factor: 1.0",
                 "Effective wheat growth chance before performance: 1.0",
                 "Performance-adjusted wheat growth chance: 1.0",
+                "Effective wheat chance to advance at least one stage: 1.0",
                 "May cancel natural growth: no",
                 "Wheat yield policy: supported",
                 "Configured wheat yield multiplier range: 1.0—1.0",
@@ -286,11 +289,12 @@ class CropGrowthInspectDiagnosticTest {
                 "Crop environmental solar incidence: actual=0.5, preferred=0.5",
                 "Crop environmental soil fertility: actual=0.5, preferred=0.5",
                 "Crop performance overall score: 1.0",
-                "Crop growth speed factor: 1.0 (not used by natural growth listener)",
+                "Crop growth speed factor: 1.0 (age-stage multiplier after the chance check)",
                 "Crop growth chance factor: 1.0",
                 "Harvest quantity factor: 1.0",
                 "Effective wheat growth chance before performance: 0.75",
                 "Performance-adjusted wheat growth chance: 0.75",
+                "Effective wheat chance to advance at least one stage: 0.75",
                 "May cancel natural growth: yes",
                 "Wheat yield policy: supported",
                 "Configured wheat yield multiplier range: 1.0—1.0",
@@ -359,6 +363,11 @@ class CropGrowthInspectDiagnosticTest {
         );
         assertTrue(
             sender.messages.contains(
+                "Effective wheat chance to advance at least one stage: 0.3542013888888889"
+            )
+        );
+        assertTrue(
+            sender.messages.contains(
                 "Configured wheat yield multiplier range: 1.25—1.75"
             )
         );
@@ -409,7 +418,7 @@ class CropGrowthInspectDiagnosticTest {
     }
 
     @Test
-    void reportsUnsupportedPolicyAsVanillaFallback() {
+    void reportsVanillaFallbackWithoutSeasonOrPerformanceWhenBothCropRulesAreMissing() {
         RecordingSender sender = new RecordingSender();
         RecordingCurrentSeasonQuery currentSeasonQuery =
             new RecordingCurrentSeasonQuery(WINTER);
@@ -421,7 +430,17 @@ class CropGrowthInspectDiagnosticTest {
                     "Missing wheat growth policy for biome: " + biomeId.value()
                 );
             },
-            currentSeasonQuery
+            currentSeasonQuery,
+            seasonId -> {
+                throw new AssertionError("No season profile is needed without crop rules");
+            },
+            position -> {
+                throw new AssertionError("No environmental state is needed without crop rules");
+            },
+            cropKind -> {
+                throw new AssertionError("No performance profile is needed without crop rules");
+            },
+            biomeId -> yieldPolicyFor(CropKind.CARROTS, new CropYieldMultiplierRange(1.0, 1.0), Map.of())
         );
 
         boolean handled = diagnostic.inspect(
@@ -440,6 +459,49 @@ class CropGrowthInspectDiagnosticTest {
             sender.messages
         );
         assertEquals(0, currentSeasonQuery.queryCount);
+    }
+
+    @Test
+    void reportsConfiguredYieldWhenGrowthHasNoPolicy() {
+        RecordingSender sender = new RecordingSender();
+        RecordingCurrentSeasonQuery currentSeasonQuery = new RecordingCurrentSeasonQuery(SPRING);
+        CropGrowthInspectDiagnostic diagnostic = diagnostic(
+            position -> new BiomeContext(FOREST, profileFor(FOREST)),
+            (biomeId, cropKind) -> {
+                throw new UnsupportedCropGrowthPolicyException("Missing growth policy");
+            },
+            currentSeasonQuery,
+            seasonId -> new SeasonProfile(
+                seasonId,
+                new SeasonClimateAdjustment(new SeasonalAdjustment(0.0), new SeasonalAdjustment(0.0))
+            ),
+            position -> environmentalState(0.25, 0.25, 0.25, 0.25, 0.25, 0.25),
+            cropKind -> performanceProfileFor(cropKind, 0.5),
+            biomeId -> yieldPolicyFor(
+                CropKind.WHEAT,
+                new CropYieldMultiplierRange(1.0, 2.0),
+                Map.of(SPRING, new CropYieldSeasonalFactor(0.5))
+            )
+        );
+
+        assertTrue(diagnostic.inspect(sender.commandSender(), block(Material.WHEAT)));
+
+        assertEquals(
+            List.of(
+                "Current biome: minecraft:forest",
+                "DynamicBiomes profile: supported",
+                "Wheat growth policy: unsupported",
+                "May cancel natural growth: no (vanilla fallback)"
+            ),
+            sender.messages.subList(0, 4)
+        );
+        assertTrue(sender.messages.contains("Current season: minecraft:spring"));
+        assertTrue(sender.messages.contains("Wheat yield policy: supported"));
+        assertTrue(sender.messages.contains("Configured wheat yield multiplier range: 1.0—2.0"));
+        assertTrue(sender.messages.contains("Seasonal wheat yield factor: 0.5"));
+        assertTrue(sender.messages.contains("Harvest quantity factor: 0.75"));
+        assertTrue(sender.messages.contains("Effective wheat yield multiplier range: 0.375—0.75"));
+        assertEquals(1, currentSeasonQuery.queryCount);
     }
 
     @Test

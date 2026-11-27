@@ -5,23 +5,26 @@ import io.github.henriquemichelini.dynamicbiomes.crops.identity.infrastructure.P
 import io.github.henriquemichelini.dynamicbiomes.crops.yield.application.CropYieldService;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
-import java.util.Collection;
 import java.util.EnumMap;
+import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
+import java.util.WeakHashMap;
 import lombok.NonNull;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
-import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.Ageable;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.inventory.ItemStack;
 
 public final class PaperCropHarvestListener implements Listener {
@@ -43,11 +46,11 @@ public final class PaperCropHarvestListener implements Listener {
     );
 
     private final CropYieldService cropYieldService;
-    private final CropYieldDropper dropper;
     private final CropYieldActionBarNotifier actionBarNotifier;
+    private final Map<BlockDropItemEvent, YieldDelta> pendingFeedback = new WeakHashMap<>();
 
     public PaperCropHarvestListener(@NonNull CropYieldService cropYieldService) {
-        this(cropYieldService, World::dropItemNaturally, (player, message, color, tone) -> {
+        this(cropYieldService, (player, message, color, tone) -> {
             player.sendActionBar(Component.text(message, color));
             player.playSound(player.getLocation(), soundFor(tone), 1.0f, 1.0f);
         });
@@ -55,42 +58,39 @@ public final class PaperCropHarvestListener implements Listener {
 
     PaperCropHarvestListener(
         @NonNull CropYieldService cropYieldService,
-        @NonNull CropYieldDropper dropper,
         @NonNull CropYieldActionBarNotifier actionBarNotifier
     ) {
         this.cropYieldService = cropYieldService;
-        this.dropper = dropper;
         this.actionBarNotifier = actionBarNotifier;
     }
 
-    @EventHandler(ignoreCancelled = true)
-    public void onBlockBreak(BlockBreakEvent event) {
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockDrop(BlockDropItemEvent event) {
         if (event.isCancelled()) {
             return;
         }
 
-        Block block = event.getBlock();
+        BlockState harvestedState = event.getBlockState();
         CropKind cropKind = PaperCropMaterialMapper
-            .cropKindFor(block.getType())
+            .cropKindFor(harvestedState.getType())
             .orElse(null);
-        if (cropKind == null || !isMature(block)) {
+        if (cropKind == null || !isMature(harvestedState)) {
             return;
         }
 
-        Collection<ItemStack> vanillaDrops = block.getDrops(
-            event.getPlayer().getInventory().getItemInMainHand(),
-            event.getPlayer()
-        );
         Material produceMaterial = PRODUCE_MATERIALS.get(cropKind);
-        int vanillaProduceQuantity = vanillaDrops
-            .stream()
-            .filter(drop -> drop.getType() == produceMaterial)
-            .mapToInt(ItemStack::getAmount)
+        List<Item> capturedDrops = event.getItems();
+        List<Item> produceDrops = capturedDrops.stream()
+            .filter(drop -> drop.getItemStack().getType() == produceMaterial)
+            .toList();
+        int vanillaProduceQuantity = produceDrops.stream()
+            .mapToInt(drop -> drop.getItemStack().getAmount())
             .sum();
         if (vanillaProduceQuantity == 0) {
             return;
         }
 
+        Block block = event.getBlock();
         int adjustedProduceQuantity = cropYieldService.calculateProduceQuantity(
             new BlockPosition(
                 new WorldReference(block.getWorld().getUID()),
@@ -101,60 +101,89 @@ public final class PaperCropHarvestListener implements Listener {
             cropKind,
             vanillaProduceQuantity
         );
-        if (adjustedProduceQuantity == vanillaProduceQuantity) {
+        int delta = adjustedProduceQuantity - vanillaProduceQuantity;
+        if (delta == 0) {
             return;
         }
 
-        int delta = adjustedProduceQuantity - vanillaProduceQuantity;
+        if (delta > 0) {
+            addProduce(capturedDrops, produceDrops, delta);
+        } else {
+            removeProduce(capturedDrops, produceMaterial, -delta);
+        }
+        pendingFeedback.put(event, new YieldDelta(delta, produceMaterial));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void reportYieldDelta(BlockDropItemEvent event) {
+        YieldDelta change = pendingFeedback.remove(event);
+        if (change == null || event.isCancelled()) {
+            return;
+        }
+        int delta = change.amount();
         actionBarNotifier.send(
             event.getPlayer(),
-            formatDeltaMessage(delta, produceMaterial),
+            formatDeltaMessage(delta, change.material()),
             deltaColor(delta),
             deltaTone(delta)
         );
-        event.setDropItems(false);
-        ItemStack produceTemplate = null;
-        for (ItemStack vanillaDrop : vanillaDrops) {
-            if (vanillaDrop.getType() == produceMaterial) {
-                if (produceTemplate == null) {
-                    produceTemplate = vanillaDrop.clone();
-                }
+    }
+
+    private static boolean isMature(BlockState state) {
+        return state.getBlockData() instanceof Ageable ageable &&
+            ageable.getAge() == ageable.getMaximumAge();
+    }
+
+    private static void addProduce(List<Item> drops, List<Item> produceDrops, int remaining) {
+        for (Item item : produceDrops) {
+            ItemStack stack = item.getItemStack();
+            int added = Math.min(remaining, stack.getMaxStackSize() - stack.getAmount());
+            if (added <= 0) {
                 continue;
             }
-            dropper.drop(block.getWorld(), block.getLocation(), vanillaDrop.clone());
+            stack.setAmount(stack.getAmount() + added);
+            item.setItemStack(stack);
+            remaining -= added;
+            if (remaining == 0) {
+                return;
+            }
         }
-        if (adjustedProduceQuantity > 0 && produceTemplate != null) {
-            dropInBatches(
-                block.getWorld(),
-                block.getLocation(),
-                produceTemplate,
-                adjustedProduceQuantity
-            );
-        }
-    }
 
-    private static boolean isMature(Block block) {
-        if (!(block.getBlockData() instanceof Ageable ageable)) {
-            return false;
-        }
-        return ageable.getAge() == ageable.getMaximumAge();
-    }
-
-    private void dropInBatches(
-        World world,
-        Location location,
-        ItemStack template,
-        int quantity
-    ) {
-        int remaining = quantity;
-        int maxStackSize = template.getMaxStackSize();
+        Item source = produceDrops.getFirst();
+        ItemStack template = source.getItemStack();
+        int maximumStackSize = template.getMaxStackSize();
         while (remaining > 0) {
             ItemStack stack = template.clone();
-            stack.setAmount(Math.min(remaining, maxStackSize));
-            dropper.drop(world, location, stack);
+            stack.setAmount(Math.min(remaining, maximumStackSize));
+            Item extraDrop = source.getWorld().createEntity(source.getLocation(), Item.class);
+            extraDrop.setItemStack(stack);
+            extraDrop.setPickupDelay(source.getPickupDelay());
+            extraDrop.setVelocity(source.getVelocity());
+            drops.add(extraDrop);
             remaining -= stack.getAmount();
         }
     }
+
+    private static void removeProduce(List<Item> drops, Material material, int remaining) {
+        ListIterator<Item> iterator = drops.listIterator(drops.size());
+        while (remaining > 0 && iterator.hasPrevious()) {
+            Item item = iterator.previous();
+            ItemStack stack = item.getItemStack();
+            if (stack.getType() != material) {
+                continue;
+            }
+            int removed = Math.min(remaining, stack.getAmount());
+            if (removed == stack.getAmount()) {
+                iterator.remove();
+            } else {
+                stack.setAmount(stack.getAmount() - removed);
+                item.setItemStack(stack);
+            }
+            remaining -= removed;
+        }
+    }
+
+    private record YieldDelta(int amount, Material material) {}
 
     private static String formatDeltaMessage(int delta, Material material) {
         String produceName = material.name().toLowerCase().replace('_', ' ');
@@ -180,11 +209,6 @@ public final class PaperCropHarvestListener implements Listener {
             case NEGATIVE -> Sound.ITEM_WOLF_ARMOR_REPAIR;
         };
     }
-}
-
-@FunctionalInterface
-interface CropYieldDropper {
-    void drop(World world, Location location, ItemStack itemStack);
 }
 
 @FunctionalInterface

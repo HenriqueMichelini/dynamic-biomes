@@ -40,7 +40,7 @@ public final class CropYieldPolicy {
         return ruleFor(cropKind).seasonalFactorFor(seasonId);
     }
 
-    private CropYieldCropRule ruleFor(CropKind cropKind) {
+    public CropYieldCropRule ruleFor(CropKind cropKind) {
         CropYieldCropRule rule = cropRules.get(cropKind);
         if (rule == null) {
             throw new UnsupportedCropYieldPolicyException(

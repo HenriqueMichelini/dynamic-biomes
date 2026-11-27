@@ -41,7 +41,6 @@ class PluginResourcesTest {
     void cropYieldPolicyUsesItsCapabilityOwnedResourceName() throws IOException {
         String cropYieldPolicy = readResource("crop-yields.yml");
 
-        assertTrue(cropYieldPolicy.contains("minecraft:forest:"));
         assertTrue(cropYieldPolicy.contains("crops:"));
         assertTrue(cropYieldPolicy.contains("wheat:"));
         assertTrue(cropYieldPolicy.contains("multiplier:"));

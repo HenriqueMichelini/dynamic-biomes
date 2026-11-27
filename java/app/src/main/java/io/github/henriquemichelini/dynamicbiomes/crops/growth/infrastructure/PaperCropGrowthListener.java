@@ -8,6 +8,8 @@ import io.github.henriquemichelini.dynamicbiomes.spatial.domain.BlockPosition;
 import io.github.henriquemichelini.dynamicbiomes.spatial.domain.WorldReference;
 import lombok.NonNull;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.data.Ageable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockGrowEvent;
@@ -34,17 +36,37 @@ public final class PaperCropGrowthListener implements Listener {
             return;
         }
 
-        CropGrowthDecision decision = cropGrowthService.decideNaturalGrowth(
-            new BlockPosition(
-                new WorldReference(block.getWorld().getUID()),
-                block.getX(),
-                block.getY(),
-                block.getZ()
-            ),
-            cropKind
+        BlockPosition position = new BlockPosition(
+            new WorldReference(block.getWorld().getUID()),
+            block.getX(),
+            block.getY(),
+            block.getZ()
         );
-        if (decision == CropGrowthDecision.CANCEL_GROWTH) {
+
+        BlockState proposedState = event.getNewState();
+        // Paper reports both random ticks and bonemeal via BlockGrowEvent.
+        // Natural crop ticks propose exactly one stage on the same material.
+        if (!(block.getBlockData() instanceof Ageable current &&
+            proposedState.getBlockData() instanceof Ageable proposed &&
+            current.getMaterial() == proposed.getMaterial() &&
+            proposed.getAge() - current.getAge() == 1)) {
+            if (cropGrowthService.decideNaturalGrowth(position, cropKind) == CropGrowthDecision.CANCEL_GROWTH) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        int currentAge = current.getAge();
+        int stages = cropGrowthService.naturalGrowthStages(
+            position,
+            cropKind,
+            proposed.getMaximumAge() - currentAge
+        );
+        if (stages == 0) {
             event.setCancelled(true);
+        } else if (stages > 1) {
+            proposed.setAge(currentAge + stages);
+            proposedState.setBlockData(proposed);
         }
     }
 }

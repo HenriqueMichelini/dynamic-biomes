@@ -1,13 +1,13 @@
 package io.github.henriquemichelini.dynamicbiomes.crops.growth.infrastructure;
 
 import io.github.henriquemichelini.dynamicbiomes.biome.identity.domain.BiomeId;
-import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChance;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChanceVariationSource;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicy;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthPolicyProvider;
-import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthChanceVariationSource;
 import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.CropGrowthSeasonalFactor;
+import io.github.henriquemichelini.dynamicbiomes.crops.growth.domain.UnsupportedCropGrowthPolicyException;
+import io.github.henriquemichelini.dynamicbiomes.crops.identity.domain.CropKind;
 import io.github.henriquemichelini.dynamicbiomes.seasons.identity.domain.SeasonId;
 import java.io.IOException;
 import java.io.Reader;
@@ -24,100 +24,97 @@ public final class YamlCropGrowthPolicyProvider
     implements CropGrowthPolicyProvider {
 
     private static final String BIOMES_KEY = "biomes";
+    private static final String CROPS_KEY = "crops";
     private static final String GROWTH_CHANCE_KEY = "growth-chance";
     private static final String SEASONAL_FACTORS_KEY = "seasonal-factors";
 
-    private final Path policyFile;
-    private final CropGrowthChanceVariationSource variationSource;
-    private final Map<?, ?> root;
+    private final Map<CropKind, CropGrowthPolicy> defaults;
+    private final Map<BiomeId, Map<CropKind, CropGrowthPolicy>> biomePolicies;
 
     public YamlCropGrowthPolicyProvider(
         Path policyFile,
         CropGrowthChanceVariationSource variationSource
     ) {
-        this.policyFile = policyFile;
-        this.variationSource = variationSource;
-        this.root = loadRoot();
-        validateSupportedCropKeys(root);
+        Map<?, ?> root = loadRoot(policyFile);
+        if (!root.containsKey(CROPS_KEY) && !root.containsKey(BIOMES_KEY)) {
+            throw new IllegalArgumentException("Crop growth policy must define crops or biomes");
+        }
+        this.defaults = root.containsKey(CROPS_KEY)
+            ? parseCropPolicies(
+                requiredMap(root, CROPS_KEY, "crop growth policy root.crops"),
+                "crop growth policy root.crops",
+                variationSource
+            )
+            : Map.of();
+        this.biomePolicies = root.containsKey(BIOMES_KEY)
+            ? parseBiomePolicies(
+                requiredMap(root, BIOMES_KEY, "crop growth policy root.biomes"),
+                variationSource
+            )
+            : Map.of();
     }
 
     @Override
     public CropGrowthPolicy policyFor(BiomeId biomeId, CropKind cropKind) {
-        Map<?, ?> biomes = requiredMap(root, BIOMES_KEY, "crop growth policy root.biomes");
-
-        for (Map.Entry<?, ?> biomeEntry : biomes.entrySet()) {
-            BiomeId configuredBiomeId = new BiomeId(
-                requiredKey(biomeEntry.getKey(), "biome policy key")
-            );
-            Map<?, ?> policy = requiredMapValue(
-                biomeEntry.getValue(),
-                "policy '" + configuredBiomeId.value() + "'"
-            );
-            rejectUnsupportedCropKeys(
-                policy,
-                "policy '" + configuredBiomeId.value() + "'"
-            );
-            if (configuredBiomeId.equals(biomeId)) {
-                return parsePolicy(configuredBiomeId, policy, cropKind);
-            }
+        CropGrowthPolicy policy = biomePolicies.getOrDefault(biomeId, Map.of()).get(cropKind);
+        if (policy == null) {
+            policy = defaults.get(cropKind);
         }
-
-        throw new UnsupportedCropGrowthPolicyException(
-            "Missing " +
-                cropKind.policyKey() +
-                " growth policy for biome: " +
-                biomeId.value()
-        );
-    }
-
-    private static void validateSupportedCropKeys(Map<?, ?> root) {
-        Map<?, ?> biomes = requiredMap(root, BIOMES_KEY, "crop growth policy root.biomes");
-        for (Map.Entry<?, ?> biomeEntry : biomes.entrySet()) {
-            BiomeId configuredBiomeId = new BiomeId(
-                requiredKey(biomeEntry.getKey(), "biome policy key")
-            );
-            Map<?, ?> policy = requiredMapValue(
-                biomeEntry.getValue(),
-                "policy '" + configuredBiomeId.value() + "'"
-            );
-            rejectUnsupportedCropKeys(
-                policy,
-                "policy '" + configuredBiomeId.value() + "'"
-            );
-        }
-    }
-
-    private CropGrowthPolicy parsePolicy(
-        BiomeId biomeId,
-        Map<?, ?> policy,
-        CropKind cropKind
-    ) {
-        String policyPath = "policy '" + biomeId.value() + "'";
-        if (!policy.containsKey(cropKind.policyKey())) {
+        if (policy == null) {
             throw new UnsupportedCropGrowthPolicyException(
-                "Missing " +
-                    cropKind.policyKey() +
-                    " growth policy for biome: " +
-                    biomeId.value()
+                "Missing " + cropKind.policyKey() + " growth policy for biome: " + biomeId.value()
             );
         }
-        Map<?, ?> cropPolicy = requiredMap(
-            policy,
-            cropKind.policyKey(),
-            policyPath + "." + cropKind.policyKey()
-        );
-        double chance = requiredNumber(
-            cropPolicy,
-            GROWTH_CHANCE_KEY,
-            policyPath + "." + cropKind.policyKey() + ".growth-chance"
-        );
-        Map<SeasonId, CropGrowthSeasonalFactor> seasonalFactors =
-            parseSeasonalFactors(cropPolicy, policyPath + "." + cropKind.policyKey());
-        return new CropGrowthPolicy(
-            new CropGrowthChance(chance),
-            seasonalFactors,
-            variationSource
-        );
+        return policy;
+    }
+
+    private static Map<BiomeId, Map<CropKind, CropGrowthPolicy>> parseBiomePolicies(
+        Map<?, ?> biomes,
+        CropGrowthChanceVariationSource variationSource
+    ) {
+        Map<BiomeId, Map<CropKind, CropGrowthPolicy>> policies = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : biomes.entrySet()) {
+            BiomeId biomeId = new BiomeId(requiredKey(entry.getKey(), "biome policy key"));
+            String path = "policy '" + biomeId.value() + "'";
+            policies.put(
+                biomeId,
+                parseCropPolicies(requiredMapValue(entry.getValue(), path), path, variationSource)
+            );
+        }
+        return Map.copyOf(policies);
+    }
+
+    private static Map<CropKind, CropGrowthPolicy> parseCropPolicies(
+        Map<?, ?> crops,
+        String policyPath,
+        CropGrowthChanceVariationSource variationSource
+    ) {
+        Map<CropKind, CropGrowthPolicy> policies = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : crops.entrySet()) {
+            String cropKey = requiredKey(entry.getKey(), policyPath + " crop key");
+            CropKind cropKind = CropKind.fromPolicyKey(cropKey).orElseThrow(() ->
+                new IllegalArgumentException(
+                    "Unsupported crop growth policy key in " + policyPath + ": " + cropKey
+                )
+            );
+            String cropPath = policyPath + "." + cropKey;
+            Map<?, ?> cropPolicy = requiredMapValue(entry.getValue(), cropPath);
+            CropGrowthChance chance = new CropGrowthChance(
+                requiredNumberValue(
+                    cropPolicy.get(GROWTH_CHANCE_KEY),
+                    cropPath + ".growth-chance"
+                )
+            );
+            policies.put(
+                cropKind,
+                new CropGrowthPolicy(
+                    chance,
+                    parseSeasonalFactors(cropPolicy, cropPath),
+                    variationSource
+                )
+            );
+        }
+        return Map.copyOf(policies);
     }
 
     private static Map<SeasonId, CropGrowthSeasonalFactor> parseSeasonalFactors(
@@ -156,25 +153,7 @@ public final class YamlCropGrowthPolicyProvider
         return result;
     }
 
-    private static void rejectUnsupportedCropKeys(
-        Map<?, ?> policy,
-        String policyPath
-    ) {
-        for (Object key : policy.keySet()) {
-            if (!isSupportedCropKey(key)) {
-                throw new IllegalArgumentException(
-                    "Unsupported crop growth policy key in " + policyPath + ": " + key
-                );
-            }
-        }
-    }
-
-    private static boolean isSupportedCropKey(Object key) {
-        return key instanceof String stringKey &&
-            CropKind.fromPolicyKey(stringKey).isPresent();
-    }
-
-    private Map<?, ?> loadRoot() {
+    private static Map<?, ?> loadRoot(Path policyFile) {
         LoaderOptions loaderOptions = new LoaderOptions();
         loaderOptions.setAllowDuplicateKeys(false);
         Yaml yaml = new Yaml(new SafeConstructor(loaderOptions));
@@ -226,14 +205,6 @@ public final class YamlCropGrowthPolicyProvider
             );
         }
         return stringKey;
-    }
-
-    private static double requiredNumber(
-        Map<?, ?> parent,
-        String key,
-        String description
-    ) {
-        return requiredNumberValue(parent.get(key), description);
     }
 
     private static double requiredNumberValue(
